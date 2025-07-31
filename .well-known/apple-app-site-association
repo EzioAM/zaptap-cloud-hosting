@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "QH729XYMW4.com.zaptap.app",
+        "paths": [
+          "/automation/*",
+          "/share/*",
+          "/app/*",
+          "*"
+        ]
+      }
+    ]
+  }
+}
