@@ -101,14 +101,15 @@
 
     <script>
         // Handle deep links from web
-        const urlParams = new URLSearchParams(window.location.search);
-        const automation = urlParams.get('automation');
-        const share = urlParams.get('share');
-        
-        if (automation || share) {
-            // Try to open the app
-            const deepLink = `zaptap://automation/${automation || share}`;
-            window.location.href = deepLink;
+  const urlParams = new URLSearchParams(window.location.search);
+  const automation = urlParams.get('automation');
+  const share = urlParams.get('share');
+  const shared = urlParams.get('shared');
+
+  if (automation || share || shared) {
+      // Try to open the app
+      const deepLink = `zaptap://automation/${automation || share || shared}`;
+      window.location.href = deepLink;
             
             // Fallback to app store after delay
             setTimeout(() => {
