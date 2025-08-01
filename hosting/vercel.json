@@ -1,0 +1,40 @@
+{
+  "headers": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/automation/(.*)",
+      "destination": "/index.html?automation=$1"
+    },
+    {
+      "source": "/share/(.*)",
+      "destination": "/index.html?share=$1"
+    },
+    {
+      "source": "/shared/(.*)",
+      "destination": "/index.html?shared=$1"
+    },
+    {
+      "source": "/app/(.*)",
+      "destination": "/index.html?app=$1"
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zaptap - Smart Automation</title>
+    <meta name="description" content="Zaptap - Create and share powerful automations with NFC tags and QR codes">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #6200ee 0%, #03dac6 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            max-width: 500px;
+            padding: 2rem;
+        }
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        .tagline {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        .download-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .download-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        .download-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .features {
+            margin-top: 3rem;
+            text-align: left;
+        }
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+        }
+        .feature-icon {
+            margin-right: 1rem;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📱 Zaptap</div>
+        <div class="tagline">Create and share powerful automations with NFC tags and QR codes</div>
+        
+        <div class="download-buttons">
+            <a href="#" class="download-btn">📱 Download iOS App</a>
+            <a href="#" class="download-btn">🤖 Download Android App</a>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🏷️</div>
+                <div>Write automations to NFC tags</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📊</div>
+                <div>Generate QR codes for sharing</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <div>Lightning-fast automation execution</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔒</div>
+                <div>Secure and private by design</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Handle deep links from web
+        const urlParams = new URLSearchParams(window.location.search);
+        const automation = urlParams.get('automation');
+        const share = urlParams.get('share');
+        const shared = urlParams.get('shared');
+        
+        if (automation || share || shared) {
+            // Try to open the app
+            const deepLink = `zaptap://automation/${automation || share || shared}`;
+            window.location.href = deepLink;
+            
+            // Fallback to app store after delay
+            setTimeout(() => {
+                if (navigator.userAgent.match(/iPhone|iPad|iPod/)) {
+                    window.location.href = 'https://apps.apple.com/app/zaptap';
+                } else if (navigator.userAgent.match(/Android/)) {
+                    window.location.href = 'https://play.google.com/store/apps/details?id=com.zaptap.app';
+                }
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
