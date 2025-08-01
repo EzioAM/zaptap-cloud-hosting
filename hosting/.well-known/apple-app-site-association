@@ -8,8 +8,7 @@
           "/automation/*",
           "/share/*",
           "/shared/*",
-          "/app/*",
-          "*"
+          "/app/*"
         ]
       }
     ]

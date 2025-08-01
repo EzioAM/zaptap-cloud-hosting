@@ -1,20 +1,440 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+  import { NavigationContainer } from '@react-navigation/native';
+  import { createNativeStackNavigator } from '@react-navigation/native-stack';
+  import { Provider as PaperProvider } from 'react-native-paper';
+  import { Provider as ReduxProvider } from 'react-redux';
+  import { PersistGate } from 'redux-persist/integration/react';
+  import {
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    View,
+    Button,
+    ActivityIndicator,
+    Pressable,
+    ScrollView,
+    RefreshControl,
+  } from 'react-native';
+  import { store, persistor } from './src/store';
+  import { useSelector } from 'react-redux';
+  import { RootState } from './src/store';
+  import SignInScreen from './src/screens/auth/SignInScreen';
+  import SignUpScreen from './src/screens/auth/SignUpScreen';
+  import AutomationBuilderScreen from './src/screens/automation/AutomationBuilderScreen';
+  import MyAutomationsScreen from './src/screens/automation/MyAutomationsScreen';
+  import GalleryScreen from './src/screens/automation/GalleryScreen';
+  import AutomationDetailsScreen from './src/screens/automation/AutomationDetailsScreen';
+import TemplatesScreen from './src/screens/automation/TemplatesScreen';
+import LocationTriggersScreen from './src/screens/automation/LocationTriggersScreen';
+import ReviewsScreen from './src/screens/automation/ReviewsScreen';
+import { linkingService } from './src/services/linking/LinkingService';
+import { RootStackParamList } from './src/types/navigation';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { SupabaseTestComponent } from './src/components/debug/SupabaseTestComponent';
+import { AutomationTestComponent } from './src/components/debug/AutomationTestComponent';
+import { APP_VERSION, APP_NAME, APP_TAGLINE } from './src/constants/version';
+import { VersionInfo } from './src/components/common/VersionInfo';
+import { RemoteDebugger } from './src/components/debug/RemoteDebugger';
 
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
+  const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
+
+  function HomeScreen({ navigation }: HomeScreenProps) {
+    const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+    const [refreshing, setRefreshing] = React.useState(false);
+
+    const onRefresh = React.useCallback(() => {
+      setRefreshing(true);
+      // Simulate refresh delay
+      setTimeout(() => {
+        setRefreshing(false);
+      }, 1000);
+    }, []);
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh}
+              colors={['#6200ee']} // Android
+              tintColor="#6200ee"  // iOS
+            />
+          }
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>⚡ {APP_NAME}</Text>
+            <VersionInfo showButton={true} buttonStyle={styles.version} />
+            <Text style={styles.subtitle}>{APP_TAGLINE}</Text>
+          </View>
+
+          <View style={styles.featureGrid}>
+            <Pressable 
+              style={styles.featureCard}
+              onPress={() => navigation.navigate('Gallery', { category: 'essentials' })}
+            >
+              <Text style={styles.featureIcon}>🤖</Text>
+              <Text style={styles.featureTitle}>Essentials</Text>
+              <Text style={styles.featureDesc}>Must-have automations</Text>
+            </Pressable>
+            <Pressable 
+              style={styles.featureCard}
+              onPress={() => navigation.navigate('Gallery', { category: 'productivity' })}
+            >
+              <Text style={styles.featureIcon}>💼</Text>
+              <Text style={styles.featureTitle}>Productivity</Text>
+              <Text style={styles.featureDesc}>Get more done</Text>
+            </Pressable>
+            <Pressable 
+              style={styles.featureCard}
+              onPress={() => navigation.navigate('Gallery', { category: 'emergency' })}
+            >
+              <Text style={styles.featureIcon}>🚨</Text>
+              <Text style={styles.featureTitle}>Emergency</Text>
+              <Text style={styles.featureDesc}>Safety tools</Text>
+            </Pressable>
+            <Pressable 
+              style={styles.featureCard}
+              onPress={() => navigation.navigate('Templates')}
+            >
+              <Text style={styles.featureIcon}>📝</Text>
+              <Text style={styles.featureTitle}>Templates</Text>
+              <Text style={styles.featureDesc}>Pre-built automations</Text>
+            </Pressable>
+            <Pressable 
+              style={styles.featureCard}
+              onPress={() => navigation.navigate('Gallery')}
+            >
+              <Text style={styles.featureIcon}>🏪</Text>
+              <Text style={styles.featureTitle}>Gallery</Text>
+              <Text style={styles.featureDesc}>Explore all automations</Text>
+            </Pressable>
+            <Pressable 
+              style={styles.featureCard}
+              onPress={() => navigation.navigate('LocationTriggers')}
+            >
+              <Text style={styles.featureIcon}>📍</Text>
+              <Text style={styles.featureTitle}>Location Triggers</Text>
+              <Text style={styles.featureDesc}>Location-based automation</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.actions}>
+            {!isAuthenticated ? (
+              <View style={styles.authSection}>
+                <Text style={styles.authPrompt}>Get started with automation</Text>
+                <View style={styles.authButtons}>
+                  <Button
+                    title="Sign Up"
+                    onPress={() => navigation.navigate('SignUp')}
+                    color="#6200ee"
+                  />
+                  <View style={styles.buttonSpacer} />
+                  <Button
+                    title="Sign In"
+                    onPress={() => navigation.navigate('SignIn')}
+                    color="#03dac6"
+                  />
+                </View>
+              </View>
+            ) : (
+              <View style={styles.userSection}>
+                <Text style={styles.welcomeText}>Welcome back, {user?.email?.split('@')[0]}! 👋</Text>
+                <View style={styles.actionButtons}>
+                  <View style={styles.primaryAction}>
+                    <Button
+                      title="🔧 Build Automation"
+                      onPress={() => navigation.navigate('AutomationBuilder')}
+                      color="#6200ee"
+                    />
+                  </View>
+                  <View style={styles.secondaryAction}>
+                    <Button
+                      title="📋 My Automations"
+                      onPress={() => navigation.navigate('MyAutomations')}
+                      color="#03dac6"
+                    />
+                  </View>
+                  <View style={styles.secondaryAction}>
+                    <Button
+                      title="📝 Templates"
+                      onPress={() => navigation.navigate('Templates')}
+                      color="#FF9800"
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.status}>
+            <Text style={styles.statusTitle}>System Status</Text>
+            <View style={styles.statusItems}>
+              <Text style={styles.statusText}>✅ Automation Engine</Text>
+              <Text style={styles.statusText}>✅ Cloud Storage</Text>
+              <Text style={styles.statusText}>✅ NFC & Location</Text>
+              {isAuthenticated && (
+                <Text style={styles.statusText}>✅ User Authenticated</Text>
+              )}
+            </View>
+          </View>
+
+          {/* Debug: Test Components (temporary) */}
+          {__DEV__ && (
+            <>
+              <View style={styles.debugSection}>
+                <Text style={styles.debugTitle}>🧪 Database Connection Test</Text>
+                <SupabaseTestComponent />
+              </View>
+              
+              <View style={[styles.debugSection, { backgroundColor: '#f0f8ff' }]}>
+                <Text style={[styles.debugTitle, { color: '#1e40af' }]}>⚡ Automation Engine Test</Text>
+                <AutomationTestComponent />
+              </View>
+            </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  function AppNavigator() {
+    const navigationRef = useRef(null);
+
+    useEffect(() => {
+      // Initialize linking service when navigation is ready
+      if (navigationRef.current) {
+        linkingService.initialize(navigationRef.current);
+      }
+    }, []);
+
+    return (
+      <>
+        <NavigationContainer ref={navigationRef}>
+          <Stack.Navigator initialRouteName="Home">
+          <Stack.Screen
+            name="Home"
+            component={HomeScreen}
+            options={{ title: APP_NAME }}
+          />
+          <Stack.Screen
+            name="SignIn"
+            component={SignInScreen}
+            options={{ title: 'Sign In' }}
+          />
+          <Stack.Screen
+            name="SignUp"
+            component={SignUpScreen}
+            options={{ title: 'Sign Up' }}
+          />
+          <Stack.Screen
+            name="AutomationBuilder"
+            component={AutomationBuilderScreen}
+            options={{ title: 'Build Automation' }}
+          />
+          <Stack.Screen
+            name="MyAutomations"
+            component={MyAutomationsScreen}
+            options={{ title: 'My Automations' }}
+          />
+          <Stack.Screen
+            name="Gallery"
+            component={GalleryScreen}
+            options={{ title: 'Gallery' }}
+          />
+          <Stack.Screen
+            name="AutomationDetails"
+            component={AutomationDetailsScreen}
+            options={{ title: 'Automation Details' }}
+          />
+          <Stack.Screen
+            name="Templates"
+            component={TemplatesScreen}
+            options={{ title: 'Templates' }}
+          />
+          <Stack.Screen
+            name="LocationTriggers"
+            component={LocationTriggersScreen}
+            options={{ title: 'Location Triggers' }}
+          />
+          <Stack.Screen
+            name="Reviews"
+            component={ReviewsScreen}
+            options={{ title: 'Reviews' }}
+          />
+        </Stack.Navigator>
+        </NavigationContainer>
+        <RemoteDebugger />
+      </>
+    );
+  }
+
+  export default function App() {
+    return (
+      <ReduxProvider store={store}>
+        <PersistGate loading={<ActivityIndicator />} persistor={persistor}>
+          <PaperProvider>
+            <AppNavigator />
+          </PaperProvider>
+        </PersistGate>
+      </ReduxProvider>
+    );
+  }
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#f8f9fa',
+    },
+    scrollView: {
+      flex: 1,
+    },
+    content: {
+      flexGrow: 1,
+      padding: 20,
+      paddingBottom: 40, // Add extra padding at bottom for better scrolling
+    },
+    header: {
+      alignItems: 'center',
+      marginBottom: 30,
+      paddingTop: 20,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: 'bold',
+      color: '#6200ee',
+      marginBottom: 5,
+    },
+    version: {
+      fontSize: 14,
+      color: '#03dac6',
+      fontWeight: '600',
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: '#666',
+      fontStyle: 'italic',
+    },
+    featureGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      marginBottom: 30,
+    },
+    featureCard: {
+      width: '48%',
+      backgroundColor: '#fff',
+      padding: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginBottom: 10,
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    featureIcon: {
+      fontSize: 24,
+      marginBottom: 8,
+    },
+    featureTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#333',
+      marginBottom: 4,
+    },
+    featureDesc: {
+      fontSize: 12,
+      color: '#666',
+      textAlign: 'center',
+    },
+    actions: {
+      marginBottom: 30,
+    },
+    authSection: {
+      alignItems: 'center',
+    },
+    authPrompt: {
+      fontSize: 18,
+      color: '#333',
+      marginBottom: 20,
+      textAlign: 'center',
+    },
+    authButtons: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      width: '100%',
+    },
+    userSection: {
+      alignItems: 'center',
+    },
+    welcomeText: {
+      fontSize: 20,
+      color: '#333',
+      fontWeight: '600',
+      marginBottom: 20,
+      textAlign: 'center',
+    },
+    actionButtons: {
+      width: '100%',
+    },
+    primaryAction: {
+      marginBottom: 12,
+    },
+    secondaryAction: {
+      marginBottom: 12,
+    },
+    buttonSpacer: {
+      width: 16,
+    },
+    status: {
+      backgroundColor: '#fff',
+      padding: 16,
+      borderRadius: 12,
+      elevation: 1,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+    },
+    statusTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#333',
+      marginBottom: 12,
+      textAlign: 'center',
+    },
+    statusItems: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+    },
+    statusText: {
+      fontSize: 12,
+      color: '#4CAF50',
+      marginHorizontal: 8,
+      marginBottom: 4,
+    },
+    debugSection: {
+      marginTop: 30,
+      backgroundColor: '#fff3cd',
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: '#ffeaa7',
+    },
+    debugTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#856404',
+      marginBottom: 12,
+      textAlign: 'center',
+    },
+  });
