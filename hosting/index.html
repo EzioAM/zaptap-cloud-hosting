@@ -79,20 +79,139 @@
         const automation = urlParams.get('automation');
         const share = urlParams.get('share');
         const shared = urlParams.get('shared');
+        const link = urlParams.get('link');
+        const run = urlParams.get('run');
+        const emergency = urlParams.get('emergency');
         
-        if (automation || share || shared) {
-            // Try to open the app
-            const deepLink = `zaptap://automation/${automation || share || shared}`;
-            window.location.href = deepLink;
+        const automationId = automation || share || shared || link || run || emergency;
+        
+        if (automationId) {
+            // For /link/, /run/, and /emergency/ routes, show a loading screen while we try the app
+            if (link || run || emergency) {
+                showAutomationLoadingScreen(automationId, emergency);
+            } else {
+                // For legacy routes, try direct app link
+                tryOpenApp(automationId);
+            }
+        }
+        
+        function showAutomationLoadingScreen(automationId, isEmergency) {
+            document.body.innerHTML = `
+                <div style="
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: linear-gradient(135deg, #6200ee 0%, #03dac6 100%);
+                    margin: 0;
+                    padding: 20px;
+                    color: white;
+                ">
+                    <div style="
+                        background: rgba(255,255,255,0.1);
+                        backdrop-filter: blur(10px);
+                        border-radius: 20px;
+                        padding: 40px;
+                        text-align: center;
+                        max-width: 400px;
+                        border: 1px solid rgba(255,255,255,0.2);
+                    ">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">
+                            ${isEmergency ? '🚨' : '⚡'}
+                        </div>
+                        <h1 style="margin: 0 0 10px 0; font-size: 1.8rem;">
+                            ${isEmergency ? 'Emergency Automation' : 'Loading Automation'}
+                        </h1>
+                        <p style="margin: 0 0 30px 0; opacity: 0.9; font-size: 1.1rem;">
+                            Attempting to open in Zaptap app...
+                        </p>
+                        
+                        <div id="loading-spinner" style="
+                            width: 40px;
+                            height: 40px;
+                            border: 4px solid rgba(255,255,255,0.3);
+                            border-top: 4px solid white;
+                            border-radius: 50%;
+                            animation: spin 1s linear infinite;
+                            margin: 0 auto 30px;
+                        "></div>
+                        
+                        <div id="backup-options" style="display: none;">
+                            <p style="margin-bottom: 20px; font-size: 0.9rem; opacity: 0.8;">
+                                App not installed? Choose an option:
+                            </p>
+                            <button onclick="downloadApp()" style="
+                                background: white;
+                                color: #6200ee;
+                                border: none;
+                                padding: 12px 24px;
+                                border-radius: 25px;
+                                font-weight: bold;
+                                cursor: pointer;
+                                margin: 0 10px 10px 0;
+                                font-size: 1rem;
+                            ">📱 Download App</button>
+                            <button onclick="runInBrowser()" style="
+                                background: rgba(255,255,255,0.2);
+                                color: white;
+                                border: 1px solid rgba(255,255,255,0.5);
+                                padding: 12px 24px;
+                                border-radius: 25px;
+                                font-weight: bold;
+                                cursor: pointer;
+                                margin: 0 10px 10px 0;
+                                font-size: 1rem;
+                            ">🌐 Run in Browser</button>
+                        </div>
+                        
+                        <p style="margin-top: 30px; font-size: 0.8rem; opacity: 0.7;">
+                            Automation ID: ${automationId}
+                        </p>
+                    </div>
+                </div>
+                
+                <style>
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                    button:hover {
+                        transform: scale(1.05);
+                        transition: transform 0.2s;
+                    }
+                </style>
+            `;
             
-            // Fallback to app store after delay
+            // Try to open the app
+            tryOpenApp(automationId);
+            
+            // Show backup options after 3 seconds
             setTimeout(() => {
-                if (navigator.userAgent.match(/iPhone|iPad|iPod/)) {
-                    window.location.href = 'https://apps.apple.com/app/zaptap';
-                } else if (navigator.userAgent.match(/Android/)) {
-                    window.location.href = 'https://play.google.com/store/apps/details?id=com.zaptap.app';
-                }
-            }, 2000);
+                document.getElementById('loading-spinner').style.display = 'none';
+                document.getElementById('backup-options').style.display = 'block';
+            }, 3000);
+        }
+        
+        function tryOpenApp(automationId) {
+            // Try to open the app
+            const deepLink = `zaptap://automation/${automationId}`;
+            window.location.href = deepLink;
+        }
+        
+        function downloadApp() {
+            if (navigator.userAgent.match(/iPhone|iPad|iPod/)) {
+                window.open('https://apps.apple.com/app/zaptap', '_blank');
+            } else if (navigator.userAgent.match(/Android/)) {
+                window.open('https://play.google.com/store/apps/details?id=com.zaptap.app', '_blank');
+            } else {
+                window.open('https://zaptap.cloud', '_blank');
+            }
+        }
+        
+        function runInBrowser() {
+            alert('Browser execution coming soon! For now, please download the app for full functionality.');
+            downloadApp();
         }
     </script>
 </body>

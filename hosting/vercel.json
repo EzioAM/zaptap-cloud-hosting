@@ -44,6 +44,18 @@
     {
       "source": "/app/(.*)",
       "destination": "/index.html?app=$1"
+    },
+    {
+      "source": "/link/(.*)",
+      "destination": "/index.html?link=$1"
+    },
+    {
+      "source": "/run/(.*)",
+      "destination": "/index.html?run=$1"
+    },
+    {
+      "source": "/emergency/(.*)",
+      "destination": "/index.html?emergency=$1"
     }
   ],
   "cleanUrls": true,

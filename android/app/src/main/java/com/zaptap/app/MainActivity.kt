@@ -1,4 +1,4 @@
-package com.shortcutslike.app
+package com.zaptap.app
 
 import android.os.Build
 import android.os.Bundle

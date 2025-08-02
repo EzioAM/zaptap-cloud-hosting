@@ -5,10 +5,9 @@ import {
   ScrollView,
   Alert,
   RefreshControl,
+  SafeAreaView,
 } from 'react-native';
 import {
-  Portal,
-  Modal,
   Text,
   Button,
   Card,
@@ -16,10 +15,12 @@ import {
   Chip,
   ActivityIndicator,
   Divider,
+  Appbar,
 } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { VersionHistoryService, AutomationVersion } from '../../services/versions/VersionHistoryService';
 import { AutomationData } from '../../types';
+import { FullScreenModal } from '../common/FullScreenModal';
 
 interface VersionHistoryModalProps {
   visible: boolean;
@@ -209,17 +210,17 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
   );
 
   return (
-    <Portal>
-      <Modal
-        visible={visible}
-        onDismiss={onDismiss}
-        contentContainerStyle={styles.modalContainer}
-      >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Version History</Text>
-            <IconButton icon="close" size={24} onPress={onDismiss} />
-          </View>
+    <FullScreenModal
+      visible={visible}
+      onDismiss={onDismiss}
+    >
+      <SafeAreaView style={styles.container}>
+        <Appbar.Header>
+          <Appbar.BackAction onPress={onDismiss} />
+          <Appbar.Content title="Version History" />
+        </Appbar.Header>
+        
+        <View style={styles.content}>
           
           <Text style={styles.modalSubtitle}>
             Track changes and restore previous versions of "{automation.title}"
@@ -251,38 +252,20 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
             </ScrollView>
           )}
 
-          <Divider style={styles.divider} />
-          
-          <View style={styles.modalActions}>
-            <Button onPress={onDismiss}>Close</Button>
-          </View>
         </View>
-      </Modal>
-    </Portal>
+      </SafeAreaView>
+    </FullScreenModal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    backgroundColor: 'white',
-    margin: 20,
-    borderRadius: 12,
-    maxHeight: '85%',
-  },
-  modalContent: {
+  container: {
     flex: 1,
+    backgroundColor: '#f5f5f5',
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
+  content: {
+    flex: 1,
+    backgroundColor: 'white',
   },
   modalSubtitle: {
     fontSize: 14,

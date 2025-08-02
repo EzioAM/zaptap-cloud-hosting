@@ -187,10 +187,14 @@ import React, { useState, useEffect } from 'react';
     };
 
     const openStepConfig = (index: number) => {
+      console.log('Opening step config for index:', index, 'Step:', steps[index]);
       if (index >= 0 && index < steps.length && steps[index]) {
         setConfigStepIndex(index);
         setStepConfig({ ...steps[index].config || {} });
         setShowStepConfig(true);
+        console.log('Step config modal should be visible now');
+      } else {
+        console.log('Invalid step index or step not found');
       }
     };
 
@@ -277,9 +281,170 @@ import React, { useState, useEffect } from 'react';
       }
     };
 
+    const handleNFCScan = async (automationId: string, metadata: any) => {
+      try {
+        console.log('NFC scan received:', { automationId, metadata });
+        
+        // Fetch the automation from database
+        const { data, error } = await supabase
+          .from('automations')
+          .select('*')
+          .eq('id', automationId)
+          .single();
+
+        if (error) {
+          console.error('Database error:', error);
+          Alert.alert(
+            'Automation Not Found',
+            `Could not find automation with ID: ${automationId}\n\nError: ${error.message}`
+          );
+          setShowNFCScanner(false);
+          return;
+        }
+
+        if (!data) {
+          Alert.alert(
+            'Automation Not Found',
+            'This automation may have been deleted or is no longer available.'
+          );
+          setShowNFCScanner(false);
+          return;
+        }
+
+        setShowNFCScanner(false);
+
+        // Show confirmation to execute
+        Alert.alert(
+          'Execute Automation? 🚀',
+          `Title: ${data.title}\nDescription: ${data.description || 'No description'}\nSteps: ${data.steps?.length || 0}\n\nDo you want to run this automation?`,
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            },
+            {
+              text: 'Execute',
+              onPress: () => {
+                // Execute in a separate function to avoid blocking the alert
+                executeAutomationSafely(data);
+              }
+            }
+          ]
+        );
+
+      } catch (error: any) {
+        console.error('NFC scan error:', error);
+        Alert.alert('Error', `Failed to process NFC scan: ${error.message || 'Unknown error'}`);
+        setShowNFCScanner(false);
+      }
+    };
+
+    const executeAutomationSafely = async (automationData: AutomationData) => {
+      try {
+        console.log('Starting safe automation execution...');
+        
+        // Execute the automation using AutomationEngine
+        const engine = new AutomationEngine();
+        console.log('AutomationEngine created, executing...');
+        
+        const result = await engine.execute(automationData);
+        console.log('Execution completed, result:', result);
+        
+        // Wait a bit before showing the alert to prevent timing issues
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        if (result.success) {
+          const executionTimeSeconds = result.executionTime ? Math.round(result.executionTime / 1000) : 0;
+          Alert.alert(
+            'Success! ✅',
+            `Automation "${automationData.title}" completed successfully!\n\nSteps completed: ${result.stepsCompleted || 0}/${result.totalSteps || 0}\nExecution time: ${executionTimeSeconds}s`
+          );
+        } else {
+          Alert.alert(
+            'Execution Failed ❌',
+            `Automation "${automationData.title}" failed to complete.\n\nError: ${result.error || 'Unknown error'}\nSteps completed: ${result.stepsCompleted || 0}/${result.totalSteps || 0}`
+          );
+        }
+        
+      } catch (execError: any) {
+        console.error('Execution error:', execError);
+        Alert.alert(
+          'Execution Error',
+          `Failed to run automation: ${execError.message || 'Unknown error'}`
+        );
+      }
+    };
+
     const getStepIcon = (stepType: StepType) => {
       const stepInfo = availableSteps.find(s => s.type === stepType);
       return stepInfo?.icon || 'cog';
+    };
+
+    const getStepTypeDisplayName = (stepType: StepType) => {
+      const stepInfo = availableSteps.find(s => s.type === stepType);
+      return stepInfo?.label || stepType;
+    };
+
+    const getStepDescription = (step: AutomationStep) => {
+      if (!step.config) return 'Tap to configure';
+      
+      switch (step.type) {
+        case 'notification':
+          return step.config.message ? `"${step.config.message}"` : 'Show notification';
+        case 'sms':
+          return step.config.phoneNumber && step.config.message 
+            ? `Send "${step.config.message}" to ${step.config.phoneNumber}`
+            : 'Send SMS message';
+        case 'email':
+          return step.config.recipient && step.config.subject
+            ? `Email "${step.config.subject}" to ${step.config.recipient}`
+            : 'Send email';
+        case 'delay':
+          const seconds = step.config.delay ? step.config.delay / 1000 : 1;
+          return `Wait ${seconds} second${seconds !== 1 ? 's' : ''}`;
+        case 'variable':
+          return step.config.name && step.config.value
+            ? `Set ${step.config.name} = "${step.config.value}"`
+            : 'Set variable';
+        case 'get_variable':
+          return step.config.name 
+            ? `Get variable: ${step.config.name}`
+            : 'Get variable';
+        case 'text':
+          return step.config.text 
+            ? `Text: "${step.config.text}"`
+            : 'Text action';
+        case 'math':
+          return step.config.expression 
+            ? `Calculate: ${step.config.expression}`
+            : 'Math calculation';
+        case 'clipboard':
+          return step.config.action === 'copy' 
+            ? `Copy "${step.config.text || 'text'}" to clipboard`
+            : step.config.action === 'paste' 
+            ? 'Paste from clipboard'
+            : 'Clipboard action';
+        case 'open_url':
+          return step.config.url 
+            ? `Open ${step.config.url}`
+            : 'Open URL';
+        case 'location':
+          return step.config.action === 'get_current'
+            ? 'Get current location'
+            : step.config.action === 'share_location'
+            ? `Share location to ${step.config.phoneNumber || 'contact'}`
+            : 'Location action';
+        case 'app':
+          return step.config.appName
+            ? `Open ${step.config.appName}`
+            : 'Open app';
+        case 'webhook':
+          return step.config.url && step.config.method
+            ? `${step.config.method.toUpperCase()} ${step.config.url}`
+            : 'HTTP request';
+        default:
+          return step.config.message || step.config.text || 'Tap to configure';
+      }
     };
 
     const renderStepPicker = () => (
@@ -918,7 +1083,11 @@ import React, { useState, useEffect } from 'react';
               <Card key={step.id} style={styles.stepCard}>
                 <Card.Content>
                   <View style={styles.stepHeader}>
-                    <View style={styles.stepInfo}>
+                    <TouchableOpacity 
+                      onPress={() => openStepConfig(index)}
+                      style={styles.stepInfo}
+                      activeOpacity={0.7}
+                    >
                       <Icon
                         name={getStepIcon(step.type)}
                         size={24}
@@ -929,13 +1098,13 @@ import React, { useState, useEffect } from 'react';
                           {step.title}
                         </Text>
                         <Text style={[styles.stepType, !step.enabled && styles.disabledText]}>
-                          Type: {step.type}
+                          {getStepTypeDisplayName(step.type)}
                         </Text>
                         <Text style={[styles.stepConfig, !step.enabled && styles.disabledText]}>
-                          {step.config ? JSON.stringify(step.config, null, 0).substring(0, 50) + '...' : 'No configuration'}
+                          {getStepDescription(step)}
                         </Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
 
                     <View style={styles.stepActions}>
                       <IconButton
@@ -976,23 +1145,26 @@ import React, { useState, useEffect } from 'react';
         {/* Modern Step Configuration Modal */}
         <StepConfigModal
           visible={showStepConfig}
-          stepType={configStepIndex !== null ? steps[configStepIndex]?.type || '' : ''}
-          stepTitle={configStepIndex !== null ? steps[configStepIndex]?.title || '' : ''}
+          stepType={configStepIndex !== null && configStepIndex < steps.length ? steps[configStepIndex].type : ''}
+          stepTitle={configStepIndex !== null && configStepIndex < steps.length ? steps[configStepIndex].title : ''}
           stepConfig={stepConfig}
           onSave={(config) => {
             setStepConfig(config);
             saveStepConfig();
           }}
           onCancel={cancelStepConfig}
-          renderConfigForm={() => 
-            configStepIndex !== null && steps[configStepIndex] ? (
-              <ModernStepConfigRenderer
-                step={steps[configStepIndex]}
-                config={stepConfig}
-                onConfigChange={setStepConfig}
-              />
-            ) : null
-          }
+          renderConfigForm={() => {
+            if (configStepIndex !== null && configStepIndex < steps.length && steps[configStepIndex]) {
+              return (
+                <ModernStepConfigRenderer
+                  step={steps[configStepIndex]}
+                  config={stepConfig}
+                  onConfigChange={setStepConfig}
+                />
+              );
+            }
+            return null;
+          }}
         />
 
         {/* QR Generator Modal */}
@@ -1043,7 +1215,7 @@ import React, { useState, useEffect } from 'react';
           onDismiss={() => setShowNFCScanner(false)}
         >
           <NFCScanner
-            onScan={handleQRScan} // Reuse the same handler since it works with automation IDs
+            onScan={handleNFCScan}
             onClose={() => setShowNFCScanner(false)}
           />
         </FullScreenModal>

@@ -7,10 +7,9 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
 } from 'react-native';
 import {
-  Portal,
-  Modal,
   Text,
   Button,
   Card,
@@ -20,12 +19,14 @@ import {
   TextInput,
   Avatar,
   Menu,
+  Appbar,
 } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CommentsService, AutomationComment } from '../../services/comments/CommentsService';
 import { AutomationData } from '../../types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
+import { FullScreenModal } from '../common/FullScreenModal';
 
 interface CommentsModalProps {
   visible: boolean;
@@ -314,20 +315,19 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
   }, 0);
 
   return (
-    <Portal>
-      <Modal
-        visible={visible}
-        onDismiss={onDismiss}
-        contentContainerStyle={styles.modalContainer}
-      >
+    <FullScreenModal
+      visible={visible}
+      onDismiss={onDismiss}
+    >
+      <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView 
-          style={styles.modalContent}
+          style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Comments & Feedback</Text>
-            <IconButton icon="close" size={24} onPress={onDismiss} />
-          </View>
+          <Appbar.Header>
+            <Appbar.BackAction onPress={onDismiss} />
+            <Appbar.Content title="Comments & Feedback" />
+          </Appbar.Header>
           
           <Text style={styles.modalSubtitle}>
             {totalComments} comment{totalComments !== 1 ? 's' : ''} on "{automation.title}"
@@ -385,38 +385,16 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
             </ScrollView>
           )}
 
-          <Divider style={styles.divider} />
-          
-          <View style={styles.modalActions}>
-            <Button onPress={onDismiss}>Close</Button>
-          </View>
         </KeyboardAvoidingView>
-      </Modal>
-    </Portal>
+      </SafeAreaView>
+    </FullScreenModal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    backgroundColor: 'white',
-    margin: 20,
-    borderRadius: 12,
-    maxHeight: '85%',
-  },
-  modalContent: {
+  container: {
     flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
+    backgroundColor: '#f5f5f5',
   },
   modalSubtitle: {
     fontSize: 14,

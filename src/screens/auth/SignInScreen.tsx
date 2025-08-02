@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
   import {
     View,
     StyleSheet,
@@ -24,7 +24,14 @@ import React, { useState } from 'react';
     const [password, setPassword] = useState('');
 
     const dispatch = useDispatch<AppDispatch>();
-    const { isLoading, error } = useSelector((state: RootState) => state.auth);
+    const { isLoading, error, isAuthenticated } = useSelector((state: RootState) => state.auth);
+
+    // Auto-navigate when authentication succeeds
+    useEffect(() => {
+      if (isAuthenticated) {
+        navigation.goBack();
+      }
+    }, [isAuthenticated, navigation]);
 
     const handleSignIn = async () => {
       if (!email || !password) {
@@ -34,7 +41,7 @@ import React, { useState } from 'react';
 
       try {
         await dispatch(signIn({ email: email.trim(), password })).unwrap();
-        // Navigation will be handled by auth state change
+        // Auto-navigation will handle the redirect via useEffect
       } catch (error: any) {
         console.error('Sign in error:', error);
         Alert.alert('Sign In Failed', error.message || 'Invalid email or password');

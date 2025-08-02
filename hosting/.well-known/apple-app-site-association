@@ -8,9 +8,15 @@
           "/automation/*",
           "/share/*",
           "/shared/*",
-          "/app/*"
+          "/app/*",
+          "/link/*",
+          "/run/*",
+          "/emergency/*"
         ]
       }
     ]
+  },
+  "webcredentials": {
+    "apps": ["QH729XYMW4.com.zaptap.app"]
   }
 }

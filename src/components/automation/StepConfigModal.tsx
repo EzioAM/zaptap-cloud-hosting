@@ -50,7 +50,9 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
+    console.log('StepConfigModal visibility changed:', visible, 'stepType:', stepType, 'stepTitle:', stepTitle);
     if (visible) {
+      console.log('Animating modal in...');
       // Animate modal in
       Animated.parallel([
         Animated.spring(slideAnim, {
