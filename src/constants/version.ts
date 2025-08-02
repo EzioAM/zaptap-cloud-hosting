@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.1.2';
+export const APP_VERSION = '2.3.0';
 export const APP_NAME = 'Zaptap';
 export const APP_TAGLINE = 'Automate Your World';
 
@@ -15,6 +15,33 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '2.3.0',
+    date: '2025-08-01',
+    type: 'minor',
+    changes: {
+      added: [
+        'Version History System - Track all automation changes with restore capability',
+        'Analytics Dashboard - Comprehensive usage insights and performance metrics',
+        'Comments System - Full social interaction with threaded conversations',
+        'Professional UI modals for advanced features',
+        'New database tables with Row Level Security'
+      ],
+      improved: [
+        'Gallery automation details now show full feature set',
+        'Eye icon opens comprehensive AutomationDetails screen',
+        'Enhanced automation discovery with complete feature access',
+        'Responsive design with pull-to-refresh and loading states',
+        'Contextual menus and action buttons for enhanced usability'
+      ],
+      fixed: [
+        'Gear icon modal showing only white bar',
+        'Step descriptions now human-readable instead of JSON',
+        'Gallery screen formatting issues',
+        'Navigation route names for proper screen transitions'
+      ]
+    }
+  },
   {
     version: '2.1.2',
     date: '2025-08-01',

@@ -5,7 +5,7 @@ export default {
     name: "Zaptap",
     slug: "zaptap",
     owner: "mce_27",
-    version: "2.1.2",
+    version: "2.3.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -102,7 +102,7 @@ export default {
       fallbackToCacheTimeout: 0,
       url: "https://u.expo.dev/c9104518-2191-4a5a-aa20-76cebb5193cd"
     },
-    runtimeVersion: "2.1.2",
+    runtimeVersion: "2.3.0",
     extra: {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,

@@ -37,6 +37,9 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import { ShareAutomationModal } from '../../components/sharing/ShareAutomationModal';
 import { FullScreenModal } from '../../components/common/FullScreenModal';
+import { VersionHistoryModal } from '../../components/versions/VersionHistoryModal';
+import { AnalyticsModal } from '../../components/analytics/AnalyticsModal';
+import { CommentsModal } from '../../components/comments/CommentsModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AutomationDetails'>;
 
@@ -53,6 +56,11 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const [isPublic, setIsPublic] = useState(automation.is_public);
   const [allowDuplication, setAllowDuplication] = useState(true);
   const [allowComments, setAllowComments] = useState(true);
+
+  // Advanced features
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   
   const insets = useSafeAreaInsets();
   const isOwner = user?.id === automation.created_by;
@@ -399,19 +407,19 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
                 'history',
                 'Version History',
                 'View and restore previous versions',
-                () => Alert.alert('Coming Soon', 'Version history will be available soon')
+                () => setShowVersionHistory(true)
               )}
               {renderActionItem(
                 'chart-line',
                 'Analytics',
                 'View usage statistics and insights',
-                () => Alert.alert('Coming Soon', 'Analytics will be available soon')
+                () => setShowAnalytics(true)
               )}
               {renderActionItem(
                 'comment-text-outline',
                 'Comments',
                 'View and manage user comments',
-                () => Alert.alert('Coming Soon', 'Comments will be available soon')
+                () => setShowComments(true)
               )}
               {renderActionItem(
                 'delete',
@@ -533,6 +541,31 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
           onClose={() => setShowNFCModal(false)}
         />
       </FullScreenModal>
+
+      {/* Version History Modal */}
+      <VersionHistoryModal
+        visible={showVersionHistory}
+        onDismiss={() => setShowVersionHistory(false)}
+        automation={automation}
+        onAutomationUpdated={() => {
+          // Refresh automation data if needed
+          navigation.setParams({ automation: { ...automation, updated_at: new Date().toISOString() } });
+        }}
+      />
+
+      {/* Analytics Modal */}
+      <AnalyticsModal
+        visible={showAnalytics}
+        onDismiss={() => setShowAnalytics(false)}
+        automation={automation}
+      />
+
+      {/* Comments Modal */}
+      <CommentsModal
+        visible={showComments}
+        onDismiss={() => setShowComments(false)}
+        automation={automation}
+      />
     </View>
   );
 };

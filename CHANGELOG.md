@@ -5,6 +5,57 @@ All notable changes to Zaptap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-08-01
+
+### ✨ Added
+- **Advanced Automation Features**: Complete implementation of professional-grade automation management
+  - **Version History System**: Track all automation changes with restore capability
+    - View all previous versions with detailed change summaries
+    - Restore to any previous version with confirmation dialogs
+    - Version comparison and change tracking
+    - Delete version functionality with proper permissions
+  - **Analytics Dashboard**: Comprehensive usage insights and performance metrics
+    - Real-time tracking (views, executions, shares, downloads)
+    - Time range filtering (7d, 30d, 90d, all time)
+    - Engagement metrics and conversion rates
+    - Geographic usage data and location insights
+    - Recent activity timeline with success/failure tracking
+    - Performance insights and actionable recommendations
+  - **Comments System**: Full social interaction capabilities
+    - Threaded comments with nested replies support
+    - Like/unlike functionality for community engagement
+    - Pin/unpin comments for automation owners
+    - Comment moderation tools and user permissions
+    - Edit and delete own comments with proper validation
+    - Real-time comment statistics and engagement metrics
+
+### 🚀 Improved
+- **Template Experience**: Gallery automation details now show full feature set
+  - Eye icon opens comprehensive AutomationDetails screen instead of readonly builder
+  - All advanced features (analytics, comments, version history) available for templates
+  - Enhanced automation discovery with complete feature access
+- **Database Architecture**: New Supabase tables with proper Row Level Security
+  - `automation_versions` table for version control
+  - `automation_analytics` table for usage tracking
+  - `automation_comments` and `comment_likes` for social features
+  - `automation_likes` for community engagement
+  - Comprehensive RLS policies for data security
+
+### 🎨 Design
+- **Professional UI Components**: Modern modal designs with native feel
+  - Version history with visual change indicators and restoration flows
+  - Analytics dashboard with metrics cards and engagement visualizations
+  - Comments interface with threaded conversations and social interactions
+  - Responsive design with pull-to-refresh and loading states
+  - Contextual menus and action buttons for enhanced usability
+
+### 🔒 Security
+- **Robust Permissions System**: Comprehensive access controls
+  - Automation owners have full control over versions and comment moderation
+  - Public automations allow community engagement while protecting ownership
+  - Proper user authentication for all social features
+  - Data privacy controls with user-specific access patterns
+
 ## [2.2.0] - 2025-08-01
 
 ### ✨ Added

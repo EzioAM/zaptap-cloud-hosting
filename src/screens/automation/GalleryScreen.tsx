@@ -286,9 +286,8 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
           <IconButton
             icon="eye"
             size={20}
-            onPress={() => navigation.navigate('AutomationBuilderScreen', { 
-              automation, 
-              readonly: true 
+            onPress={() => navigation.navigate('AutomationDetails', { 
+              automation 
             })}
           />
         </View>
@@ -375,19 +374,6 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
           </View>
         )}
 
-        {/* Results Summary */}
-        <View style={styles.resultsSummary}>
-          <Text style={styles.resultsText}>
-            {isLoading ? 'Loading...' : `${automations.length} automation${automations.length !== 1 ? 's' : ''} found`}
-          </Text>
-          <Text style={styles.sortText}>
-            Sorted by {filters.sortBy === 'created_at' ? 'Date' : 
-                      filters.sortBy === 'title' ? 'Name' : 
-                      filters.sortBy === 'rating' ? 'Rating' : 
-                      filters.sortBy === 'popularity' ? 'Popularity' : filters.sortBy}
-            {filters.sortOrder === 'desc' ? ' ↓' : ' ↑'}
-          </Text>
-        </View>
 
         {/* Category Navigation */}
         {!filters.category && (
@@ -427,78 +413,52 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
           </View>
         )}
 
-        {/* Filter Controls */}
-        <View style={styles.filtersContainer}>
-          <View style={styles.categoryFilter}>
-            <Text style={styles.filterLabel}>Category:</Text>
-            <Chip 
-              selected={!filters.category}
-              onPress={() => setFilters(prev => ({ ...prev, category: null }))}
-              style={styles.categoryChip}
-            >
-              All
-            </Chip>
-            {filters.category && (
-              <Chip 
-                selected
-                onPress={() => setFilters(prev => ({ ...prev, category: null }))}
-                onClose={() => setFilters(prev => ({ ...prev, category: null }))}
-                style={styles.categoryChip}
+        {/* Sorting Tabs - Only show when viewing automations */}
+        {(filters.category || searchQuery || automations.length > 0) && (
+          <View style={styles.sortingContainer}>
+            <View style={styles.customSegmentedButtons}>
+              <Pressable 
+                style={[
+                  styles.segmentButton, 
+                  styles.leftSegment,
+                  filters.sortBy === 'popularity' && styles.activeSegment
+                ]}
+                onPress={() => setFilters(prev => ({ ...prev, sortBy: 'popularity' }))}
               >
-                {categories.find(c => c.id === filters.category)?.name}
-              </Chip>
-            )}
+                <Text style={[
+                  styles.segmentText,
+                  filters.sortBy === 'popularity' && styles.activeSegmentText
+                ]}>Trending</Text>
+              </Pressable>
+              <Pressable 
+                style={[
+                  styles.segmentButton, 
+                  styles.middleSegment,
+                  filters.sortBy === 'created_at' && styles.activeSegment
+                ]}
+                onPress={() => setFilters(prev => ({ ...prev, sortBy: 'created_at' }))}
+              >
+                <Text style={[
+                  styles.segmentText,
+                  filters.sortBy === 'created_at' && styles.activeSegmentText
+                ]}>Newest</Text>
+              </Pressable>
+              <Pressable 
+                style={[
+                  styles.segmentButton, 
+                  styles.rightSegment,
+                  filters.sortBy === 'rating' && styles.activeSegment
+                ]}
+                onPress={() => setFilters(prev => ({ ...prev, sortBy: 'rating' }))}
+              >
+                <Text style={[
+                  styles.segmentText,
+                  filters.sortBy === 'rating' && styles.activeSegmentText
+                ]}>Top Rated</Text>
+              </Pressable>
+            </View>
           </View>
-          
-          <View style={styles.customSegmentedButtons}>
-            <Pressable 
-              style={[
-                styles.segmentButton, 
-                styles.leftSegment,
-                filters.sortBy === 'popularity' && styles.activeSegment
-              ]}
-              onPress={() => setFilters(prev => ({ ...prev, sortBy: 'popularity' }))}
-            >
-              <Text style={[
-                styles.segmentText,
-                filters.sortBy === 'popularity' && styles.activeSegmentText
-              ]}>Trending</Text>
-            </Pressable>
-            <Pressable 
-              style={[
-                styles.segmentButton, 
-                styles.middleSegment,
-                filters.sortBy === 'created_at' && styles.activeSegment
-              ]}
-              onPress={() => setFilters(prev => ({ ...prev, sortBy: 'created_at' }))}
-            >
-              <Text style={[
-                styles.segmentText,
-                filters.sortBy === 'created_at' && styles.activeSegmentText
-              ]}>Newest</Text>
-            </Pressable>
-            <Pressable 
-              style={[
-                styles.segmentButton, 
-                styles.rightSegment,
-                filters.sortBy === 'rating' && styles.activeSegment
-              ]}
-              onPress={() => setFilters(prev => ({ ...prev, sortBy: 'rating' }))}
-            >
-              <Text style={[
-                styles.segmentText,
-                filters.sortBy === 'rating' && styles.activeSegmentText
-              ]}>Top Rated</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Results Count */}
-        <View style={styles.resultsContainer}>
-          <Text style={styles.resultsText}>
-            {filteredAutomations.length} automation{filteredAutomations.length !== 1 ? 's' : ''} found
-          </Text>
-        </View>
+        )}
 
         {/* Automations List */}
         {isLoading ? (
@@ -627,7 +587,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     color: '#333',
   },
-  filtersContainer: {
+  sortingContainer: {
     padding: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
@@ -650,54 +610,37 @@ const styles = StyleSheet.create({
   },
   customSegmentedButtons: {
     flexDirection: 'row',
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
+    borderRadius: 25,
     overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
   },
   segmentButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
   },
   leftSegment: {
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
+    // No specific styles needed due to overflow: 'hidden' on parent
   },
   middleSegment: {
-    // No additional styles needed
+    marginHorizontal: 1,
   },
   rightSegment: {
-    borderTopRightRadius: 8,
-    borderBottomRightRadius: 8,
-    borderRightWidth: 0,
+    // No specific styles needed
   },
   activeSegment: {
     backgroundColor: '#6200ee',
+    borderRadius: 25,
   },
   segmentText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#666',
   },
   activeSegmentText: {
     color: '#fff',
-  },
-  resultsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#f9f9f9',
-  },
-  resultsSummaryText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
   },
   scrollView: {
     flex: 1,
