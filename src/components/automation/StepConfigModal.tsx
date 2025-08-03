@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Portal, Modal, Text, Button, IconButton, useTheme, MD3Theme } from 'react-native-paper';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Modal, TouchableOpacity } from 'react-native';
+import { Text, Button, IconButton, useTheme, MD3Theme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -71,24 +71,33 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
   let formNode: React.ReactNode = null;
   try {
     formNode = typeof renderConfigForm === 'function' ? renderConfigForm() : null;
+    if (__DEV__) {
+      console.log('Form node generated:', { formNode, stepType, stepTitle });
+    }
   } catch (e) {
-    formNode = <Text>Error loading form</Text>;
+    formNode = <Text style={{ color: theme.colors.error }}>Error loading form: {e.message}</Text>;
     if (__DEV__) {
       console.error('renderConfigForm error:', e);
     }
   }
 
   return (
-    <Portal>
-      <Modal
-        visible={visible}
-        onDismiss={onCancel}
-        contentContainerStyle={styles.modalContainer}
+    <Modal
+      visible={visible}
+      onRequestClose={onCancel}
+      animationType="fade"
+      transparent={true}
+      statusBarTranslucent
+    >
+      <TouchableOpacity 
+        style={styles.modalOverlay} 
+        activeOpacity={1}
+        onPress={onCancel}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.flex}
-          keyboardVerticalOffset={insets.top + 64}
+        <TouchableOpacity 
+          activeOpacity={1}
+          style={styles.modalContainer}
+          onPress={() => {}}
         >
           <View 
             style={styles.modalContent} 
@@ -126,10 +135,21 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
               contentContainerStyle={styles.contentContainer}
               keyboardShouldPersistTaps="handled"
             >
-              {formNode ?? (
-                <Text style={styles.noFormText}>
-                  No configuration form available for "{stepType}".
-                </Text>
+              {formNode ? (
+                <View style={{ width: '100%' }}>
+                  {formNode}
+                </View>
+              ) : (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text style={styles.noFormText}>
+                    No configuration form available for "{stepType}".
+                  </Text>
+                  {__DEV__ && (
+                    <Text style={{ marginTop: 10, fontSize: 12, color: theme.colors.onSurfaceVariant }}>
+                      Debug: stepType={stepType}, formNode={formNode ? 'exists' : 'null'}
+                    </Text>
+                  )}
+                </View>
               )}
             </ScrollView>
 
@@ -156,26 +176,39 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
               </Button>
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
-    </Portal>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
   );
 };
 
 const makeStyles = (theme: MD3Theme, insets: { top: number; bottom: number }) =>
   StyleSheet.create({
     flex: { flex: 1 },
-    modalContainer: {
-      margin: 0,
+    modalOverlay: {
       flex: 1,
-      // Use theme surfaces instead of hard-coded white
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContainer: {
+      width: '90%',
+      maxWidth: 400,
       backgroundColor: theme.colors.surface,
-      paddingTop: insets.top,
-      paddingBottom: Math.max(insets.bottom, 12),
+      borderRadius: 16,
+      maxHeight: '80%',
+      minHeight: 400, // Ensure minimum height
+      elevation: 5,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
     },
     modalContent: {
-      flex: 1,
       backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      overflow: 'hidden',
+      flex: 1,
     },
     header: {
       flexDirection: 'row',
@@ -204,13 +237,13 @@ const makeStyles = (theme: MD3Theme, insets: { top: number; bottom: number }) =>
     headerText: { flex: 1 },
     headerTitle: { color: theme.colors.onSurface, fontWeight: '600' },
     headerSubtitle: { color: theme.colors.onSurfaceVariant, marginTop: 2 },
-    content: { flex: 1 },
+    content: { 
+      flex: 1,
+      maxHeight: 400, // Limit content height for better modal appearance
+    },
     contentContainer: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
       padding: 20,
-      gap: 12,
+      paddingTop: 10,
     },
     actions: {
       flexDirection: 'row',
