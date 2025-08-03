@@ -64,7 +64,10 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
     }
   };
 
-  if (!automation) return null;
+  // Safety check - don't render if no automation data
+  if (!automation || !automation.id) {
+    return null;
+  }
 
   const handleQuickShare = async () => {
     setLoading(true);
@@ -147,6 +150,11 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
 
   const shareQRCode = async () => {
     try {
+      if (!automation || !automation.id) {
+        Alert.alert('Error', 'Automation data not available. Please try again.');
+        return;
+      }
+      
       if (!qrRef.current) {
         Alert.alert('Error', 'QR code not ready. Please try again.');
         return;
@@ -354,6 +362,27 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
 
   const renderQRTab = () => {
     const [qrError, setQrError] = useState(false);
+    
+    // Safety check for automation data
+    if (!automation || !automation.id) {
+      return (
+        <ScrollView style={styles.tabContent}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📱 QR Code Sharing</Text>
+            <Text style={styles.sectionDescription}>
+              Share your automation via QR code for easy scanning
+            </Text>
+          </View>
+          <View style={styles.analyticsPlaceholder}>
+            <Icon name="alert-circle" size={64} color="#ff5252" />
+            <Text style={styles.placeholderTitle}>Automation Not Available</Text>
+            <Text style={styles.placeholderDescription}>
+              Please wait for the automation to load or try again.
+            </Text>
+          </View>
+        </ScrollView>
+      );
+    }
     
     try {
       const shareUrl = automationSharingService.generateShareUrl(automation.id);
@@ -652,9 +681,9 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
         </View>
 
         <View style={styles.automationInfo}>
-          <Text style={styles.automationTitle}>{automation.title}</Text>
+          <Text style={styles.automationTitle}>{automation?.title || 'Untitled'}</Text>
           <Text style={styles.automationMeta}>
-            {automation.steps?.length || 0} steps • {automation.category}
+            {automation?.steps?.length || 0} steps • {automation?.category || 'Uncategorized'}
           </Text>
         </View>
 

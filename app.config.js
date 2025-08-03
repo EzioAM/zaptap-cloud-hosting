@@ -5,7 +5,7 @@ export default {
     name: "Zaptap",
     slug: "zaptap",
     owner: "mce_27",
-    version: "2.3.0",
+    version: "2.3.1",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
