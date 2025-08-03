@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zaptap - Shared Automation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .header {
+            background: #6200ee;
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        .logo { font-size: 24px; font-weight: bold; margin-bottom: 8px; }
+        .title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+        .description { opacity: 0.9; font-size: 14px; }
+        .content { padding: 24px; }
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #6200ee;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .step {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 4px solid #6200ee;
+        }
+        .step-type { 
+            font-size: 12px; 
+            color: #6200ee; 
+            font-weight: 600; 
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .step-content { font-size: 16px; color: #333; }
+        .action-btn {
+            background: #6200ee;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 12px;
+            transition: background 0.2s;
+        }
+        .action-btn:hover { background: #5500cc; }
+        .action-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .secondary-btn {
+            background: #f0f0f0;
+            color: #333;
+            border: 2px solid #ddd;
+        }
+        .secondary-btn:hover { background: #e0e0e0; }
+        .footer {
+            text-align: center;
+            padding: 16px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+        }
+        .download-link { color: #6200ee; text-decoration: none; font-weight: 600; }
+        .error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            color: #d32f2f;
+        }
+        .success {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">⚡ Zaptap</div>
+            <div class="title" id="automation-title">Loading...</div>
+            <div class="description" id="automation-description"></div>
+        </div>
+        
+        <div class="content">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <div>Loading automation...</div>
+            </div>
+            
+            <div id="automation-content" style="display: none;">
+                <div id="steps"></div>
+                
+                <button class="action-btn" id="run-btn" onclick="executeAutomation()" disabled>
+                    🚀 Run Automation
+                </button>
+                
+                <button class="action-btn secondary-btn" onclick="tryApp()">
+                    📱 Open in Zaptap App
+                </button>
+            </div>
+            
+            <div id="error-content" style="display: none;">
+                <div class="error">
+                    <h3>⚠️ Automation Not Found</h3>
+                    <p>This shared automation link is invalid or has expired.</p>
+                </div>
+                
+                <button class="action-btn secondary-btn" onclick="tryApp()">
+                    📱 Open Zaptap App
+                </button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Powered by <a href="https://zaptap.cloud" class="download-link">Zaptap</a><br>
+            <a href="https://zaptap.cloud" class="download-link">Download the app</a> for full features
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Initialize Supabase client
+        const supabaseUrl = 'https://gfkdclzgdlcvhfiujkwz.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdma2RjbHpnZGxjdmhmaXVqa3d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0OTI2NTcsImV4cCI6MjA2OTA2ODY1N30.lJpGLp14e_9ku8n3WN8i61jYPohfx7htTEmTrnje-uE';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        let automationData = null;
+        let webEngine = null;
+        
+        // Extract share ID from URL
+        function getShareId() {
+            const urlPath = window.location.pathname;
+            console.log('Current URL path:', urlPath);
+            const shareMatch = urlPath.match(/\/share\/([^\/]+)/);
+            const shareId = shareMatch ? shareMatch[1] : null;
+            console.log('Extracted share ID:', shareId);
+            return shareId;
+        }
+        
+        // Load shared automation data
+        async function loadSharedAutomation() {
+            const shareId = getShareId();
+            
+            if (!shareId) {
+                showError();
+                return;
+            }
+            
+            try {
+                console.log('Fetching share data for ID:', shareId);
+                
+                // Fetch from public_shares table
+                const { data, error } = await supabase
+                    .from('public_shares')
+                    .select('*')
+                    .eq('id', shareId)
+                    .eq('is_active', true)
+                    .single();
+                
+                console.log('Supabase response:', { data, error });
+                
+                if (error || !data) {
+                    console.error('Failed to load shared automation:', error);
+                    showError(`Unable to load automation. Error: ${error?.message || 'Share not found'}`);
+                    return;
+                }
+                
+                // Check if expired
+                if (new Date(data.expires_at) < new Date()) {
+                    showError('This shared automation link has expired.');
+                    return;
+                }
+                
+                // Increment access count
+                await supabase
+                    .from('public_shares')
+                    .update({ access_count: (data.access_count || 0) + 1 })
+                    .eq('id', shareId);
+                
+                automationData = data.automation_data;
+                displayAutomation(automationData);
+                
+            } catch (error) {
+                console.error('Error loading automation:', error);
+                showError();
+            }
+        }
+        
+        // Display automation details
+        function displayAutomation(automation) {
+            document.getElementById('automation-title').textContent = automation.title;
+            document.getElementById('automation-description').textContent = automation.description || '';
+            
+            const stepsContainer = document.getElementById('steps');
+            stepsContainer.innerHTML = '';
+            
+            if (automation.steps && automation.steps.length > 0) {
+                automation.steps.forEach((step, index) => {
+                    if (!step.enabled) return;
+                    
+                    const stepDiv = document.createElement('div');
+                    stepDiv.className = 'step';
+                    stepDiv.innerHTML = `
+                        <div class="step-type">${step.type}</div>
+                        <div class="step-content">${generateStepHTML(step)}</div>
+                    `;
+                    stepsContainer.appendChild(stepDiv);
+                });
+            }
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('automation-content').style.display = 'block';
+            document.getElementById('run-btn').disabled = false;
+        }
+        
+        // Generate HTML for step display
+        function generateStepHTML(step) {
+            const config = step.config || {};
+            
+            switch (step.type) {
+                case 'sms':
+                    return `📱 Send SMS to ${config.phoneNumber}<br><em>"${config.message || ''}"</em>`;
+                case 'email':
+                    return `📧 Send email to ${config.recipient}<br><strong>${config.subject || ''}</strong><br><em>"${config.body || ''}"</em>`;
+                case 'notification':
+                    return `🔔 ${config.title || ''}<br><em>"${config.message || ''}"</em>`;
+                case 'open_url':
+                    return `🌐 Open URL: <a href="${config.url}" target="_blank">${config.url}</a>`;
+                case 'delay':
+                    return `⏱️ Wait ${(config.duration || 1000) / 1000} seconds`;
+                case 'location':
+                    if (config.action === 'share_location') {
+                        return `📍 Share current location${config.phoneNumber ? ` to ${config.phoneNumber}` : ''}`;
+                    }
+                    return `📍 Get current location`;
+                case 'text':
+                    return `📝 ${config.action === 'copy' ? 'Copy to clipboard' : 'Display'}: "${config.text || ''}"`;
+                case 'variable':
+                    return `🔤 Set variable "${config.name}" = "${config.value || ''}"`;
+                case 'get_variable':
+                    return `📖 Get variable "${config.name}"`;
+                case 'math':
+                    return `🧮 Calculate: ${config.operation || ''} with ${config.value || ''}`;
+                default:
+                    return `⚙️ ${step.type}: ${JSON.stringify(config)}`;
+            }
+        }
+        
+        // Show error state
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error-content').style.display = 'block';
+            
+            if (message) {
+                document.querySelector('#error-content .error p').textContent = message;
+            }
+        }
+        
+        // Execute automation
+        async function executeAutomation() {
+            if (!automationData) return;
+            
+            const runBtn = document.getElementById('run-btn');
+            const originalText = runBtn.textContent;
+            runBtn.textContent = '⏳ Running...';
+            runBtn.disabled = true;
+            
+            try {
+                if (!webEngine) {
+                    webEngine = new WebAutomationEngine();
+                    await webEngine.requestPermissions();
+                }
+                
+                const result = await webEngine.execute(automationData);
+                
+                if (result.success) {
+                    showResults('✅ Automation completed successfully!', result.stepResults);
+                } else {
+                    showResults('⚠️ Automation completed with some errors', result.stepResults);
+                }
+                
+                if (result.incompatibleSteps.length > 0) {
+                    console.warn('Some steps were not compatible with web execution:', result.incompatibleSteps);
+                }
+                
+            } catch (error) {
+                console.error('Automation execution failed:', error);
+                showResults('❌ Automation failed: ' + error.message);
+            } finally {
+                runBtn.textContent = originalText;
+                runBtn.disabled = false;
+            }
+        }
+        
+        // Show execution results
+        function showResults(message, stepResults = []) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = stepResults.some(r => !r.success) ? 'error' : 'success';
+            resultDiv.style.cssText = `
+                position: fixed; top: 20px; right: 20px; 
+                border-radius: 12px; padding: 16px; 
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                max-width: 300px; z-index: 1000; font-family: sans-serif;
+            `;
+            
+            resultDiv.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 8px;">${message}</div>
+                ${stepResults.length > 0 ? `
+                    <div style="font-size: 12px; opacity: 0.8;">
+                        ${stepResults.filter(r => r.success).length}/${stepResults.length} steps completed
+                    </div>
+                ` : ''}
+                <button onclick="this.parentElement.remove()" style="
+                    background: ${stepResults.some(r => !r.success) ? '#f44336' : '#4caf50'}; 
+                    color: white; border: none; padding: 4px 8px;
+                    border-radius: 4px; margin-top: 8px; cursor: pointer; font-size: 12px;
+                ">Close</button>
+            `;
+            
+            document.body.appendChild(resultDiv);
+            setTimeout(() => resultDiv.remove(), 5000);
+        }
+        
+        // Try to open in app
+        function tryApp() {
+            if (automationData) {
+                const appUrl = `zaptap://automation/${automationData.id}`;
+                window.location.href = appUrl;
+                
+                setTimeout(() => {
+                    if (!document.hidden) {
+                        window.open('https://zaptap.cloud', '_blank');
+                    }
+                }, 2000);
+            } else {
+                window.open('https://zaptap.cloud', '_blank');
+            }
+        }
+        
+        // WebAutomationEngine for web execution
+        class WebAutomationEngine {
+            constructor() {
+                this.variables = new Map();
+                this.setupExecutors();
+            }
+            
+            setupExecutors() {
+                this.executors = {
+                    sms: (step) => {
+                        const { phoneNumber, message } = step.config;
+                        window.open(`sms:${phoneNumber}?body=${encodeURIComponent(message || '')}`);
+                        return { success: true, action: 'sms_opened' };
+                    },
+                    email: (step) => {
+                        const { recipient, subject, body } = step.config;
+                        const url = `mailto:${recipient}?subject=${encodeURIComponent(subject || '')}&body=${encodeURIComponent(body || '')}`;
+                        window.open(url);
+                        return { success: true, action: 'email_opened' };
+                    },
+                    open_url: (step) => {
+                        const { url, openInNewTab = true } = step.config;
+                        if (openInNewTab) window.open(url, '_blank');
+                        else window.location.href = url;
+                        return { success: true, action: 'url_opened' };
+                    },
+                    notification: (step) => {
+                        const { title, message } = step.config;
+                        const text = `${title ? title + '\n' : ''}${message || ''}`;
+                        if ('Notification' in window && Notification.permission === 'granted') {
+                            new Notification(title || 'Automation', { body: message });
+                        } else {
+                            alert(text);
+                        }
+                        return { success: true, action: 'notification_shown' };
+                    },
+                    delay: async (step) => {
+                        const { duration = 1000 } = step.config;
+                        await new Promise(resolve => setTimeout(resolve, duration));
+                        return { success: true, action: 'delay_completed' };
+                    },
+                    text: async (step) => {
+                        const { text, action = 'display' } = step.config;
+                        if (action === 'copy' && navigator.clipboard) {
+                            await navigator.clipboard.writeText(text);
+                            return { success: true, action: 'text_copied' };
+                        } else {
+                            alert(text);
+                            return { success: true, action: 'text_displayed' };
+                        }
+                    },
+                    location: (step) => {
+                        return new Promise((resolve, reject) => {
+                            if (!navigator.geolocation) {
+                                reject(new Error('Geolocation not supported'));
+                                return;
+                            }
+                            navigator.geolocation.getCurrentPosition(
+                                (position) => {
+                                    const { latitude, longitude } = position.coords;
+                                    const { action, phoneNumber, message } = step.config;
+                                    if (action === 'share_location' && phoneNumber) {
+                                        const locationMessage = `${message || 'My location'}: https://maps.google.com/?q=${latitude},${longitude}`;
+                                        window.open(`sms:${phoneNumber}?body=${encodeURIComponent(locationMessage)}`);
+                                    }
+                                    resolve({ success: true, action: 'location_obtained', latitude, longitude });
+                                },
+                                (error) => reject(new Error(`Location error: ${error.message}`)),
+                                { timeout: 10000, enableHighAccuracy: true }
+                            );
+                        });
+                    },
+                    variable: (step) => {
+                        const { name, value } = step.config;
+                        this.variables.set(name, value);
+                        return { success: true, action: 'variable_set', name, value };
+                    },
+                    get_variable: (step) => {
+                        const { name } = step.config;
+                        const value = this.variables.get(name);
+                        return { success: true, action: 'variable_retrieved', name, value };
+                    }
+                };
+            }
+            
+            async execute(automation) {
+                const result = { success: true, stepResults: [], incompatibleSteps: [] };
+                
+                for (const step of automation.steps) {
+                    if (!step.enabled) continue;
+                    
+                    const executor = this.executors[step.type];
+                    if (!executor) {
+                        result.incompatibleSteps.push(step.type);
+                        result.stepResults.push({ stepId: step.id, success: false, error: 'Unsupported step type' });
+                        continue;
+                    }
+                    
+                    try {
+                        const stepResult = await executor(step);
+                        result.stepResults.push({ stepId: step.id, success: true, result: stepResult });
+                    } catch (error) {
+                        result.stepResults.push({ stepId: step.id, success: false, error: error.message });
+                        result.success = false;
+                    }
+                }
+                
+                return result;
+            }
+            
+            async requestPermissions() {
+                if ('Notification' in window && Notification.permission === 'default') {
+                    await Notification.requestPermission();
+                }
+                return true;
+            }
+        }
+        
+        // Load automation when page loads
+        window.onload = function() {
+            loadSharedAutomation();
+        };
+    </script>
+</body>
+</html>

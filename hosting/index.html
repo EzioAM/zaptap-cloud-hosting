@@ -3,215 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zaptap - Smart Automation</title>
+    <title>Zaptap - Mobile Automation Platform</title>
     <meta name="description" content="Zaptap - Create and share powerful automations with NFC tags and QR codes">
     <style>
-        body {
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #6200ee 0%, #03dac6 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            padding: 20px;
         }
         .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
             text-align: center;
-            max-width: 500px;
-            padding: 2rem;
         }
-        .logo {
-            font-size: 3rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
+        .header {
+            background: #6200ee;
+            color: white;
+            padding: 48px 24px;
         }
-        .tagline {
-            font-size: 1.2rem;
-            margin-bottom: 2rem;
+        .logo { 
+            font-size: 48px; 
+            margin-bottom: 16px;
+        }
+        .title { 
+            font-size: 32px; 
+            font-weight: bold; 
+            margin-bottom: 16px;
+        }
+        .subtitle { 
+            font-size: 18px;
             opacity: 0.9;
+            line-height: 1.5;
+        }
+        .content {
+            padding: 48px 24px;
         }
         .features {
-            margin-top: 2rem;
-            text-align: left;
+            display: grid;
+            gap: 24px;
+            margin-bottom: 48px;
         }
         .feature {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding: 0.5rem;
+            text-align: left;
+            padding: 24px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #6200ee;
         }
         .feature-icon {
-            margin-right: 1rem;
-            font-size: 1.5rem;
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        .feature-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .feature-description {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.5;
+        }
+        .cta-section {
+            margin-top: 48px;
+        }
+        .download-btn {
+            background: #6200ee;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.2s;
+        }
+        .download-btn:hover {
+            background: #5500cc;
+        }
+        .platform-links {
+            margin-top: 24px;
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+        .platform-btn {
+            padding: 12px 24px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .platform-btn:hover {
+            border-color: #6200ee;
+            color: #6200ee;
+        }
+        .footer {
+            text-align: center;
+            padding: 24px;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+            color: #666;
+        }
+        .footer-links {
+            margin-top: 12px;
+        }
+        .footer-links a {
+            color: #6200ee;
+            text-decoration: none;
+            margin: 0 12px;
+        }
+        @media (max-width: 600px) {
+            .title { font-size: 28px; }
+            .subtitle { font-size: 16px; }
+            .platform-links { flex-direction: column; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logo">📱 Zaptap</div>
-        <div class="tagline">Create and share powerful automations with NFC tags and QR codes</div>
-
-        <div class="features">
-            <div class="feature">
-                <div class="feature-icon">🏷️</div>
-                <div>Write automations to NFC tags</div>
+        <div class="header">
+            <div class="logo">⚡</div>
+            <div class="title">Zaptap</div>
+            <div class="subtitle">
+                Create powerful mobile automations.<br>
+                Share them instantly with anyone.
             </div>
-            <div class="feature">
-                <div class="feature-icon">📊</div>
-                <div>Generate QR codes for sharing</div>
+        </div>
+        
+        <div class="content">
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">🤖</div>
+                    <div class="feature-title">Smart Automations</div>
+                    <div class="feature-description">
+                        Build complex workflows with our intuitive drag-and-drop interface. 
+                        From simple notifications to multi-step processes.
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">📲</div>
+                    <div class="feature-title">NFC & QR Triggers</div>
+                    <div class="feature-description">
+                        Deploy automations to NFC tags and QR codes. 
+                        Tap or scan to instantly run your workflows.
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">🔗</div>
+                    <div class="feature-title">Easy Sharing</div>
+                    <div class="feature-description">
+                        Share your automations with a simple link. 
+                        Recipients can run them instantly, even without the app.
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">🚨</div>
+                    <div class="feature-title">Emergency Features</div>
+                    <div class="feature-description">
+                        Create emergency automations for safety. 
+                        Share location, send alerts, and more with a single tap.
+                    </div>
+                </div>
             </div>
-            <div class="feature">
-                <div class="feature-icon">⚡</div>
-                <div>Lightning-fast automation execution</div>
+            
+            <div class="cta-section">
+                <a href="/download" class="download-btn">
+                    📱 Download Zaptap
+                </a>
+                
+                <div class="platform-links">
+                    <a href="https://apps.apple.com/app/zaptap" class="platform-btn">
+                        🍎 iOS App Store
+                    </a>
+                    <a href="https://play.google.com/store/apps/details?id=com.zaptap.app" class="platform-btn">
+                        🤖 Google Play
+                    </a>
+                </div>
             </div>
-            <div class="feature">
-                <div class="feature-icon">🔒</div>
-                <div>Secure and private by design</div>
+        </div>
+        
+        <div class="footer">
+            <div>© 2025 Zaptap. All rights reserved.</div>
+            <div class="footer-links">
+                <a href="/privacy">Privacy Policy</a>
+                <a href="/terms">Terms of Service</a>
+                <a href="/support">Support</a>
             </div>
         </div>
     </div>
 
     <script>
-        // Handle deep links from web
-        const urlParams = new URLSearchParams(window.location.search);
-        const automation = urlParams.get('automation');
-        const share = urlParams.get('share');
-        const shared = urlParams.get('shared');
-        const link = urlParams.get('link');
-        const run = urlParams.get('run');
-        const emergency = urlParams.get('emergency');
-        
-        const automationId = automation || share || shared || link || run || emergency;
-        
-        if (automationId) {
-            // For /link/, /run/, and /emergency/ routes, show a loading screen while we try the app
-            if (link || run || emergency) {
-                showAutomationLoadingScreen(automationId, emergency);
-            } else {
-                // For legacy routes, try direct app link
-                tryOpenApp(automationId);
-            }
-        }
-        
-        function showAutomationLoadingScreen(automationId, isEmergency) {
-            document.body.innerHTML = `
-                <div style="
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    min-height: 100vh;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: linear-gradient(135deg, #6200ee 0%, #03dac6 100%);
-                    margin: 0;
-                    padding: 20px;
-                    color: white;
-                ">
-                    <div style="
-                        background: rgba(255,255,255,0.1);
-                        backdrop-filter: blur(10px);
-                        border-radius: 20px;
-                        padding: 40px;
-                        text-align: center;
-                        max-width: 400px;
-                        border: 1px solid rgba(255,255,255,0.2);
-                    ">
-                        <div style="font-size: 4rem; margin-bottom: 20px;">
-                            ${isEmergency ? '🚨' : '⚡'}
-                        </div>
-                        <h1 style="margin: 0 0 10px 0; font-size: 1.8rem;">
-                            ${isEmergency ? 'Emergency Automation' : 'Loading Automation'}
-                        </h1>
-                        <p style="margin: 0 0 30px 0; opacity: 0.9; font-size: 1.1rem;">
-                            Attempting to open in Zaptap app...
-                        </p>
-                        
-                        <div id="loading-spinner" style="
-                            width: 40px;
-                            height: 40px;
-                            border: 4px solid rgba(255,255,255,0.3);
-                            border-top: 4px solid white;
-                            border-radius: 50%;
-                            animation: spin 1s linear infinite;
-                            margin: 0 auto 30px;
-                        "></div>
-                        
-                        <div id="backup-options" style="display: none;">
-                            <p style="margin-bottom: 20px; font-size: 0.9rem; opacity: 0.8;">
-                                App not installed? Choose an option:
-                            </p>
-                            <button onclick="downloadApp()" style="
-                                background: white;
-                                color: #6200ee;
-                                border: none;
-                                padding: 12px 24px;
-                                border-radius: 25px;
-                                font-weight: bold;
-                                cursor: pointer;
-                                margin: 0 10px 10px 0;
-                                font-size: 1rem;
-                            ">📱 Download App</button>
-                            <button onclick="runInBrowser()" style="
-                                background: rgba(255,255,255,0.2);
-                                color: white;
-                                border: 1px solid rgba(255,255,255,0.5);
-                                padding: 12px 24px;
-                                border-radius: 25px;
-                                font-weight: bold;
-                                cursor: pointer;
-                                margin: 0 10px 10px 0;
-                                font-size: 1rem;
-                            ">🌐 Run in Browser</button>
-                        </div>
-                        
-                        <p style="margin-top: 30px; font-size: 0.8rem; opacity: 0.7;">
-                            Automation ID: ${automationId}
-                        </p>
-                    </div>
-                </div>
-                
-                <style>
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                    button:hover {
-                        transform: scale(1.05);
-                        transition: transform 0.2s;
-                    }
-                </style>
-            `;
-            
-            // Try to open the app
-            tryOpenApp(automationId);
-            
-            // Show backup options after 3 seconds
-            setTimeout(() => {
-                document.getElementById('loading-spinner').style.display = 'none';
-                document.getElementById('backup-options').style.display = 'block';
-            }, 3000);
-        }
-        
-        function tryOpenApp(automationId) {
-            // Try to open the app
-            const deepLink = `zaptap://automation/${automationId}`;
-            window.location.href = deepLink;
-        }
-        
-        function downloadApp() {
-            if (navigator.userAgent.match(/iPhone|iPad|iPod/)) {
-                window.open('https://apps.apple.com/app/zaptap', '_blank');
-            } else if (navigator.userAgent.match(/Android/)) {
-                window.open('https://play.google.com/store/apps/details?id=com.zaptap.app', '_blank');
-            } else {
-                window.open('https://zaptap.cloud', '_blank');
-            }
-        }
-        
-        function runInBrowser() {
-            alert('Browser execution coming soon! For now, please download the app for full functionality.');
-            downloadApp();
+        // Redirect automation share links to the dedicated share domain
+        const path = window.location.pathname;
+        if (path.includes('/share/') || path.includes('/link/') || path.includes('/run/')) {
+            // Redirect to the dedicated share subdomain
+            window.location.href = 'https://www.zaptap.cloud' + path;
         }
     </script>
 </body>

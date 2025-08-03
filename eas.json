@@ -8,6 +8,12 @@
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
+      "env": {
+        "SUPABASE_URL": "$SUPABASE_URL",
+        "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY",
+        "CLAUDE_API_KEY": "$CLAUDE_API_KEY",
+        "OPENAI_API_KEY": "$OPENAI_API_KEY"
+      },
       "ios": {
         "simulator": false,
         "buildConfiguration": "Debug"
@@ -20,8 +26,15 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "env": {
+        "SUPABASE_URL": "$SUPABASE_URL",
+        "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY",
+        "CLAUDE_API_KEY": "$CLAUDE_API_KEY",
+        "OPENAI_API_KEY": "$OPENAI_API_KEY"
+      },
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "buildConfiguration": "Release"
       },
       "android": {
         "buildType": "apk"

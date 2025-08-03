@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zaptap - Mobile Automation Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
+            text-align: center;
+        }
+        .header {
+            background: #6200ee;
+            color: white;
+            padding: 48px 24px;
+        }
+        .logo { 
+            font-size: 48px; 
+            margin-bottom: 16px;
+        }
+        .title { 
+            font-size: 32px; 
+            font-weight: bold; 
+            margin-bottom: 16px;
+        }
+        .subtitle { 
+            font-size: 18px;
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+        .content {
+            padding: 48px 24px;
+        }
+        .features {
+            display: grid;
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+        .feature {
+            text-align: left;
+            padding: 24px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #6200ee;
+        }
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        .feature-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .feature-description {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.5;
+        }
+        .cta-section {
+            margin-top: 48px;
+        }
+        .download-btn {
+            background: #6200ee;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.2s;
+        }
+        .download-btn:hover {
+            background: #5500cc;
+        }
+        .platform-links {
+            margin-top: 24px;
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+        .platform-btn {
+            padding: 12px 24px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .platform-btn:hover {
+            border-color: #6200ee;
+            color: #6200ee;
+        }
+        .footer {
+            text-align: center;
+            padding: 24px;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+            color: #666;
+        }
+        .footer-links {
+            margin-top: 12px;
+        }
+        .footer-links a {
+            color: #6200ee;
+            text-decoration: none;
+            margin: 0 12px;
+        }
+        @media (max-width: 600px) {
+            .title { font-size: 28px; }
+            .subtitle { font-size: 16px; }
+            .platform-links { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">⚡</div>
+            <div class="title">Zaptap</div>
+            <div class="subtitle">
+                Create powerful mobile automations.<br>
+                Share them instantly with anyone.
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">🤖</div>
+                    <div class="feature-title">Smart Automations</div>
+                    <div class="feature-description">
+                        Build complex workflows with our intuitive drag-and-drop interface. 
+                        From simple notifications to multi-step processes.
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">📲</div>
+                    <div class="feature-title">NFC & QR Triggers</div>
+                    <div class="feature-description">
+                        Deploy automations to NFC tags and QR codes. 
+                        Tap or scan to instantly run your workflows.
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">🔗</div>
+                    <div class="feature-title">Easy Sharing</div>
+                    <div class="feature-description">
+                        Share your automations with a simple link. 
+                        Recipients can run them instantly, even without the app.
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">🚨</div>
+                    <div class="feature-title">Emergency Features</div>
+                    <div class="feature-description">
+                        Create emergency automations for safety. 
+                        Share location, send alerts, and more with a single tap.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="cta-section">
+                <a href="/download" class="download-btn">
+                    📱 Download Zaptap
+                </a>
+                
+                <div class="platform-links">
+                    <a href="https://apps.apple.com/app/zaptap" class="platform-btn">
+                        🍎 iOS App Store
+                    </a>
+                    <a href="https://play.google.com/store/apps/details?id=com.zaptap.app" class="platform-btn">
+                        🤖 Google Play
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div>© 2025 Zaptap. All rights reserved.</div>
+            <div class="footer-links">
+                <a href="/privacy">Privacy Policy</a>
+                <a href="/terms">Terms of Service</a>
+                <a href="/support">Support</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Check if this is a shared automation link
+        const path = window.location.pathname;
+        if (path === '/' || path === '') {
+            // They're on the landing page, do nothing
+        } else if (path.includes('/share/') || path.includes('/link/') || path.includes('/run/')) {
+            // Redirect to the share handler
+            window.location.href = '/index.html' + path;
+        }
+    </script>
+</body>
+</html>

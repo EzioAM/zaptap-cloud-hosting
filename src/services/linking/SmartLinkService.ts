@@ -20,7 +20,7 @@ export class SmartLinkService {
   private appScheme: string;
 
   constructor(
-    webDomain: string = 'https://zaptap.cloud',
+    webDomain: string = 'https://www.zaptap.cloud', // Your custom domain with www
     appScheme: string = 'zaptap'
   ) {
     this.webDomain = webDomain;

@@ -106,6 +106,8 @@ export default {
     extra: {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+      claudeApiKey: process.env.CLAUDE_API_KEY,
+      openaiApiKey: process.env.OPENAI_API_KEY,
       eas: {
         projectId: "c9104518-2191-4a5a-aa20-76cebb5193cd"
       }

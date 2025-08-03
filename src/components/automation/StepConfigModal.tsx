@@ -1,26 +1,27 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  Dimensions,
-} from 'react-native';
-import {
-  Modal,
-  Text,
-  TextInput,
-  Button,
-  IconButton,
-  Chip,
-  Surface,
-  useTheme,
-} from 'react-native-paper';
-import { BlurView } from 'expo-blur';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { Portal, Modal, Text, Button, IconButton, useTheme, MD3Theme } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const ICON_MAP = {
+  sms: 'message-text',
+  email: 'email',
+  webhook: 'webhook',
+  notification: 'bell',
+  delay: 'clock',
+  variable: 'variable',
+  location: 'map-marker',
+  condition: 'code-braces',
+  loop: 'refresh',
+  text: 'format-text',
+  math: 'calculator',
+  clipboard: 'content-paste',
+  app: 'application',
+  photo: 'camera',
+} as const;
+
+type StepType = keyof typeof ICON_MAP;
 
 interface StepConfigModalProps {
   visible: boolean;
@@ -32,7 +33,6 @@ interface StepConfigModalProps {
   renderConfigForm: () => React.ReactNode;
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const StepConfigModal: React.FC<StepConfigModalProps> = ({
   visible,
@@ -45,273 +45,190 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
 }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
+  // Dev-only visibility trace
   useEffect(() => {
-    console.log('StepConfigModal visibility changed:', visible, 'stepType:', stepType, 'stepTitle:', stepTitle);
-    if (visible) {
-      console.log('Animating modal in...');
-      // Animate modal in
-      Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          useNativeDriver: true,
-          tension: 65,
-          friction: 11,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 65,
-          friction: 11,
-        }),
-      ]).start();
-    } else {
-      // Animate modal out
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: SCREEN_HEIGHT,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 0.9,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.log('StepConfigModal:', { visible, stepType, stepTitle });
     }
-  }, [visible]);
+  }, [visible, stepType, stepTitle]);
 
-  const getStepIcon = () => {
-    const iconMap: Record<string, string> = {
-      sms: 'message-text',
-      email: 'email',
-      webhook: 'webhook',
-      notification: 'bell',
-      delay: 'clock',
-      variable: 'variable',
-      location: 'map-marker',
-      condition: 'code-braces',
-      loop: 'refresh',
-      text: 'format-text',
-      math: 'calculator',
-      clipboard: 'content-paste',
-      app: 'application',
-      photo: 'camera',
-    };
-    return iconMap[stepType] || 'help-circle';
-  };
+  const stepIcon = useMemo(
+    () => ICON_MAP[stepType as StepType] ?? 'help-circle',
+    [stepType]
+  );
+
+  const handleSave = useCallback(() => {
+    onSave(stepConfig);
+  }, [onSave, stepConfig]);
+
+  if (!visible) return null;
+
+  const styles = makeStyles(theme, insets);
+
+  // Defensive error handling for renderConfigForm
+  let formNode: React.ReactNode = null;
+  try {
+    formNode = typeof renderConfigForm === 'function' ? renderConfigForm() : null;
+  } catch (e) {
+    formNode = <Text>Error loading form</Text>;
+    if (__DEV__) {
+      console.error('renderConfigForm error:', e);
+    }
+  }
 
   return (
-    <Modal
-      visible={visible}
-      onDismiss={onCancel}
-      contentContainerStyle={styles.modalContainer}
-    >
-      <Animated.View 
-        style={[
-          styles.backdrop,
-          {
-            opacity: fadeAnim,
-          }
-        ]}
-      >
-        {Platform.OS === 'ios' ? (
-          <BlurView intensity={80} style={StyleSheet.absoluteFillObject} />
-        ) : (
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.5)' }]} />
-        )}
-      </Animated.View>
-      
-      <Animated.View
-        style={[
-          styles.modalContent,
-          {
-            transform: [
-              { translateY: slideAnim },
-              { scale: scaleAnim },
-            ],
-            opacity: fadeAnim,
-          }
-        ]}
+    <Portal>
+      <Modal
+        visible={visible}
+        onDismiss={onCancel}
+        contentContainerStyle={styles.modalContainer}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardAvoid}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.flex}
+          keyboardVerticalOffset={insets.top + 64}
         >
-          <Surface style={[styles.surface, { paddingBottom: insets.bottom }]} elevation={4}>
+          <View 
+            style={styles.modalContent} 
+            testID="StepConfigModalContent" 
+            accessibilityViewIsModal 
+            accessibilityRole="dialog"
+          >
             {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.dragIndicator} />
-              <View style={styles.headerContent}>
-                <View style={styles.headerLeft}>
-                  <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
-                    <Icon name={getStepIcon()} size={24} color={theme.colors.primary} />
-                  </View>
-                  <View style={styles.headerText}>
-                    <Text style={styles.headerTitle}>Configure Step</Text>
-                    <Text style={styles.headerSubtitle}>{stepTitle}</Text>
-                  </View>
+            <View style={styles.header} accessibilityRole="header">
+              <View style={styles.headerLeft}>
+                <View style={styles.iconContainer} accessible accessibilityLabel={`${stepType} icon`}>
+                  <Icon name={stepIcon} size={24} color={theme.colors.primary} />
                 </View>
-                <IconButton
-                  icon="close"
-                  size={24}
-                  onPress={onCancel}
-                  style={styles.closeButton}
-                />
+                <View style={styles.headerText}>
+                  <Text variant="titleMedium" style={styles.headerTitle}>
+                    Configure Step
+                  </Text>
+                  <Text variant="bodyMedium" style={styles.headerSubtitle} numberOfLines={1}>
+                    {stepTitle}
+                  </Text>
+                </View>
               </View>
+              <IconButton
+                icon="close"
+                size={24}
+                onPress={onCancel}
+                accessibilityLabel="Close configuration"
+                iconColor={theme.colors.onSurface}
+              />
             </View>
 
             {/* Content */}
-            <ScrollView 
-              style={styles.scrollView}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={styles.contentContainer}
               keyboardShouldPersistTaps="handled"
             >
-              <View style={styles.formContainer}>
-                {renderConfigForm()}
-              </View>
+              {formNode ?? (
+                <Text style={styles.noFormText}>
+                  No configuration form available for "{stepType}".
+                </Text>
+              )}
             </ScrollView>
 
             {/* Actions */}
-            <View style={[styles.actions, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={styles.actions}>
               <Button
                 mode="outlined"
                 onPress={onCancel}
                 style={styles.actionButton}
                 contentStyle={styles.actionButtonContent}
+                accessibilityLabel="Cancel configuration"
               >
                 Cancel
               </Button>
               <Button
                 mode="contained"
-                onPress={() => onSave(stepConfig)}
+                onPress={handleSave}
                 style={[styles.actionButton, styles.saveButton]}
                 contentStyle={styles.actionButtonContent}
                 icon="check"
+                accessibilityLabel="Save configuration"
               >
-                Save Configuration
+                Save
               </Button>
             </View>
-          </Surface>
+          </View>
         </KeyboardAvoidingView>
-      </Animated.View>
-    </Modal>
+      </Modal>
+    </Portal>
   );
 };
 
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    margin: 0,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalContent: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  keyboardAvoid: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  surface: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: SCREEN_HEIGHT * 0.9,
-  },
-  header: {
-    paddingTop: 12,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  dragIndicator: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#ccc',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  headerText: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  closeButton: {
-    margin: -8,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingVertical: 20,
-  },
-  formContainer: {
-    paddingHorizontal: 20,
-  },
-  actions: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-  },
-  actionButtonContent: {
-    paddingVertical: 8,
-  },
-  saveButton: {
-    flex: 2,
-  },
-});
+const makeStyles = (theme: MD3Theme, insets: { top: number; bottom: number }) =>
+  StyleSheet.create({
+    flex: { flex: 1 },
+    modalContainer: {
+      margin: 0,
+      flex: 1,
+      // Use theme surfaces instead of hard-coded white
+      backgroundColor: theme.colors.surface,
+      paddingTop: insets.top,
+      paddingBottom: Math.max(insets.bottom, 12),
+    },
+    modalContent: {
+      flex: 1,
+      backgroundColor: theme.colors.surface,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.outlineVariant,
+      backgroundColor: theme.colors.surface,
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      minHeight: 40,
+    },
+    iconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+      backgroundColor: theme.colors.primaryContainer,
+    },
+    headerText: { flex: 1 },
+    headerTitle: { color: theme.colors.onSurface, fontWeight: '600' },
+    headerSubtitle: { color: theme.colors.onSurfaceVariant, marginTop: 2 },
+    content: { flex: 1 },
+    contentContainer: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+      gap: 12,
+    },
+    actions: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.outlineVariant,
+      gap: 12,
+      backgroundColor: theme.colors.surface,
+    },
+    actionButton: { flex: 1 },
+    actionButtonContent: { paddingVertical: 8 },
+    saveButton: { flex: 1.2 },
+    noFormText: {
+      color: theme.colors.onSurface,
+      textAlign: 'center',
+      marginTop: 20,
+    },
+  });
 
 export default StepConfigModal;

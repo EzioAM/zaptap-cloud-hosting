@@ -19,4 +19,5 @@ export type RootStackParamList = {
   Reviews: {
     automation: AutomationData;
   };
+  DeveloperMenu: undefined;
 };

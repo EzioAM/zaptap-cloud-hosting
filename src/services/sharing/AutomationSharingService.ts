@@ -22,6 +22,7 @@ export interface SharingResult {
 
 export class AutomationSharingService {
   private static instance: AutomationSharingService;
+  private static readonly SHARE_DOMAIN = 'https://www.zaptap.cloud'; // Your custom domain with www
 
   private constructor() {}
 
@@ -60,7 +61,7 @@ export class AutomationSharingService {
       if (generatePublicLink) {
         const publicLinkResult = await this.createPublicShareLink(automation);
         if (publicLinkResult.success && publicLinkResult.publicId) {
-          shareUrl = `https://zaptap.cloud/share/${publicLinkResult.publicId}`;
+          shareUrl = `${AutomationSharingService.SHARE_DOMAIN}/share/${publicLinkResult.publicId}`;
           publicId = publicLinkResult.publicId;
         }
       }
@@ -129,6 +130,9 @@ export class AutomationSharingService {
       const publicId = this.generatePublicId();
 
       // Store in database for public access
+      console.log('Creating public share with ID:', publicId);
+      console.log('Automation data:', automation);
+      
       const { data, error } = await supabase
         .from('public_shares')
         .insert({
@@ -143,6 +147,8 @@ export class AutomationSharingService {
         })
         .select()
         .single();
+      
+      console.log('Public share creation result:', { data, error });
 
       if (error) {
         throw new Error(`Failed to create public share: ${error.message}`);
@@ -150,7 +156,7 @@ export class AutomationSharingService {
 
       return {
         success: true,
-        shareUrl: `https://zaptap.cloud/share/${publicId}`,
+        shareUrl: `${AutomationSharingService.SHARE_DOMAIN}/share/${publicId}`,
         publicId,
       };
 

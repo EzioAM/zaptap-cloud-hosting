@@ -1,0 +1,36 @@
+RewriteEngine On
+
+# Handle shared automation links
+RewriteRule ^share/([a-zA-Z0-9]+)/?$ index.html [L,QSA]
+
+# Handle universal links
+RewriteRule ^link/([a-zA-Z0-9-]+)/?$ index.html [L,QSA]
+
+# Handle run links
+RewriteRule ^run/([a-zA-Z0-9-]+)/?$ index.html [L,QSA]
+
+# Handle emergency links
+RewriteRule ^emergency/([a-zA-Z0-9-]+)/?$ index.html [L,QSA]
+
+# Ensure HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Add CORS headers
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
+
+# Cache static assets
+<IfModule mod_expires.c>
+    ExpiresActive on
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+</IfModule>
