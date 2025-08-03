@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
   import { supabase } from '../../services/supabase/client';
+  import { OnboardingService } from '../../services/onboarding/OnboardingService';
 
   interface User {
     id: string;
@@ -75,6 +76,13 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 
         if (profileError) {
           console.warn('Profile creation failed:', profileError);
+        }
+        
+        // Create sample automations for new user
+        try {
+          await OnboardingService.initializeNewUser(data.user.id);
+        } catch (error) {
+          console.warn('Failed to create sample automations:', error);
         }
       }
 

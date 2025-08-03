@@ -27,6 +27,8 @@ import NFCScanner from '../../components/nfc/NFCScanner';
 import NFCWriter from '../../components/nfc/NFCWriter';
 import { FullScreenModal } from '../../components/common/FullScreenModal';
 import { AutomationCard } from '../../components/automation/AutomationCard';
+import { EmptyState } from '../../components/common/EmptyState';
+import { SkeletonCard, SkeletonList } from '../../components/common/LoadingSkeleton';
 
 interface MyAutomationsScreenProps {
   navigation: any;
@@ -339,26 +341,17 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
   );
 
   const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Icon name="robot" size={64} color="#ccc" />
-      <Text style={styles.emptyTitle}>No Automations Found</Text>
-      <Text style={styles.emptyDescription}>
-        {searchQuery || filter !== 'all' 
+    <EmptyState
+      icon="robot-outline"
+      title="No Automations Found"
+      description={
+        searchQuery || filter !== 'all' 
           ? 'Try adjusting your search or filter'
           : 'Create your first automation to get started'
-        }
-      </Text>
-      {!searchQuery && filter === 'all' && (
-        <Button
-          mode="contained"
-          onPress={() => navigation.navigate('AutomationBuilderScreen')}
-          icon="plus"
-          style={styles.emptyButton}
-        >
-          Create Automation
-        </Button>
-      )}
-    </View>
+      }
+      actionLabel={!searchQuery && filter === 'all' ? 'Create Automation' : undefined}
+      onAction={!searchQuery && filter === 'all' ? () => navigation.navigate('AutomationBuilder') : undefined}
+    />
   );
 
   const renderSkeletonCard = () => (
@@ -392,13 +385,15 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
         </Appbar.Header>
         <View style={styles.content}>
           <View style={styles.searchContainer}>
-            <View style={styles.skeletonSearchbar} />
-            <View style={styles.skeletonFilters} />
+            <Searchbar
+              placeholder="Search automations..."
+              value=""
+              editable={false}
+              style={[styles.searchBar, { opacity: 0.5 }]}
+            />
           </View>
-          <ScrollView style={styles.scrollView}>
-            {[1, 2, 3].map((item) => (
-              <View key={item}>{renderSkeletonCard()}</View>
-            ))}
+          <ScrollView style={styles.scrollView} contentContainerStyle={{ padding: 16 }}>
+            <SkeletonList count={3} />
           </ScrollView>
         </View>
       </View>
