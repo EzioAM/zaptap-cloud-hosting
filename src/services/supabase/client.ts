@@ -15,15 +15,54 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   });
 
-  // Test connection function
+  // Enhanced test connection function
   export const testConnection = async () => {
     try {
-      const { data, error } = await supabase.from('categories').select('count');
-      if (error) throw error;
+      // Test 1: Check if we can reach Supabase
+      const { data: healthCheck, error: healthError } = await supabase
+        .from('automations')
+        .select('count', { count: 'exact', head: true });
+      
+      if (healthError) {
+        console.error('❌ Database connection failed:', healthError);
+        return { connected: false, error: healthError.message, details: 'database' };
+      }
+
+      // Test 2: Check authentication status
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('❌ Auth service error:', sessionError);
+        return { connected: false, error: sessionError.message, details: 'auth' };
+      }
+
       console.log('✅ Supabase connected successfully');
-      return true;
+      console.log('✅ Session status:', session ? 'Authenticated' : 'Not authenticated');
+      
+      return { 
+        connected: true, 
+        authenticated: !!session,
+        user: session?.user?.email,
+        details: 'all_services_operational'
+      };
+    } catch (error: any) {
+      console.error('❌ Supabase connection failed:', error);
+      return { 
+        connected: false, 
+        error: error.message || 'Unknown error',
+        details: 'network_or_config'
+      };
+    }
+  };
+
+  // Helper to refresh session if needed
+  export const refreshSession = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.refreshSession();
+      if (error) throw error;
+      return session;
     } catch (error) {
-      console.log('❌ Supabase connection failed:', error);
-      return false;
+      console.error('Failed to refresh session:', error);
+      return null;
     }
   };

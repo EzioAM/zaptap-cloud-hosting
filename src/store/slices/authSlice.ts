@@ -7,6 +7,8 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
     email: string;
     name: string;
     avatar_url?: string;
+    role?: string;
+    created_at?: string;
   }
 
   interface AuthState {
@@ -131,6 +133,24 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
         state.accessToken = action.payload.accessToken;
         state.refreshToken = action.payload.refreshToken;
       },
+      setUser: (state, action: PayloadAction<User>) => {
+        state.user = action.payload;
+      },
+      restoreSession: (state, action: PayloadAction<{ user: User; accessToken: string; refreshToken: string }>) => {
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.refreshToken = action.payload.refreshToken;
+        state.isAuthenticated = true;
+        state.isLoading = false;
+        state.error = null;
+      },
+      signOutSuccess: (state) => {
+        state.user = null;
+        state.isAuthenticated = false;
+        state.accessToken = null;
+        state.refreshToken = null;
+        state.error = null;
+      },
     },
     extraReducers: (builder) => {
       builder
@@ -188,5 +208,5 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
     },
   });
 
-  export const { clearError, setTokens } = authSlice.actions;
+  export const { clearError, setTokens, setUser, restoreSession, signOutSuccess } = authSlice.actions;
   export default authSlice;

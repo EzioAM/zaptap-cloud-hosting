@@ -1,12 +1,14 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BottomTabNavigator } from './BottomTabNavigator';
+import { ModernBottomTabNavigator } from './ModernBottomTabNavigator';
 import AutomationBuilderScreen from '../screens/automation/AutomationBuilderScreen';
 import AutomationDetailsScreen from '../screens/automation/AutomationDetailsScreen';
 import LocationTriggersScreen from '../screens/automation/LocationTriggersScreen';
 import ReviewsScreen from '../screens/automation/ReviewsScreen';
 import { DeveloperMenuScreen } from '../screens/developer/DeveloperMenuScreen';
+import ModernReviewsScreen from '../screens/modern/ModernReviewsScreen';
+import ModernCommentsScreen from '../screens/modern/ModernCommentsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { TutorialScreen } from '../screens/onboarding/TutorialScreen';
@@ -50,7 +52,7 @@ export const MainNavigator = () => {
     >
       <Stack.Screen
         name="MainTabs"
-        component={BottomTabNavigator}
+        component={ModernBottomTabNavigator}
         options={{ 
           headerShown: false 
         }}
@@ -79,6 +81,16 @@ export const MainNavigator = () => {
         name="DeveloperMenu"
         component={DeveloperMenuScreen}
         options={{ title: 'Developer Menu' }}
+      />
+      <Stack.Screen
+        name="ModernReviews"
+        component={ModernReviewsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ModernComments"
+        component={ModernCommentsScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Settings"

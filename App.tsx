@@ -7,16 +7,22 @@ import { store, persistor } from './src/store';
 import { AppNavigator } from './src/navigation';
 import { RemoteDebugger } from './src/components/debug/RemoteDebugger';
 import { AuthInitializer } from './src/components/auth/AuthInitializer';
+import { ThemeProvider } from './src/contexts/ThemeContext';
+import { ConnectionProvider } from './src/contexts/ConnectionContext';
 
 export default function App() {
   return (
     <ReduxProvider store={store}>
       <PersistGate loading={<ActivityIndicator />} persistor={persistor}>
         <PaperProvider>
-          <AuthInitializer>
-            <AppNavigator />
-            <RemoteDebugger />
-          </AuthInitializer>
+          <ThemeProvider>
+            <ConnectionProvider>
+              <AuthInitializer>
+                <AppNavigator />
+                <RemoteDebugger />
+              </AuthInitializer>
+            </ConnectionProvider>
+          </ThemeProvider>
         </PaperProvider>
       </PersistGate>
     </ReduxProvider>

@@ -1,4 +1,4 @@
-import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext } from '../../types';
+import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext, AutomationExecution, StepExecution } from '../../types';
   import { Logger } from '../../utils/Logger';
   import { variableManager, VariableDefinition } from '../variables/VariableManager';
   import * as SMS from 'expo-sms';
@@ -12,9 +12,89 @@ import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext } fro
     private logger: Logger;
     private isExecuting: boolean = false;
     private variables: Record<string, any> = {};
+    private executionId: string | null = null;
+    private executionStartTime: number = 0;
 
     constructor() {
       this.logger = new Logger('AutomationEngine');
+    }
+
+    private async createExecutionRecord(automationData: AutomationData): Promise<string> {
+      try {
+        const { data, error } = await supabase
+          .from('automation_executions')
+          .insert({
+            automation_id: automationData.id,
+            user_id: automationData.created_by,
+            status: 'running',
+            total_steps: automationData.steps.filter(s => s.enabled).length,
+            steps_completed: 0
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data.id;
+      } catch (error) {
+        this.logger.error('Failed to create execution record', { error });
+        throw error;
+      }
+    }
+
+    private async updateStepExecution(
+      stepIndex: number,
+      step: AutomationStep,
+      status: 'success' | 'failed',
+      executionTime: number,
+      output?: any,
+      error?: string
+    ): Promise<void> {
+      if (!this.executionId) return;
+
+      try {
+        await supabase
+          .from('step_executions')
+          .insert({
+            execution_id: this.executionId,
+            step_index: stepIndex,
+            step_type: step.type,
+            status,
+            execution_time: executionTime,
+            input_data: step.config,
+            output_data: output,
+            error_message: error
+          });
+
+        // Update parent execution progress
+        await supabase
+          .from('automation_executions')
+          .update({
+            steps_completed: stepIndex + 1
+          })
+          .eq('id', this.executionId);
+      } catch (error) {
+        this.logger.error('Failed to update step execution', { error });
+      }
+    }
+
+    private async completeExecution(status: 'success' | 'failed' | 'cancelled', error?: string): Promise<void> {
+      if (!this.executionId) return;
+
+      try {
+        const executionTime = Date.now() - this.executionStartTime;
+        
+        await supabase
+          .from('automation_executions')
+          .update({
+            status,
+            execution_time: executionTime,
+            completed_at: new Date().toISOString(),
+            error_message: error
+          })
+          .eq('id', this.executionId);
+      } catch (error) {
+        this.logger.error('Failed to complete execution record', { error });
+      }
     }
 
     async execute(
@@ -37,7 +117,18 @@ import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext } fro
 
       this.isExecuting = true;
       const startTime = Date.now();
+      this.executionStartTime = startTime;
       let stepsCompleted = 0;
+
+      // Create execution record if automation has an ID
+      if (automationData.id) {
+        try {
+          this.executionId = await this.createExecutionRecord(automationData);
+        } catch (error) {
+          this.logger.error('Failed to create execution record:', error);
+          // Continue execution even if tracking fails
+        }
+      }
 
       try {
         // Initialize variables for this execution
@@ -47,6 +138,7 @@ import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext } fro
           automationId: automationData.id,
           title: automationData.title,
           stepCount: automationData.steps.length,
+          executionId: this.executionId,
         });
 
         // Execute each step in sequence
@@ -58,6 +150,8 @@ import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext } fro
             continue;
           }
 
+          const stepStartTime = Date.now();
+          
           try {
             // Notify step start
             context.onStepStart?.(i, step);
@@ -66,6 +160,10 @@ import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext } fro
             this.logger.info(`About to execute step ${i}: ${step.title}`);
             const result = await this.executeStep(step, inputs, context);
             this.logger.info(`Step ${i} completed:`, result);
+
+            // Track step execution
+            const stepExecutionTime = Date.now() - stepStartTime;
+            await this.updateStepExecution(i, step, 'success', stepExecutionTime, result);
 
             // Notify step complete
             context.onStepComplete?.(i, result);
@@ -76,8 +174,15 @@ import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext } fro
             const errorMessage = stepError instanceof Error ? stepError.message : 'Unknown error';
             this.logger.error(`Step ${i} failed: ${step.title}`, { error: errorMessage });
 
+            // Track failed step
+            const stepExecutionTime = Date.now() - stepStartTime;
+            await this.updateStepExecution(i, step, 'failed', stepExecutionTime, null, errorMessage);
+
             // Notify step error
             context.onStepError?.(i, errorMessage);
+
+            // Mark execution as failed
+            await this.completeExecution('failed', `Step "${step.title}" failed: ${errorMessage}`);
 
             return {
               success: false,
@@ -99,6 +204,9 @@ import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext } fro
           totalSteps: automationData.steps.length,
         });
 
+        // Mark execution as successful
+        await this.completeExecution('success');
+
         // Update execution count in database
         if (automationData.id) {
           this.updateExecutionCount(automationData.id).catch(error => {
@@ -118,6 +226,9 @@ import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext } fro
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         this.logger.error('Automation execution failed', { error: errorMessage });
 
+        // Mark execution as failed
+        await this.completeExecution('failed', errorMessage);
+
         return {
           success: false,
           error: errorMessage,
@@ -128,6 +239,9 @@ import { AutomationData, AutomationStep, ExecutionResult, ExecutionContext } fro
         };
       } finally {
         this.isExecuting = false;
+        // Clear execution tracking
+        this.executionId = null;
+        this.executionStartTime = 0;
       }
     }
 

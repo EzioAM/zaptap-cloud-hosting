@@ -30,6 +30,7 @@ import { supabase } from '../../services/supabase/client';
 import { useSelector } from 'react-redux';
 import { smartLinkService } from '../../services/linking/SmartLinkService';
 import { RootState } from '../../store';
+import { useTrackAutomationDownloadMutation } from '../../store/api/automationApi';
 import NFCWriter from '../../components/nfc/NFCWriter';
 import QRGenerator from '../../components/qr/QRGenerator';
 import StarRating from '../../components/reviews/StarRating';
@@ -46,6 +47,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AutomationDetails'>;
 const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const { automation } = route.params;
   const { user } = useSelector((state: RootState) => state.auth);
+  const [trackDownload] = useTrackAutomationDownloadMutation();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showNFCModal, setShowNFCModal] = useState(false);
@@ -122,6 +124,9 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
         });
 
       if (error) throw error;
+
+      // Track the download/clone
+      await trackDownload(automation.id);
 
       Alert.alert(
         'Duplicated!',

@@ -110,3 +110,38 @@
       5: number;
     };
   }
+
+  // Execution tracking types
+  export interface AutomationExecution {
+    id: string;
+    automation_id: string;
+    user_id: string;
+    status: 'running' | 'success' | 'failed' | 'cancelled';
+    execution_time: number | null;
+    steps_completed: number;
+    total_steps: number;
+    error_message: string | null;
+    created_at: string;
+    completed_at: string | null;
+  }
+
+  export interface StepExecution {
+    id: string;
+    execution_id: string;
+    step_index: number;
+    step_type: string;
+    status: 'pending' | 'running' | 'success' | 'failed' | 'skipped';
+    execution_time: number | null;
+    input_data: any;
+    output_data: any;
+    error_message: string | null;
+    created_at: string;
+  }
+
+  export interface UserStats {
+    total_automations: number;
+    total_runs: number;
+    successful_runs: number;
+    failed_runs: number;
+    total_time_saved: number;
+  }

@@ -3,6 +3,13 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Home: undefined;
   
+  // Modern Tab screens
+  HomeTab: undefined;
+  BuildTab: undefined;
+  DiscoverTab: undefined;
+  LibraryTab: undefined;
+  ProfileTab: undefined;
+  
   // Auth screens
   SignIn: undefined;
   SignUp: undefined;
@@ -18,13 +25,21 @@ export type RootStackParamList = {
   Templates: undefined;
   LocationTriggers: undefined;
   Reviews: { automationId: string };
+  EditAutomation: { automationId: string };
   
   // Profile & Settings
   Profile: undefined;
   Settings: undefined;
+  EditProfile: undefined;
+  Privacy: undefined;
+  Help: undefined;
+  Feedback: undefined;
+  About: undefined;
   
   // Developer screens
   DeveloperMenu: undefined;
+  ModernReviews: undefined;
+  ModernComments: undefined;
   
   // Onboarding screens
   WelcomeScreen: undefined;

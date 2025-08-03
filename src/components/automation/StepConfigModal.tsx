@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Modal, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Modal, TouchableOpacity, Pressable } from 'react-native';
 import { Text, Button, IconButton, useTheme, MD3Theme } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -89,15 +89,15 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
       transparent={true}
       statusBarTranslucent
     >
-      <TouchableOpacity 
+      <Pressable 
         style={styles.modalOverlay} 
-        activeOpacity={1}
         onPress={onCancel}
       >
-        <TouchableOpacity 
-          activeOpacity={1}
+        <Pressable 
           style={styles.modalContainer}
-          onPress={() => {}}
+          onPress={(e) => {
+            e.stopPropagation();
+          }}
         >
           <View 
             style={styles.modalContent} 
@@ -176,8 +176,8 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
               </Button>
             </View>
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };
