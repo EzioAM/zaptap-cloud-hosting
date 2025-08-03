@@ -1,5 +1,6 @@
 export type RootStackParamList = {
   // Main app flow
+  MainTabs: undefined;
   Home: undefined;
   
   // Auth screens
@@ -18,8 +19,16 @@ export type RootStackParamList = {
   LocationTriggers: undefined;
   Reviews: { automationId: string };
   
+  // Profile & Settings
+  Profile: undefined;
+  Settings: undefined;
+  
   // Developer screens
   DeveloperMenu: undefined;
+  
+  // Onboarding screens
+  WelcomeScreen: undefined;
+  TutorialScreen: undefined;
 };
 
 // You can add more specific navigation types here if needed
