@@ -39,6 +39,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.zaptap.app",
+      icon: "./assets/icon.png",
       associatedDomains: [
         "applinks:zaptap.cloud",
         "applinks:www.zaptap.cloud"
@@ -100,7 +101,7 @@ export default {
       fallbackToCacheTimeout: 0,
       url: "https://u.expo.dev/c9104518-2191-4a5a-aa20-76cebb5193cd"
     },
-    runtimeVersion: "2.3.0",
+    runtimeVersion: "2.3.1",
     extra: {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
