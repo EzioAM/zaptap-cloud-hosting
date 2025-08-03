@@ -15,7 +15,7 @@ import {
   Divider,
 } from 'react-native-paper';
 // Import removed - using simple selection instead of slider
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 export interface FilterOptions {
   category: string | null;

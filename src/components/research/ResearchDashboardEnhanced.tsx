@@ -21,10 +21,13 @@ import {
   Portal,
   RadioButton,
 } from 'react-native-paper';
-import { AIResearchService } from '../../services/research/AIResearchService';
+import { ImprovedAIResearchService } from '../../services/research/ImprovedAIResearchService';
+import { CollaborativeAIResearchService } from '../../services/research/CollaborativeAIResearchService';
 import { LocalResearchService, ResearchTopic } from '../../services/research/LocalResearchService';
 import { CodebaseAnalysisService, CodebaseInsight } from '../../services/research/CodebaseAnalysisService';
-import { CodeImplementationService, ImplementationResult } from '../../services/developer/CodeImplementationService';
+import { MockCodeImplementationService as CodeImplementationService, ImplementationResult } from '../../services/developer/MockCodeImplementationService';
+import { AICollaborationView } from './AICollaborationView';
+import { AIConfigurationHelper } from './AIConfigurationHelper';
 import Constants from 'expo-constants';
 
 export const ResearchDashboardEnhanced: React.FC = () => {
@@ -39,11 +42,33 @@ export const ResearchDashboardEnhanced: React.FC = () => {
   const [implementing, setImplementing] = useState(false);
   const [lastImplementationResult, setLastImplementationResult] = useState<ImplementationResult | null>(null);
   const [loadingTopics, setLoadingTopics] = useState(true);
+  const [useCollaborativeAI, setUseCollaborativeAI] = useState(true);
+  const [collaborationRounds, setCollaborationRounds] = useState<any[]>([]);
+  const [currentCollaborationRound, setCurrentCollaborationRound] = useState(0);
+  const [showCollaboration, setShowCollaboration] = useState(false);
+  const [showConfigHelper, setShowConfigHelper] = useState(false);
+  const [hasClaudeKey, setHasClaudeKey] = useState(false);
+  const [hasOpenAIKey, setHasOpenAIKey] = useState(false);
 
   // Load dynamic research topics based on actual codebase
   React.useEffect(() => {
     loadDynamicTopics();
+    checkAPIConfiguration();
   }, []);
+
+  const checkAPIConfiguration = () => {
+    // Check if API keys are configured
+    const aiService = new ImprovedAIResearchService();
+    const configStatus = aiService.getConfigStatus();
+    
+    setHasClaudeKey(configStatus.claudeConfigured);
+    setHasOpenAIKey(configStatus.openaiConfigured);
+    
+    // Show config helper if collaborative AI is enabled but keys are missing
+    if (useCollaborativeAI && !configStatus.anyConfigured) {
+      setShowConfigHelper(true);
+    }
+  };
 
   const loadDynamicTopics = async () => {
     try {
@@ -57,19 +82,22 @@ export const ResearchDashboardEnhanced: React.FC = () => {
       const insights = await CodebaseAnalysisService.getHighPriorityInsights();
       setCodebaseInsights(insights);
       
-      console.log('🔍 Dynamic research topics loaded:', topics);
+      // Also get smart topics from AI service
+      const aiService = new ImprovedAIResearchService();
+      const smartTopics = await aiService.generateSmartTopics();
+      
+      // Combine and deduplicate topics
+      const allTopics = [...new Set([...topics, ...smartTopics])].slice(0, 12);
+      setDynamicTopics(allTopics);
+      
+      console.log('🔍 Dynamic research topics loaded:', allTopics.length);
       console.log('⚠️ High-priority insights:', insights.length);
     } catch (error) {
       console.error('Failed to load dynamic topics:', error);
-      // Fallback to static topics
-      setDynamicTopics([
-        'React Native Performance Optimization',
-        'Mobile App Security Best Practices',
-        'NFC Implementation in React Native',
-        'Offline-First Architecture',
-        'Accessibility in Mobile Apps',
-        'State Management Optimization'
-      ]);
+      // Use smart fallback topics
+      const aiService = new ImprovedAIResearchService();
+      const fallbackTopics = await aiService.generateSmartTopics();
+      setDynamicTopics(fallbackTopics);
     } finally {
       setLoadingTopics(false);
     }
@@ -77,38 +105,120 @@ export const ResearchDashboardEnhanced: React.FC = () => {
 
   const handleResearch = async (topic: string) => {
     setLoading(true);
+    setResearchTopic(topic);
+    setCollaborationRounds([]);
+    setCurrentCollaborationRound(0);
+    setShowCollaboration(false);
+    
     try {
-      // Try local research first
-      const localResult = LocalResearchService.getResearch(topic);
-      if (localResult) {
-        setLocalResults([localResult]);
-      } else {
-        // Search for partial matches
-        const searchResults = LocalResearchService.searchTopics(topic);
-        setLocalResults(searchResults);
-      }
-
-      // Try API research
-      try {
-        const researcher = new AIResearchService();
-        const apiResults = await researcher.researchAppImprovements({
-          topic,
-          specificQuestions: [`How to implement ${topic} in a React Native app?`],
-          focusAreas: ['implementation', 'best practices', 'code examples'],
-          outputFormat: 'structured'
-        });
+      if (useCollaborativeAI) {
+        // Check if API keys are configured
+        checkAPIConfiguration();
         
-        // Merge with local results if API succeeds
-        if (apiResults && apiResults.length > 0) {
-          console.log('API research successful');
+        if (!hasClaudeKey && !hasOpenAIKey) {
+          setShowCollaboration(false);
+          Alert.alert(
+            '🔧 API Configuration Required',
+            'To use collaborative AI research, you need to configure API keys for Claude and/or ChatGPT. Would you like to see setup instructions?',
+            [
+              { text: 'Later', style: 'cancel' },
+              { 
+                text: 'Show Instructions', 
+                onPress: () => setShowConfigHelper(true) 
+              }
+            ]
+          );
+          // Fall through to regular AI research
+        } else {
+          // Try collaborative AI research first
+          const collaborativeService = new CollaborativeAIResearchService();
+          
+          console.log('🤝 Starting collaborative AI research...');
+          setShowCollaboration(true);
+          
+          // Simulate real-time collaboration updates
+          const updateRound = (round: number) => {
+            setCurrentCollaborationRound(round);
+          };
+          
+          try {
+            const collaborativeResult = await collaborativeService.collaborativeResearch({
+              topic,
+              context: 'Mobile automation app built with React Native, TypeScript, Redux Toolkit, Supabase',
+              specificQuestions: [
+                `How to implement ${topic} in a React Native app?`,
+                'What are the best practices and patterns?',
+                'What are common pitfalls to avoid?'
+              ],
+              focusAreas: ['implementation', 'best practices', 'performance', 'testing']
+            });
+            
+            // Update collaboration rounds for display
+            setCollaborationRounds(collaborativeResult.rounds);
+            
+            // Convert to ResearchTopic
+            const researchTopic = collaborativeService.toResearchTopic(collaborativeResult);
+            setLocalResults([researchTopic]);
+            
+            Alert.alert(
+              'AI Collaboration Complete! 🎉',
+              `${collaborativeResult.rounds.length} rounds of collaboration completed. ${collaborativeResult.collaborationSummary}`,
+              [
+                { text: 'View Results', onPress: () => setSelectedTopic(researchTopic) },
+                { text: 'OK' }
+              ]
+            );
+            
+            return;
+          } catch (collabError) {
+            console.log('Collaborative AI not available, falling back...');
+            setShowCollaboration(false);
+          }
         }
-      } catch (apiError) {
-        console.log('Using local research fallback');
+      }
+      
+      // Fallback to improved AI research service
+      const researcher = new ImprovedAIResearchService();
+      const results = await researcher.researchAppImprovements({
+        topic,
+        specificQuestions: [`How to implement ${topic} in a React Native app?`],
+        focusAreas: ['implementation', 'best practices', 'code examples'],
+        outputFormat: 'structured'
+      });
+      
+      if (results && results.length > 0) {
+        // Convert results to ResearchTopic format
+        const researchTopics: ResearchTopic[] = results.map(result => ({
+          topic,
+          insights: result.insights,
+          recommendations: result.recommendations,
+          codeExamples: result.codeExamples || [],
+          sources: result.sources || [`${result.provider} Analysis`],
+          lastUpdated: new Date().toISOString()
+        }));
+        
+        setLocalResults(researchTopics);
+        console.log(`✅ Research completed: ${results.length} results`);
+      } else {
+        // Fallback to pure local research
+        const localResult = LocalResearchService.getResearch(topic);
+        if (localResult) {
+          setLocalResults([localResult]);
+        } else {
+          const searchResults = LocalResearchService.searchTopics(topic);
+          setLocalResults(searchResults);
+        }
       }
     } catch (error) {
       console.error('Research failed:', error);
+      Alert.alert(
+        'Research Error',
+        'Unable to complete research. Please try again.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
+      setShowCollaboration(false);
     }
   };
 
@@ -306,44 +416,15 @@ export const ResearchDashboardEnhanced: React.FC = () => {
     try {
       console.log('🤖 Starting AI research for:', insight.researchTopic);
       
-      // Get API keys from Constants - try multiple access methods
-      const claudeApiKey = Constants.expoConfig?.extra?.claudeApiKey || 
-                          Constants.manifest?.extra?.claudeApiKey ||
-                          Constants.manifest2?.extra?.expoClient?.extra?.claudeApiKey;
-      const openaiApiKey = Constants.expoConfig?.extra?.openaiApiKey || 
-                          Constants.manifest?.extra?.openaiApiKey ||
-                          Constants.manifest2?.extra?.expoClient?.extra?.openaiApiKey;
+      // Initialize improved AI research service
+      const aiResearchService = new ImprovedAIResearchService();
       
-      console.log('🔑 API Keys Debug:', {
-        expoConfig: Constants.expoConfig?.extra,
-        manifest: Constants.manifest?.extra,
-        manifest2: Constants.manifest2?.extra,
-        claudeAvailable: !!claudeApiKey,
-        openaiAvailable: !!openaiApiKey,
-        claudeLength: claudeApiKey?.length || 0,
-        openaiLength: openaiApiKey?.length || 0,
-        claudePreview: claudeApiKey?.substring(0, 10) + '...',
-        openaiPreview: openaiApiKey?.substring(0, 10) + '...'
-      });
+      const configStatus = aiResearchService.getConfigStatus();
+      console.log('🚀 AI Research Service Config:', configStatus);
       
-      if (!claudeApiKey && !openaiApiKey) {
-        Alert.alert(
-          'API Configuration Required',
-          'API keys not found in environment variables. Please ensure CLAUDE_API_KEY and OPENAI_API_KEY are configured in your EAS project settings.\n\nDebug info:\n- Claude key: ' + (claudeApiKey ? 'Found' : 'Missing') + '\n- OpenAI key: ' + (openaiApiKey ? 'Found' : 'Missing'),
-          [{ text: 'OK' }]
-        );
-        return;
+      if (!configStatus.anyConfigured) {
+        console.log('⚠️ AI APIs not configured, using enhanced local research');
       }
-
-      // Initialize AI research service
-      const aiResearchService = new AIResearchService(claudeApiKey, openaiApiKey);
-      
-      console.log('🚀 Initializing AI research service with keys:', {
-        claudeKeyLength: claudeApiKey?.length || 0,
-        openaiKeyLength: openaiApiKey?.length || 0,
-        hasClaudeKey: !!claudeApiKey,
-        hasOpenaiKey: !!openaiApiKey
-      });
       
       // Create comprehensive research query with codebase context
       const researchQuery = {
@@ -404,8 +485,8 @@ export const ResearchDashboardEnhanced: React.FC = () => {
         setLocalResults([researchTopic]);
         
         Alert.alert(
-          'AI Research Complete! 🎉',
-          `Generated ${researchTopic.insights.length} insights and ${researchTopic.recommendations.length} recommendations from ${aiResults.length} AI provider(s).\n\nReview the detailed analysis below.`,
+          'Research Complete! 🎉',
+          `Generated ${researchTopic.insights.length} insights and ${researchTopic.recommendations.length} recommendations.\n\nReview the detailed analysis below.`,
           [
             { text: 'View Results', onPress: () => setSelectedTopic(researchTopic) },
             { text: 'OK' }
@@ -418,8 +499,8 @@ export const ResearchDashboardEnhanced: React.FC = () => {
         if (localResult) {
           setLocalResults([localResult]);
           Alert.alert(
-            'Research Complete (Local)',
-            'AI services unavailable. Using curated local research data.',
+            'Research Complete',
+            'Using enhanced local research data.',
             [{ text: 'OK' }]
           );
         } else {
@@ -434,7 +515,7 @@ export const ResearchDashboardEnhanced: React.FC = () => {
       console.error('Research failed:', error);
       Alert.alert(
         'Research Failed',
-        `Unable to complete AI research: ${error.message}\n\nPlease check your internet connection and API configuration.`,
+        `Unable to complete research: ${error.message}\n\nPlease try again or select a different topic.`,
         [{ text: 'OK' }]
       );
     } finally {
@@ -631,17 +712,58 @@ export const ResearchDashboardEnhanced: React.FC = () => {
               placeholder="E.g., How to improve NFC scanning reliability"
               style={styles.input}
             />
-            <Button
-              mode="contained"
-              onPress={() => handleResearch(researchTopic)}
-              disabled={!researchTopic || loading}
-              loading={loading}
-              style={styles.researchButton}
-            >
-              Research with AI
-            </Button>
+            <View style={styles.researchControls}>
+              <Button
+                mode="contained"
+                onPress={() => handleResearch(researchTopic)}
+                disabled={!researchTopic || loading}
+                loading={loading}
+                style={styles.researchButton}
+                icon={useCollaborativeAI ? "brain" : "magnify"}
+              >
+                {useCollaborativeAI ? 'Collaborative AI Research' : 'Research with AI'}
+              </Button>
+              <Button
+                mode="text"
+                onPress={() => {
+                  setUseCollaborativeAI(!useCollaborativeAI);
+                  if (!useCollaborativeAI) {
+                    checkAPIConfiguration();
+                  }
+                }}
+                style={styles.toggleButton}
+                compact
+              >
+                {useCollaborativeAI ? 'Simple' : 'Collab'}
+              </Button>
+              {useCollaborativeAI && (!hasClaudeKey || !hasOpenAIKey) && (
+                <Button
+                  mode="text"
+                  onPress={() => setShowConfigHelper(true)}
+                  style={styles.toggleButton}
+                  compact
+                  icon="cog"
+                >
+                  Config
+                </Button>
+              )}
+            </View>
+            {useCollaborativeAI && (
+              <Text style={styles.collaborativeHint}>
+                🤝 Claude and ChatGPT will bounce ideas off each other
+              </Text>
+            )}
           </Card.Content>
         </Card>
+
+        {/* Show configuration helper if needed */}
+        {showConfigHelper && useCollaborativeAI && (
+          <AIConfigurationHelper
+            hasClaudeKey={hasClaudeKey}
+            hasOpenAIKey={hasOpenAIKey}
+            onDismiss={() => setShowConfigHelper(false)}
+          />
+        )}
 
         {codebaseInsights.length > 0 && (
           <>
@@ -720,13 +842,22 @@ export const ResearchDashboardEnhanced: React.FC = () => {
           )}
         </View>
 
-        {loading && (
+        {loading && !showCollaboration && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" />
             <Text style={styles.loadingText}>
-              Researching with Claude and ChatGPT...
+              Researching solutions...
             </Text>
           </View>
+        )}
+        
+        {showCollaboration && (
+          <AICollaborationView
+            rounds={collaborationRounds}
+            isLoading={loading}
+            currentRound={currentCollaborationRound}
+            collaborationSummary={loading ? undefined : 'AI collaboration complete'}
+          />
         )}
 
         {localResults.length > 0 && (
@@ -784,6 +915,22 @@ const styles = StyleSheet.create({
   },
   researchButton: {
     marginTop: 8,
+    flex: 1,
+  },
+  researchControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  toggleButton: {
+    marginTop: 8,
+  },
+  collaborativeHint: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   quickTopicsTitle: {
     fontSize: 18,

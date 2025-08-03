@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Modal, TouchableOpacity } from 'react-native';
 import { Text, Button, IconButton, useTheme, MD3Theme } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ICON_MAP = {

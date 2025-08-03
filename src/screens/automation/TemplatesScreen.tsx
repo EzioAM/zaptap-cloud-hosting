@@ -21,7 +21,7 @@ import {
   TextInput,
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationTemplateService, AutomationTemplate } from '../../services/templates/AutomationTemplates';
 import { useCreateAutomationMutation } from '../../store/api/automationApi';
 import { useSelector } from 'react-redux';

@@ -29,7 +29,7 @@ export class ScreenAnalysisService {
     }
   }
 
-  private static async getScreenAnalysis(screenName: string): Promise<ScreenAnalysis> {
+  static async getScreenAnalysis(screenName: string): Promise<ScreenAnalysis> {
     const filePath = this.screenMappings[screenName];
     
     if (!filePath) {

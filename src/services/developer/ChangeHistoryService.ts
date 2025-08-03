@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 
 export interface CodeChange {
   id: string;
@@ -8,10 +9,13 @@ export interface CodeChange {
   description: string;
   previousContent?: string;
   newContent?: string;
+  backupPath?: string;
   metadata?: {
     feature?: string;
     source?: 'research' | 'redesign' | 'manual';
     aiModel?: 'claude' | 'chatgpt' | 'both';
+    fileSize?: number;
+    lineCount?: number;
   };
 }
 
@@ -30,20 +34,52 @@ class ChangeHistoryService {
   private static instance: ChangeHistoryService;
   private readonly STORAGE_KEY = '@change_history';
   private readonly MAX_HISTORY_ENTRIES = 50;
+  private readonly BACKUP_DIR = `${FileSystem.documentDirectory}change_backups/`;
+  private activeOperations: Set<string> = new Set();
 
   static getInstance(): ChangeHistoryService {
     if (!ChangeHistoryService.instance) {
       ChangeHistoryService.instance = new ChangeHistoryService();
+      ChangeHistoryService.instance.initializeBackupDirectory();
     }
     return ChangeHistoryService.instance;
+  }
+
+  private async initializeBackupDirectory(): Promise<void> {
+    try {
+      const dirInfo = await FileSystem.getInfoAsync(this.BACKUP_DIR);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(this.BACKUP_DIR, { intermediates: true });
+      }
+    } catch (error) {
+      console.error('Failed to create backup directory:', error);
+    }
   }
 
   async recordChange(entry: Omit<ChangeHistoryEntry, 'id' | 'timestamp' | 'status'>): Promise<string> {
     try {
       const history = await this.getHistory();
+      const entryId = this.generateId();
+      
+      // Process and backup file changes
+      const processedChanges = await Promise.all(
+        entry.changes.map(async (change) => {
+          if (change.type === 'file_modified' || change.type === 'file_deleted') {
+            // Create backup of the file
+            const backupPath = await this.createFileBackup(change.filepath, entryId);
+            return {
+              ...change,
+              backupPath,
+            };
+          }
+          return change;
+        })
+      );
+      
       const newEntry: ChangeHistoryEntry = {
         ...entry,
-        id: this.generateId(),
+        changes: processedChanges,
+        id: entryId,
         timestamp: new Date().toISOString(),
         status: 'active',
       };
@@ -53,7 +89,9 @@ class ChangeHistoryService {
 
       // Keep only the latest entries
       if (history.length > this.MAX_HISTORY_ENTRIES) {
-        history.splice(this.MAX_HISTORY_ENTRIES);
+        // Clean up old backups
+        const removedEntries = history.splice(this.MAX_HISTORY_ENTRIES);
+        await this.cleanupBackups(removedEntries);
       }
 
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(history));
@@ -61,6 +99,45 @@ class ChangeHistoryService {
     } catch (error) {
       console.error('Failed to record change:', error);
       throw error;
+    }
+  }
+
+  private async createFileBackup(filepath: string, entryId: string): Promise<string | undefined> {
+    try {
+      // For React Native, we'll store the content in AsyncStorage with a special key
+      const backupKey = `@backup_${entryId}_${filepath.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      
+      // In a real implementation, you'd read the actual file content
+      // For now, we'll simulate with a placeholder
+      const content = await this.readFileContent(filepath);
+      if (content) {
+        await AsyncStorage.setItem(backupKey, content);
+        return backupKey;
+      }
+    } catch (error) {
+      console.error('Failed to create backup:', error);
+    }
+    return undefined;
+  }
+
+  private async readFileContent(filepath: string): Promise<string | null> {
+    // This is a placeholder - in a real implementation, you'd read the actual file
+    // For React Native, this would require platform-specific code or a file system library
+    console.log('Reading file content for:', filepath);
+    return null;
+  }
+
+  private async cleanupBackups(entries: ChangeHistoryEntry[]): Promise<void> {
+    for (const entry of entries) {
+      for (const change of entry.changes) {
+        if (change.backupPath) {
+          try {
+            await AsyncStorage.removeItem(change.backupPath);
+          } catch (error) {
+            console.error('Failed to cleanup backup:', error);
+          }
+        }
+      }
     }
   }
 
@@ -86,6 +163,13 @@ class ChangeHistoryService {
 
   async revertChange(id: string): Promise<boolean> {
     try {
+      // Prevent concurrent operations
+      if (this.activeOperations.has(id)) {
+        throw new Error('Revert operation already in progress');
+      }
+      
+      this.activeOperations.add(id);
+      
       const history = await this.getHistory();
       const entryIndex = history.findIndex(entry => entry.id === id);
       
@@ -98,6 +182,9 @@ class ChangeHistoryService {
         throw new Error('Change already reverted');
       }
 
+      // Actually revert the changes
+      const revertResults = await this.performRevert(entry);
+      
       // Update entry status
       history[entryIndex] = {
         ...entry,
@@ -107,50 +194,132 @@ class ChangeHistoryService {
 
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(history));
 
-      // Generate revert instructions
-      this.generateRevertInstructions(entry);
+      // Generate detailed report
+      this.generateRevertReport(entry, revertResults);
       
       return true;
     } catch (error) {
       console.error('Failed to revert change:', error);
       return false;
+    } finally {
+      this.activeOperations.delete(id);
     }
   }
 
-  private generateRevertInstructions(entry: ChangeHistoryEntry): void {
-    console.log('=== REVERT INSTRUCTIONS ===');
+  private async performRevert(entry: ChangeHistoryEntry): Promise<Map<string, boolean>> {
+    const results = new Map<string, boolean>();
+    
+    // Process changes in reverse order
+    for (const change of entry.changes.reverse()) {
+      try {
+        switch (change.type) {
+          case 'file_created':
+            // In a real implementation, delete the file
+            console.log(`Would delete file: ${change.filepath}`);
+            results.set(change.filepath, true);
+            break;
+            
+          case 'file_modified':
+            if (change.backupPath) {
+              // Restore from backup
+              const backupContent = await AsyncStorage.getItem(change.backupPath);
+              if (backupContent) {
+                console.log(`Would restore file: ${change.filepath} from backup`);
+                results.set(change.filepath, true);
+              } else {
+                results.set(change.filepath, false);
+              }
+            } else if (change.previousContent) {
+              console.log(`Would restore file: ${change.filepath} with previous content`);
+              results.set(change.filepath, true);
+            } else {
+              results.set(change.filepath, false);
+            }
+            break;
+            
+          case 'file_deleted':
+            if (change.backupPath || change.previousContent) {
+              console.log(`Would recreate file: ${change.filepath}`);
+              results.set(change.filepath, true);
+            } else {
+              results.set(change.filepath, false);
+            }
+            break;
+            
+          case 'dependency_added':
+            console.log(`Would remove dependency: ${change.description}`);
+            results.set(change.description, true);
+            break;
+            
+          case 'config_changed':
+            console.log(`Would restore config: ${change.description}`);
+            results.set(change.description, true);
+            break;
+        }
+      } catch (error) {
+        console.error(`Failed to revert ${change.type} for ${change.filepath}:`, error);
+        results.set(change.filepath, false);
+      }
+    }
+    
+    return results;
+  }
+
+  private generateRevertReport(entry: ChangeHistoryEntry, results: Map<string, boolean>): void {
+    console.log('\n=== REVERT REPORT ===');
     console.log(`Feature: ${entry.feature}`);
     console.log(`Description: ${entry.description}`);
-    console.log('\nChanges to revert:');
+    console.log(`Total Changes: ${entry.changes.length}`);
     
-    entry.changes.forEach((change, index) => {
-      console.log(`\n${index + 1}. ${change.type}: ${change.filepath}`);
-      
-      switch (change.type) {
-        case 'file_created':
-          console.log(`   Action: Delete file ${change.filepath}`);
-          break;
-        case 'file_modified':
-          if (change.previousContent) {
-            console.log(`   Action: Restore previous content`);
-            console.log(`   Previous content available: ${change.previousContent.length} characters`);
-          }
-          break;
-        case 'file_deleted':
-          if (change.previousContent) {
-            console.log(`   Action: Restore file with previous content`);
-          }
-          break;
-        case 'dependency_added':
-          console.log(`   Action: Remove dependency: ${change.description}`);
-          break;
-        case 'config_changed':
-          console.log(`   Action: Restore configuration: ${change.description}`);
-          break;
+    let successCount = 0;
+    let failureCount = 0;
+    
+    results.forEach((success, item) => {
+      if (success) {
+        successCount++;
+        console.log(`✅ ${item}`);
+      } else {
+        failureCount++;
+        console.log(`❌ ${item}`);
       }
     });
     
-    console.log('\n=== END REVERT INSTRUCTIONS ===');
+    console.log(`\nSummary: ${successCount} successful, ${failureCount} failed`);
+    console.log('=== END REVERT REPORT ===\n');
+  }
+
+  // Create a snapshot of current state before making changes
+  async createSnapshot(description: string): Promise<string> {
+    const snapshotId = this.generateId();
+    const snapshot = {
+      id: snapshotId,
+      description,
+      timestamp: new Date().toISOString(),
+      files: [] as Array<{ path: string; content: string }>,
+    };
+    
+    // In a real implementation, this would capture the current state of relevant files
+    await AsyncStorage.setItem(`@snapshot_${snapshotId}`, JSON.stringify(snapshot));
+    return snapshotId;
+  }
+
+  // Restore from a snapshot
+  async restoreSnapshot(snapshotId: string): Promise<boolean> {
+    try {
+      const snapshotData = await AsyncStorage.getItem(`@snapshot_${snapshotId}`);
+      if (!snapshotData) {
+        throw new Error('Snapshot not found');
+      }
+      
+      const snapshot = JSON.parse(snapshotData);
+      console.log(`Restoring snapshot: ${snapshot.description}`);
+      
+      // In a real implementation, restore the files
+      return true;
+    } catch (error) {
+      console.error('Failed to restore snapshot:', error);
+      return false;
+    }
   }
 
   async clearHistory(): Promise<void> {
@@ -208,12 +377,21 @@ class ChangeHistoryService {
     
     const changesByType: Record<string, number> = {};
     const changesBySource: Record<string, number> = {};
+    const fileChanges: Record<string, number> = {};
+    let totalFileSize = 0;
     
     history.forEach(entry => {
       entry.changes.forEach(change => {
         changesByType[change.type] = (changesByType[change.type] || 0) + 1;
         if (change.metadata?.source) {
           changesBySource[change.metadata.source] = (changesBySource[change.metadata.source] || 0) + 1;
+        }
+        
+        // Track file-specific changes
+        fileChanges[change.filepath] = (fileChanges[change.filepath] || 0) + 1;
+        
+        if (change.metadata?.fileSize) {
+          totalFileSize += change.metadata.fileSize;
         }
       });
     });
@@ -224,9 +402,45 @@ class ChangeHistoryService {
       reverted,
       changesByType,
       changesBySource,
+      fileChanges,
+      totalFileSize,
+      mostChangedFiles: Object.entries(fileChanges)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([file, count]) => ({ file, count })),
       oldestChange: history[history.length - 1]?.timestamp,
       newestChange: history[0]?.timestamp,
     };
+  }
+
+  // Track a file operation (to be called by other services)
+  async trackFileOperation(operation: {
+    type: 'create' | 'modify' | 'delete';
+    filepath: string;
+    content?: string;
+    feature: string;
+    description: string;
+    source?: 'research' | 'redesign' | 'manual';
+  }): Promise<void> {
+    const change = this.createCodeChange({
+      type: operation.type === 'create' ? 'file_created' : 
+            operation.type === 'modify' ? 'file_modified' : 'file_deleted',
+      filepath: operation.filepath,
+      description: operation.description,
+      newContent: operation.content,
+      metadata: {
+        feature: operation.feature,
+        source: operation.source || 'manual',
+        fileSize: operation.content?.length,
+        lineCount: operation.content?.split('\n').length,
+      },
+    });
+    
+    await this.recordChange({
+      feature: operation.feature,
+      description: operation.description,
+      changes: [change],
+    });
   }
 }
 

@@ -164,7 +164,7 @@ export class WebAutomationEngine {
     
     // Show browser notification if supported, otherwise use alert
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(step.config.title || 'Shortcuts Like', {
+      new Notification(step.config.title || 'Zaptap', {
         body: message,
         icon: '/favicon.ico'
       });

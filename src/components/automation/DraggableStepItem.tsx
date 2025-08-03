@@ -9,7 +9,7 @@ import Animated, {
   runOnJS,
   withSpring,
 } from 'react-native-reanimated';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationStep } from '../../types';
 
 interface DraggableStepItemProps {

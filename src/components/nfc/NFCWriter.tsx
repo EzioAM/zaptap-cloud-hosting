@@ -13,7 +13,7 @@ import {
   Surface,
   ActivityIndicator,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import NFCService from '../../services/nfc/NFCService';
 import { AutomationData } from '../../types';
 import { smartLinkService } from '../../services/linking/SmartLinkService';

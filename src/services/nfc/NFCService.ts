@@ -8,6 +8,8 @@ import NfcManager, {
 import { Alert, Platform } from 'react-native';
 import { AutomationData } from '../../types';
 import { smartLinkService } from '../linking/SmartLinkService';
+import { automationSharingService } from '../sharing/AutomationSharingService';
+import { sharingAnalyticsService } from '../sharing/SharingAnalyticsService';
 
 export interface NFCPayload {
   automationId: string;
@@ -108,18 +110,55 @@ export class NFCService {
         return false;
       }
 
-      // Generate smart link for NFC
-      const smartLink = smartLinkService.generateSmartLink(automation);
+      let smartUrl: string;
       
-      // Use the universal URL that works with or without app
-      const smartUrl = smartLink.universalUrl;
+      // For public automations, create a public share link
+      if (automation.is_public) {
+        console.log('Creating public share link for NFC tag');
+        const shareResult = await automationSharingService.createPublicShareLink(automation);
+        
+        if (shareResult.success && shareResult.shareUrl) {
+          smartUrl = shareResult.shareUrl;
+          console.log('Using public share URL for NFC:', smartUrl);
+        } else {
+          // Fallback to regular smart link
+          const smartLink = smartLinkService.generateSmartLink(automation);
+          smartUrl = smartLink.universalUrl;
+          console.warn('Failed to create public share, using regular link:', smartUrl);
+        }
+      } else {
+        // For private automations, use regular smart link
+        const smartLink = smartLinkService.generateSmartLink(automation);
+        smartUrl = smartLink.universalUrl;
+        console.log('Using regular smart link for private automation:', smartUrl);
+      }
 
-      // Create NDEF record with smart link
-      const bytes = Ndef.encodeMessage([
-        Ndef.uriRecord(smartUrl),
-        Ndef.textRecord(`Zaptap: ${automation.title}`),
-        Ndef.textRecord(`${automation.steps?.length || 0} steps | Works without app!`)
-      ]);
+      // Create NDEF records for better app detection
+      // Primary: Web URL that triggers app if installed (Android App Links / iOS Universal Links)
+      // Secondary: App scheme URL as fallback
+      // Tertiary: Metadata about the automation
+      const records = [];
+      
+      // Primary record: HTTPS URL (triggers app if installed via App Links/Universal Links)
+      records.push(Ndef.uriRecord(smartUrl));
+      
+      // Add Android Application Record (AAR) to ensure app opens on Android
+      if (Platform.OS === 'android') {
+        // AAR helps Android know which app should handle this NFC tag
+        const aarRecord = {
+          tnf: 4, // TNF_EXTERNAL_TYPE
+          type: Array.from(new TextEncoder().encode('android.com:pkg')),
+          payload: Array.from(new TextEncoder().encode('com.zaptap.app')),
+          id: []
+        };
+        records.push(aarRecord);
+      }
+      
+      // Add descriptive text records
+      records.push(Ndef.textRecord(`Zaptap: ${automation.title}`));
+      records.push(Ndef.textRecord(`${automation.steps?.length || 0} steps | Tap to run`));
+      
+      const bytes = Ndef.encodeMessage(records);
 
       if (!bytes) {
         throw new Error('Failed to encode NFC message');
@@ -136,6 +175,25 @@ export class NFCService {
 
       // Write to tag
       await NfcManager.ndefHandler.writeNdefMessage(bytes);
+      
+      // Track NFC share event
+      let shareId: string | undefined;
+      if (automation.is_public && smartUrl.includes('/share/')) {
+        // Extract share ID from URL
+        const match = smartUrl.match(/\/share\/([^/?]+)/);
+        shareId = match ? match[1] : undefined;
+      }
+      
+      await sharingAnalyticsService.trackShareEvent({
+        automationId: automation.id,
+        shareId,
+        method: 'nfc',
+        sharedBy: automation.created_by || 'anonymous',
+        metadata: {
+          isPublicShare: !!shareId,
+          nfcUrl: smartUrl
+        }
+      });
       
       Alert.alert(
         'NFC Write Successful! 🎉',
@@ -237,8 +295,9 @@ export class NFCService {
                 const url = new URL(payload);
                 console.log('Found web URL:', url.href);
                 
-                // Check if it's a zaptap.cloud, zaptap.app or shortcutslike.app link
-                if ((url.hostname === 'zaptap.cloud' || url.hostname === 'zaptap.app' || url.hostname === 'shortcutslike.app') && 
+                // Check if it's a zaptap.cloud, zaptap.app or shortcutslike.app link (with or without www)
+                const validHostnames = ['zaptap.cloud', 'www.zaptap.cloud', 'zaptap.app', 'www.zaptap.app', 'shortcutslike.app', 'www.shortcutslike.app'];
+                if (validHostnames.includes(url.hostname) && 
                     (url.pathname.includes('/automation/') || url.pathname.includes('/share/') || url.pathname.includes('/link/') || url.pathname.includes('/run/'))) {
                   
                   // Extract automation ID from web URL

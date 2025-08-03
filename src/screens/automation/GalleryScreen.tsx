@@ -20,13 +20,14 @@ import {
   Surface,
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationData } from '../../types';
 import { supabase } from '../../services/supabase/client';
 import StarRating from '../../components/reviews/StarRating';
 import Constants from 'expo-constants';
 import { AutomationFilters, FilterOptions } from '../../components/filtering/AutomationFilters';
 import { automationFilterService } from '../../services/filtering/AutomationFilterService';
+import { AutomationCard } from '../../components/automation/AutomationCard';
 
 interface GalleryScreenProps {
   navigation: any;
@@ -233,66 +234,13 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
   );
 
   const renderAutomationCard = (automation: AutomationData) => (
-    <Card key={automation.id} style={styles.automationCard}>
-      <Card.Content>
-        <View style={styles.cardHeader}>
-          <View style={styles.cardInfo}>
-            <Text style={styles.automationTitle}>{automation.title}</Text>
-            <Text style={styles.automationAuthor}>by {automation.created_by}</Text>
-            {automation.description && (
-              <Text style={styles.automationDescription} numberOfLines={2}>
-                {automation.description}
-              </Text>
-            )}
-          </View>
-        </View>
-        
-        <View style={styles.cardMeta}>
-          <Chip icon="layers" compact>
-            {automation.steps?.length || 0} steps
-          </Chip>
-          <Chip icon="download" compact>
-            {automation.execution_count} installs
-          </Chip>
-          {automation.average_rating > 0 ? (
-            <View style={styles.ratingContainer}>
-              <StarRating
-                rating={automation.average_rating}
-                size={14}
-                showRating={true}
-                showCount={true}
-                reviewCount={automation.rating_count}
-              />
-            </View>
-          ) : (
-            <Text style={styles.noRatingText}>No ratings yet</Text>
-          )}
-        </View>
-        
-        <View style={styles.cardActions}>
-          <Button
-            mode="outlined"
-            onPress={() => handleImportAutomation(automation)}
-            icon="download"
-            style={styles.importButton}
-          >
-            Import
-          </Button>
-          <IconButton
-            icon="star-outline"
-            size={20}
-            onPress={() => navigation.navigate('Reviews', { automation })}
-          />
-          <IconButton
-            icon="eye"
-            size={20}
-            onPress={() => navigation.navigate('AutomationDetails', { 
-              automation 
-            })}
-          />
-        </View>
-      </Card.Content>
-    </Card>
+    <AutomationCard
+      key={automation.id}
+      automation={automation}
+      onPress={() => navigation.navigate('AutomationDetails', { automation })}
+      onRun={() => handleImportAutomation(automation)}
+      showActions={true}
+    />
   );
 
   return (

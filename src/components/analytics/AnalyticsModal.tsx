@@ -18,7 +18,7 @@ import {
   ProgressBar,
   Appbar,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AnalyticsService, AnalyticsData } from '../../services/analytics/AnalyticsService';
 import { AutomationData } from '../../types';
 import { FullScreenModal } from '../common/FullScreenModal';

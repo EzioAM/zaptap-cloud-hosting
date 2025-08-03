@@ -7,8 +7,6 @@
         "paths": [
           "/automation/*",
           "/share/*",
-          "/shared/*",
-          "/app/*",
           "/link/*",
           "/run/*",
           "/emergency/*"
@@ -20,3 +18,4 @@
     "apps": ["QH729XYMW4.com.zaptap.app"]
   }
 }
+EOF < /dev/null

@@ -5,6 +5,7 @@ import React, { useState, useRef } from 'react';
     Dimensions,
     Alert,
     Share,
+    Platform,
   } from 'react-native';
   import {
     Card,
@@ -16,9 +17,10 @@ import React, { useState, useRef } from 'react';
   } from 'react-native-paper';
   import QRCode from 'react-native-qrcode-svg';
   import { captureRef } from 'react-native-view-shot';
-  import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+  import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
   import { smartLinkService } from '../../services/linking/SmartLinkService';
   import * as Clipboard from 'expo-clipboard';
+  import * as MediaLibrary from 'expo-media-library';
 
   interface QRGeneratorProps {
     automationId: string;
@@ -45,6 +47,8 @@ import React, { useState, useRef } from 'react';
     const [qrSize, setQrSize] = useState<string>('medium');
     const [errorLevel, setErrorLevel] = useState<string>('M');
     const [linkType, setLinkType] = useState<string>(isEmergency ? 'emergency' : 'smart');
+    const [isSharing, setIsSharing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const qrRef = useRef<View>(null);
 
     const sizeMap = {
@@ -80,24 +84,123 @@ import React, { useState, useRef } from 'react';
 
     const shareQR = async () => {
       try {
-        if (!qrRef.current) return;
+        if (!qrRef.current) {
+          Alert.alert('Error', 'QR code not ready. Please try again.');
+          return;
+        }
+
+        setIsSharing(true);
 
         const uri = await captureRef(qrRef.current, {
           format: 'png',
           quality: 1.0,
+          result: 'tmpfile', // Use temp file for better reliability
         });
 
         const shareMessage = linkType === 'emergency' 
           ? `🚨 EMERGENCY AUTOMATION: ${automationTitle}\n\nScan this QR code to run this automation. Works even without the app installed!\n\nCreated by: ${creator}`
           : `Scan this QR code to run "${automationTitle}" automation.\n\nWorks with or without the app!\n\nCreated by: ${creator}`;
 
-        await Share.share({
+        const shareOptions = {
           title: `${automationTitle} - Automation QR Code`,
           message: shareMessage,
-          url: uri,
+          url: Platform.OS === 'ios' ? uri : `file://${uri}`,
+          subject: `${automationTitle} - Automation QR Code`, // For email sharing
+          failOnCancel: false, // Don't throw error if user cancels
+        };
+
+        const result = await Share.share(shareOptions);
+
+        if (result.action === Share.sharedAction) {
+          if (result.activityType) {
+            // Shared via activity type (iOS)
+            console.log('Shared via', result.activityType);
+          } else {
+            // Shared (Android)
+            console.log('QR code shared successfully');
+          }
+        } else if (result.action === Share.dismissedAction) {
+          // Dismissed (iOS) or cancelled (Android)
+          console.log('Share dismissed');
+        }
+      } catch (error: any) {
+        console.error('Share error:', error);
+        
+        // Provide more specific error messages
+        if (error.code === 'ENOENT') {
+          Alert.alert(
+            'Share Failed',
+            'Could not generate QR code image. Please try again.',
+            [{ text: 'OK' }]
+          );
+        } else if (error.message?.includes('cancel')) {
+          // User cancelled, no need to show error
+          return;
+        } else {
+          Alert.alert(
+            'Share Failed',
+            'Could not share QR code. Try saving to camera roll instead.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Save to Camera Roll', onPress: saveQRToCameraRoll },
+              { text: 'Copy Link', onPress: copyLink }
+            ]
+          );
+        }
+      } finally {
+        setIsSharing(false);
+      }
+    };
+
+
+    const saveQRToCameraRoll = async () => {
+      try {
+        if (!qrRef.current) {
+          Alert.alert('Error', 'QR code not ready. Please try again.');
+          return;
+        }
+
+        setIsSaving(true);
+
+        // Request permission
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'Permission Required',
+            'Please allow access to save QR code to your camera roll.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
+        // Capture QR code
+        const uri = await captureRef(qrRef.current, {
+          format: 'png',
+          quality: 1.0,
+          result: 'tmpfile',
         });
-      } catch (error) {
-        Alert.alert('Share Failed', 'Could not share QR code. Please try again.');
+
+        // Save to camera roll
+        const asset = await MediaLibrary.createAssetAsync(uri);
+        await MediaLibrary.createAlbumAsync('Shortcuts Like QR Codes', asset, false);
+
+        Alert.alert(
+          'Saved! 📸',
+          'QR code has been saved to your camera roll.',
+          [
+            { text: 'OK' },
+            { text: 'Share Now', onPress: shareQR }
+          ]
+        );
+      } catch (error: any) {
+        console.error('Save error:', error);
+        Alert.alert(
+          'Save Failed',
+          'Could not save QR code. Please try again.',
+          [{ text: 'OK' }]
+        );
+      } finally {
+        setIsSaving(false);
       }
     };
 
@@ -208,14 +311,29 @@ import React, { useState, useRef } from 'react';
                 onPress={shareQR}
                 icon="share"
                 style={styles.actionButton}
+                loading={isSharing}
+                disabled={isSharing || isSaving}
               >
-                Share QR Code
+                {isSharing ? 'Sharing...' : 'Share QR Code'}
               </Button>
               <Button
                 mode="outlined"
+                onPress={saveQRToCameraRoll}
+                icon="content-save"
+                style={styles.actionButton}
+                loading={isSaving}
+                disabled={isSharing || isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save Image'}
+              </Button>
+            </View>
+            
+            <View style={styles.secondaryActions}>
+              <Button
+                mode="text"
                 onPress={copyLink}
                 icon="link"
-                style={styles.actionButton}
+                compact
               >
                 Copy Link
               </Button>
@@ -304,6 +422,10 @@ import React, { useState, useRef } from 'react';
     },
     actionButton: {
       flex: 1,
+    },
+    secondaryActions: {
+      alignItems: 'center',
+      marginBottom: 16,
     },
     info: {
       flexDirection: 'row',

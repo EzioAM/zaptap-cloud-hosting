@@ -147,8 +147,31 @@ export class CommentsService {
     parentCommentId?: string
   ): Promise<AutomationComment | null> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        throw new Error(`Authentication error: ${authError.message}`);
+      }
+      
+      if (!user) {
+        throw new Error('User not authenticated. Please log in to comment.');
+      }
+
+      // Check if the automation is public
+      const { data: automation, error: automationError } = await supabase
+        .from('automations')
+        .select('is_public')
+        .eq('id', automationId)
+        .single();
+      
+      if (automationError) {
+        console.error('Automation check error:', automationError);
+        throw new Error('Could not verify automation. It might not exist.');
+      }
+      
+      if (!automation?.is_public) {
+        throw new Error('Comments are only allowed on public automations.');
+      }
 
       const commentData = {
         automation_id: automationId,
@@ -156,6 +179,8 @@ export class CommentsService {
         user_id: user.id,
         content: content.trim(),
       };
+
+      console.log('Attempting to insert comment:', commentData);
 
       const { data, error } = await supabase
         .from('automation_comments')
@@ -166,17 +191,33 @@ export class CommentsService {
         `)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Insert error details:', error);
+        
+        if (error.code === '42P01') {
+          throw new Error('Comments table does not exist. Please run the database setup script.');
+        } else if (error.code === '42501') {
+          throw new Error('Permission denied. Check Row Level Security policies.');
+        } else if (error.message?.includes('profiles')) {
+          throw new Error('User profile not found. Please complete your profile setup.');
+        }
+        
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Comment was not created. Please try again.');
+      }
 
       return {
         ...data,
-        user: data.profiles,
+        user: data.profiles || { display_name: 'Anonymous', email: user.email },
         replies: [],
         is_liked_by_user: false,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add comment:', error);
-      return null;
+      throw error; // Re-throw to let the UI handle it
     }
   }
 

@@ -19,13 +19,14 @@ import {
   Searchbar,
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useGetMyAutomationsQuery, useDeleteAutomationMutation } from '../../store/api/automationApi';
 import { AutomationData } from '../../types';
 import { supabase } from '../../services/supabase/client';
 import NFCScanner from '../../components/nfc/NFCScanner';
 import NFCWriter from '../../components/nfc/NFCWriter';
 import { FullScreenModal } from '../../components/common/FullScreenModal';
+import { AutomationCard } from '../../components/automation/AutomationCard';
 
 interface MyAutomationsScreenProps {
   navigation: any;
@@ -222,117 +223,119 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
     setShowNFCScanner(false);
     
     try {
-      // Find the automation in our current list first
-      const foundAutomation = automations.find(a => a.id === automationId);
+      let automationData: AutomationData | null = null;
       
-      if (foundAutomation) {
-        // Run the automation directly
-        handleRunAutomation(foundAutomation);
-      } else {
-        // Fetch from Supabase if not found locally
-        const { data, error } = await supabase
-          .from('automations')
+      // Check if this is a public share URL
+      if (metadata?.source === 'web' && metadata?.url?.includes('/share/')) {
+        console.log('NFC tag contains public share link, fetching from public_shares');
+        
+        // This is a public share ID, not an automation ID
+        const { data: shareData, error: shareError } = await supabase
+          .from('public_shares')
           .select('*')
           .eq('id', automationId)
+          .eq('is_active', true)
           .single();
-
-        if (error || !data) {
+        
+        if (shareError || !shareData) {
+          console.error('Failed to fetch public share:', shareError);
           Alert.alert(
-            'Automation Not Found',
-            'This automation could not be found or you may not have access to it.'
+            'Share Link Invalid',
+            'This shared automation link is invalid or has expired.'
           );
           return;
         }
+        
+        // Check if expired
+        if (new Date(shareData.expires_at) < new Date()) {
+          Alert.alert(
+            'Share Link Expired',
+            'This shared automation link has expired.'
+          );
+          return;
+        }
+        
+        // Get automation data from the share
+        automationData = shareData.automation_data;
+        
+        // Increment access count
+        await supabase
+          .from('public_shares')
+          .update({ access_count: (shareData.access_count || 0) + 1 })
+          .eq('id', automationId);
+          
+      } else {
+        // Regular automation ID lookup
+        const foundAutomation = automations.find(a => a.id === automationId);
+        
+        if (foundAutomation) {
+          automationData = foundAutomation;
+        } else {
+          // Fetch from Supabase if not found locally
+          const { data, error } = await supabase
+            .from('automations')
+            .select('*')
+            .eq('id', automationId)
+            .single();
 
-        // Run the fetched automation
-        handleRunAutomation(data);
+          if (error || !data) {
+            Alert.alert(
+              'Automation Not Found',
+              'This automation could not be found or you may not have access to it.'
+            );
+            return;
+          }
+          
+          automationData = data;
+        }
       }
+      
+      if (automationData) {
+        // Run the automation
+        handleRunAutomation(automationData);
+      }
+      
     } catch (error) {
+      console.error('Error loading automation from NFC:', error);
       Alert.alert('Error', 'Failed to load automation from NFC tag');
     }
   };
 
   const renderAutomationCard = (automation: AutomationData) => (
-    <Card 
-      key={automation.id} 
-      style={styles.automationCard}
+    <AutomationCard
+      key={automation.id}
+      automation={automation}
       onPress={() => navigation.navigate('AutomationDetails', { automation })}
-    >
-      <Card.Content>
-        <View style={styles.cardHeader}>
-          <View style={styles.cardInfo}>
-            <Text style={styles.automationTitle}>{automation.title}</Text>
-            {automation.description && (
-              <Text style={styles.automationDescription} numberOfLines={2}>
-                {automation.description}
-              </Text>
-            )}
-          </View>
-          <View style={styles.cardActions}>
-            <IconButton
-              icon="play"
-              size={20}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleRunAutomation(automation);
-              }}
-            />
-            {!automation.is_public && (
-              <IconButton
-                icon="earth"
-                size={20}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handlePublishAutomation(automation);
-                }}
-              />
-            )}
-            <IconButton
-              icon="map-marker"
-              size={20}
-              onPress={(e) => {
-                e.stopPropagation();
-                navigation.navigate('LocationTriggers', { automation });
-              }}
-            />
-            <IconButton
-              icon="dots-vertical"
-              size={20}
-              onPress={(e) => {
-                e.stopPropagation();
-                navigation.navigate('AutomationDetails', { automation });
-              }}
-            />
-          </View>
-        </View>
-        
-        <View style={styles.cardMeta}>
-          <Chip icon="layers" compact>
-            {automation.steps?.length || 0} steps
-          </Chip>
-          <Chip icon="tag" compact>
-            {automation.category}
-          </Chip>
-          <Chip icon="play" compact>
-            {automation.execution_count} runs
-          </Chip>
-          {automation.average_rating > 0 && (
-            <Chip icon="star" compact>
-              {automation.average_rating.toFixed(1)}
-            </Chip>
-          )}
-        </View>
-        
-        <View style={styles.cardFooter}>
-          <Text style={styles.createdDate}>
-            Created: {new Date(automation.created_at).toLocaleDateString()}
-          </Text>
-          <Text style={styles.publicStatus}>
-            {automation.is_public ? '🌍 Public' : '🔒 Private'}
-          </Text>
-        </View>
-      </Card.Content>
-    </Card>
+      onRun={() => handleRunAutomation(automation)}
+      onPublish={!automation.is_public ? () => handlePublishAutomation(automation) : undefined}
+      onLocationTrigger={() => navigation.navigate('LocationTriggers', { automation })}
+      onEdit={() => navigation.navigate('AutomationBuilder', { automationId: automation.id })}
+      onDelete={async () => {
+        Alert.alert(
+          'Delete Automation',
+          'Are you sure you want to delete this automation?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Delete',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await supabase
+                    .from('automations')
+                    .delete()
+                    .eq('id', automation.id);
+                  refetch();
+                  Alert.alert('Success', 'Automation deleted');
+                } catch (error) {
+                  Alert.alert('Error', 'Failed to delete automation');
+                }
+              },
+            },
+          ]
+        );
+      }}
+    />
   );
 
   const renderEmptyState = () => (

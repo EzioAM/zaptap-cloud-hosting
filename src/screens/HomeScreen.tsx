@@ -15,6 +15,7 @@ import { RootStackParamList } from '../navigation/types';
 import { RoleService } from '../services/auth/RoleService';
 import { APP_NAME, APP_TAGLINE } from '../constants/version';
 import { VersionInfo } from '../components/common/VersionInfo';
+import { AppIcon } from '../components/common/AppIcon';
 import { SupabaseTestComponent } from '../components/debug/SupabaseTestComponent';
 import { AutomationTestComponent } from '../components/debug/AutomationTestComponent';
 
@@ -68,7 +69,10 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>⚡ {APP_NAME}</Text>
+          <View style={styles.titleContainer}>
+            <AppIcon name="lightning" size={32} color="#6200ee" />
+            <Text style={styles.title}>{APP_NAME}</Text>
+          </View>
           <VersionInfo showButton={true} buttonStyle={styles.version} />
           <Text style={styles.subtitle}>{APP_TAGLINE}</Text>
         </View>
@@ -78,7 +82,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
             style={styles.featureCard}
             onPress={() => navigation.navigate('AutomationBuilder')}
           >
-            <Text style={styles.featureIcon}>🤖</Text>
+            <AppIcon name="automation" size={48} color="#6200ee" style={styles.featureIcon} />
             <Text style={styles.featureTitle}>Build Automation</Text>
             <Text style={styles.featureDescription}>Create powerful workflows</Text>
           </Pressable>
@@ -88,7 +92,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
               style={styles.featureCard}
               onPress={() => navigation.navigate('MyAutomations')}
             >
-              <Text style={styles.featureIcon}>📱</Text>
+              <AppIcon name="myAutomations" size={48} color="#2196F3" style={styles.featureIcon} />
               <Text style={styles.featureTitle}>My Automations</Text>
               <Text style={styles.featureDescription}>Manage your workflows</Text>
             </Pressable>
@@ -98,7 +102,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
             style={styles.featureCard}
             onPress={() => navigation.navigate('Gallery')}
           >
-            <Text style={styles.featureIcon}>🎨</Text>
+            <AppIcon name="gallery" size={48} color="#FF9800" style={styles.featureIcon} />
             <Text style={styles.featureTitle}>Gallery</Text>
             <Text style={styles.featureDescription}>Discover shared automations</Text>
           </Pressable>
@@ -107,7 +111,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
             style={styles.featureCard}
             onPress={() => navigation.navigate('Templates')}
           >
-            <Text style={styles.featureIcon}>📋</Text>
+            <AppIcon name="templates" size={48} color="#4CAF50" style={styles.featureIcon} />
             <Text style={styles.featureTitle}>Templates</Text>
             <Text style={styles.featureDescription}>Start with pre-built flows</Text>
           </Pressable>
@@ -117,7 +121,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
               style={styles.featureCard}
               onPress={() => navigation.navigate('LocationTriggers')}
             >
-              <Text style={styles.featureIcon}>📍</Text>
+              <AppIcon name="locationTriggers" size={48} color="#F44336" style={styles.featureIcon} />
               <Text style={styles.featureTitle}>Location Triggers</Text>
               <Text style={styles.featureDescription}>Location-based automation</Text>
             </Pressable>
@@ -151,7 +155,10 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                   style={styles.developerButton}
                   onPress={() => navigation.navigate('DeveloperMenu')}
                 >
-                  <Text style={styles.developerButtonText}>🛠️ Developer Menu</Text>
+                  <View style={styles.developerButtonContent}>
+                    <AppIcon name="developer" size={20} color="#4b5563" />
+                    <Text style={styles.developerButtonText}>Developer Menu</Text>
+                  </View>
                 </Pressable>
               )}
             </View>
@@ -161,11 +168,23 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
         <View style={styles.status}>
           <Text style={styles.statusTitle}>System Status</Text>
           <View style={styles.statusItems}>
-            <Text style={styles.statusText}>✅ Automation Engine</Text>
-            <Text style={styles.statusText}>✅ Cloud Storage</Text>
-            <Text style={styles.statusText}>✅ NFC & Location</Text>
+            <View style={styles.statusItem}>
+              <AppIcon name="success" size={16} color="#4CAF50" />
+              <Text style={styles.statusText}>Automation Engine</Text>
+            </View>
+            <View style={styles.statusItem}>
+              <AppIcon name="success" size={16} color="#4CAF50" />
+              <Text style={styles.statusText}>Cloud Storage</Text>
+            </View>
+            <View style={styles.statusItem}>
+              <AppIcon name="success" size={16} color="#4CAF50" />
+              <Text style={styles.statusText}>NFC & Location</Text>
+            </View>
             {isAuthenticated && (
-              <Text style={styles.statusText}>✅ User Authenticated</Text>
+              <View style={styles.statusItem}>
+                <AppIcon name="success" size={16} color="#4CAF50" />
+                <Text style={styles.statusText}>User Authenticated</Text>
+              </View>
             )}
           </View>
         </View>
@@ -174,12 +193,18 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
         {__DEV__ && (
           <>
             <View style={styles.debugSection}>
-              <Text style={styles.debugTitle}>🧪 Database Connection Test</Text>
+              <View style={styles.debugTitleContainer}>
+                <AppIcon name="developer" size={16} color="#374151" />
+                <Text style={styles.debugTitle}>Database Connection Test</Text>
+              </View>
               <SupabaseTestComponent />
             </View>
             
             <View style={[styles.debugSection, { backgroundColor: '#f0f8ff' }]}>
-              <Text style={[styles.debugTitle, { color: '#1e40af' }]}>⚡ Automation Engine Test</Text>
+              <View style={styles.debugTitleContainer}>
+                <AppIcon name="lightning" size={16} color="#1e40af" />
+                <Text style={[styles.debugTitle, { color: '#1e40af' }]}>Automation Engine Test</Text>
+              </View>
               <AutomationTestComponent />
             </View>
           </>
@@ -237,8 +262,12 @@ const styles = StyleSheet.create({
     elevation: 3,
     alignItems: 'center',
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   featureIcon: {
-    fontSize: 32,
     marginBottom: 10,
   },
   featureTitle: {
@@ -314,6 +343,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#4b5563',
   },
+  developerButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   status: {
     backgroundColor: 'white',
     padding: 20,
@@ -338,6 +372,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  statusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   debugSection: {
     backgroundColor: '#f9fafb',
     padding: 15,
@@ -348,6 +387,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#374151',
+  },
+  debugTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 10,
   },
 });

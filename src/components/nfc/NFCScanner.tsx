@@ -13,7 +13,7 @@ import {
   Surface,
   ActivityIndicator,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import NFCService from '../../services/nfc/NFCService';
 
 interface NFCScannerProps {
@@ -263,7 +263,7 @@ const NFCScanner: React.FC<NFCScannerProps> = ({ onScan, onClose }) => {
             <Text style={styles.infoTitle}>How to use NFC</Text>
             <Text style={styles.infoText}>
               • Place your device close to an NFC tag{'\n'}
-              • The tag should contain a Shortcuts Like automation{'\n'}
+              • The tag should contain a Zaptap automation{'\n'}
               • Keep your device steady until scan completes{'\n'}
               • Make sure NFC is enabled in your device settings
             </Text>

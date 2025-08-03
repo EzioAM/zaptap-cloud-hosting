@@ -5,6 +5,7 @@ import {
   ScrollView,
   Alert,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import {
   Card,
@@ -31,11 +32,22 @@ export const ChangeHistoryView: React.FC = () => {
   const [selectedEntry, setSelectedEntry] = useState<ChangeHistoryEntry | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [stats, setStats] = useState<any>(null);
+  const [revertingId, setRevertingId] = useState<string | null>(null);
+  const [showDemoPrompt, setShowDemoPrompt] = useState(false);
 
   useEffect(() => {
     loadHistory();
     loadStats();
+    checkForEmptyHistory();
   }, []);
+
+  const checkForEmptyHistory = async () => {
+    const service = ChangeHistoryService.getInstance();
+    const data = await service.getHistory();
+    if (data.length === 0) {
+      setShowDemoPrompt(true);
+    }
+  };
 
   const loadHistory = async () => {
     try {
@@ -76,23 +88,116 @@ export const ChangeHistoryView: React.FC = () => {
           text: 'Revert',
           style: 'destructive',
           onPress: async () => {
+            setRevertingId(entry.id);
             const service = ChangeHistoryService.getInstance();
             const success = await service.revertChange(entry.id);
+            
             if (success) {
               Alert.alert(
-                'Revert Instructions',
-                'Check the console for detailed revert instructions. You may need to manually restore some files.',
+                '✅ Changes Reverted',
+                `Successfully reverted ${entry.changes.length} changes for "${entry.feature}".\n\nCheck the console for detailed revert report.`,
                 [{ text: 'OK' }]
               );
               loadHistory();
               loadStats();
             } else {
-              Alert.alert('Error', 'Failed to revert changes');
+              Alert.alert('❌ Error', 'Failed to revert changes. Please check the console for details.');
             }
+            setRevertingId(null);
           }
         }
       ]
     );
+  };
+
+  const generateDemoData = async () => {
+    const service = ChangeHistoryService.getInstance();
+    
+    // Demo change 1: UI Redesign
+    await service.recordChange({
+      feature: 'Home Screen Redesign',
+      description: 'Applied modern Material Design 3 UI improvements',
+      changes: [
+        service.createCodeChange({
+          type: 'file_modified',
+          filepath: 'src/screens/HomeScreen.tsx',
+          description: 'Updated component styling and layout',
+          metadata: {
+            feature: 'UI Redesign',
+            source: 'redesign',
+            aiModel: 'claude',
+            fileSize: 15420,
+            lineCount: 380,
+          },
+        }),
+        service.createCodeChange({
+          type: 'file_created',
+          filepath: 'src/styles/HomeScreen.styles.ts',
+          description: 'Created dedicated styles file',
+          metadata: {
+            feature: 'UI Redesign',
+            source: 'redesign',
+            fileSize: 3200,
+            lineCount: 85,
+          },
+        }),
+      ],
+    });
+    
+    // Demo change 2: New Feature
+    await service.recordChange({
+      feature: 'NFC Integration',
+      description: 'Added NFC tag reading and writing capabilities',
+      changes: [
+        service.createCodeChange({
+          type: 'file_created',
+          filepath: 'src/services/nfc/NFCManager.ts',
+          description: 'Implemented NFC service layer',
+          metadata: {
+            feature: 'NFC Feature',
+            source: 'research',
+            aiModel: 'chatgpt',
+            fileSize: 8500,
+            lineCount: 220,
+          },
+        }),
+        service.createCodeChange({
+          type: 'dependency_added',
+          filepath: 'package.json',
+          description: 'react-native-nfc-manager@3.14.0',
+          metadata: {
+            feature: 'NFC Feature',
+            source: 'manual',
+          },
+        }),
+      ],
+    });
+    
+    // Demo change 3: Bug Fix
+    await service.recordChange({
+      feature: 'Authentication Fix',
+      description: 'Fixed token refresh issue in auth flow',
+      changes: [
+        service.createCodeChange({
+          type: 'file_modified',
+          filepath: 'src/services/auth/AuthService.ts',
+          description: 'Fixed token refresh logic',
+          previousContent: 'const token = await getToken();',
+          newContent: 'const token = await refreshToken();',
+          metadata: {
+            feature: 'Bug Fix',
+            source: 'manual',
+            fileSize: 5200,
+            lineCount: 145,
+          },
+        }),
+      ],
+    });
+    
+    setShowDemoPrompt(false);
+    loadHistory();
+    loadStats();
+    Alert.alert('Demo Data Created', 'Sample change history entries have been added.');
   };
 
   const handleClearHistory = () => {
@@ -178,7 +283,23 @@ export const ChangeHistoryView: React.FC = () => {
             </Text>
             <Text style={styles.statLabel}>Reverted</Text>
           </View>
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: '#2196F3' }]}>
+              {Object.keys(stats?.fileChanges || {}).length}
+            </Text>
+            <Text style={styles.statLabel}>Files</Text>
+          </View>
         </View>
+        {stats?.mostChangedFiles && stats.mostChangedFiles.length > 0 && (
+          <View style={styles.topFiles}>
+            <Text style={styles.topFilesTitle}>Most Changed Files:</Text>
+            {stats.mostChangedFiles.slice(0, 3).map((item: any, index: number) => (
+              <Text key={index} style={styles.topFileItem}>
+                {item.file.split('/').pop()} ({item.count} changes)
+              </Text>
+            ))}
+          </View>
+        )}
       </Surface>
 
       <Searchbar
@@ -203,6 +324,15 @@ export const ChangeHistoryView: React.FC = () => {
               <Text style={styles.emptySubtext}>
                 Changes made through AI tools will appear here
               </Text>
+              {showDemoPrompt && !searchQuery && (
+                <Button 
+                  mode="contained" 
+                  onPress={generateDemoData}
+                  style={styles.demoButton}
+                >
+                  Generate Demo Data
+                </Button>
+              )}
             </Card.Content>
           </Card>
         ) : (
@@ -261,8 +391,10 @@ export const ChangeHistoryView: React.FC = () => {
                     mode="contained"
                     onPress={() => handleRevert(entry)}
                     buttonColor="#FF5252"
+                    loading={revertingId === entry.id}
+                    disabled={revertingId !== null}
                   >
-                    Revert
+                    {revertingId === entry.id ? 'Reverting...' : 'Revert'}
                   </Button>
                 )}
               </Card.Actions>
@@ -285,6 +417,11 @@ export const ChangeHistoryView: React.FC = () => {
             icon: 'delete',
             label: 'Clear History',
             onPress: handleClearHistory,
+          },
+          {
+            icon: 'database-plus',
+            label: 'Demo Data',
+            onPress: generateDemoData,
           },
         ]}
         onStateChange={() => {}}
@@ -326,11 +463,32 @@ export const ChangeHistoryView: React.FC = () => {
                       {change.metadata && (
                         <View style={styles.metadata}>
                           {change.metadata.source && (
-                            <Chip compact>{change.metadata.source}</Chip>
+                            <Chip compact style={styles.metadataChip}>{change.metadata.source}</Chip>
                           )}
                           {change.metadata.aiModel && (
-                            <Chip compact>{change.metadata.aiModel}</Chip>
+                            <Chip compact style={styles.metadataChip}>{change.metadata.aiModel}</Chip>
                           )}
+                          {change.metadata.fileSize && (
+                            <Chip compact style={styles.metadataChip}>
+                              {(change.metadata.fileSize / 1024).toFixed(1)}KB
+                            </Chip>
+                          )}
+                        </View>
+                      )}
+                      {change.previousContent && (
+                        <View style={styles.contentPreview}>
+                          <Text style={styles.contentLabel}>Previous:</Text>
+                          <Text style={styles.contentText} numberOfLines={2}>
+                            {change.previousContent}
+                          </Text>
+                        </View>
+                      )}
+                      {change.newContent && (
+                        <View style={styles.contentPreview}>
+                          <Text style={styles.contentLabel}>New:</Text>
+                          <Text style={styles.contentText} numberOfLines={2}>
+                            {change.newContent}
+                          </Text>
                         </View>
                       )}
                     </Surface>
@@ -493,5 +651,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 8,
+    flexWrap: 'wrap',
+  },
+  metadataChip: {
+    marginRight: 4,
+    marginBottom: 4,
+  },
+  demoButton: {
+    marginTop: 16,
+  },
+  topFiles: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  topFilesTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+  },
+  topFileItem: {
+    fontSize: 11,
+    color: '#888',
+    marginLeft: 8,
+  },
+  contentPreview: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 4,
+  },
+  contentLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 2,
+  },
+  contentText: {
+    fontSize: 12,
+    color: '#333',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
 });

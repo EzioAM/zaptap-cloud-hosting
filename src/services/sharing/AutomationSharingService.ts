@@ -2,6 +2,7 @@ import { AutomationData } from '../../types';
 import { smartLinkService } from '../linking/SmartLinkService';
 import { Share } from 'react-native';
 import { supabase } from '../supabase/client';
+import { sharingAnalyticsService } from './SharingAnalyticsService';
 
 export interface SharingOptions {
   includeQR?: boolean;
@@ -74,6 +75,19 @@ export class AutomationSharingService {
         message: shareMessage,
         url: shareUrl,
         title: `Check out this automation: ${automation.title}`,
+      });
+
+      // Track share event
+      await sharingAnalyticsService.trackShareEvent({
+        automationId: automation.id,
+        shareId: publicId,
+        method: 'link',
+        sharedBy: automation.created_by || 'anonymous',
+        metadata: {
+          hasCustomMessage: !!customMessage,
+          isPublicLink: !!publicId,
+          hasEmbeddedData: embedData
+        }
       });
 
       return {
@@ -331,6 +345,13 @@ export class AutomationSharingService {
         error: error.message || 'Failed to get user shares',
       };
     }
+  }
+
+  /**
+   * Generate a simple share URL for an automation
+   */
+  generateShareUrl(automationId: string): string {
+    return `${AutomationSharingService.SHARE_DOMAIN}/automation/${automationId}`;
   }
 
   // Private helper methods

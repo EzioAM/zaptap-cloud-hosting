@@ -21,7 +21,7 @@ import {
   Menu,
   Appbar,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { CommentsService, AutomationComment } from '../../services/comments/CommentsService';
 import { AutomationData } from '../../types';
 import { useSelector } from 'react-redux';
@@ -77,7 +77,15 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
   };
 
   const handleSubmitComment = async () => {
-    if (!newComment.trim() || !user) return;
+    if (!newComment.trim()) {
+      Alert.alert('Empty Comment', 'Please enter a comment before posting.');
+      return;
+    }
+    
+    if (!user) {
+      Alert.alert('Not Logged In', 'Please log in to post comments.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -85,9 +93,35 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
       if (comment) {
         setComments([comment, ...comments]);
         setNewComment('');
+        // Success feedback is subtle - comment appears immediately
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to post comment');
+    } catch (error: any) {
+      console.error('Comment post error:', error);
+      
+      let errorTitle = 'Failed to Post';
+      let errorMessage = error.message || 'Unknown error occurred';
+      let buttons: any[] = [{ text: 'OK' }];
+      
+      if (error.message?.includes('table does not exist')) {
+        errorTitle = 'Database Setup Required';
+        errorMessage = 'The comments system needs to be set up in your database.';
+        buttons.push({
+          text: 'View Instructions',
+          onPress: () => Alert.alert(
+            'Setup Instructions',
+            '1. Go to your Supabase dashboard\n2. Navigate to SQL Editor\n3. Run the fix-comments-database.sql file\n4. Refresh the app and try again',
+            [{ text: 'OK' }]
+          )
+        });
+      } else if (error.message?.includes('not authenticated')) {
+        errorTitle = 'Login Required';
+        errorMessage = 'Please log in to post comments.';
+      } else if (error.message?.includes('public automations')) {
+        errorTitle = 'Private Automation';
+        errorMessage = 'Comments can only be posted on public automations.';
+      }
+      
+      Alert.alert(errorTitle, errorMessage, buttons);
     } finally {
       setSubmitting(false);
     }

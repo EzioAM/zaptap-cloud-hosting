@@ -93,9 +93,7 @@ export default {
         }
       ]
     },
-    web: {
-      favicon: "./assets/favicon.png"
-    },
+    platforms: ["ios", "android"],
     updates: {
       enabled: true,
       checkAutomatically: "ON_LOAD",

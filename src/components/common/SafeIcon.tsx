@@ -6,7 +6,7 @@ import FallbackIcon from './FallbackIcon';
 let VectorIcon: any = null;
 try {
   if (PlatformUtils.areVectorIconsSupported()) {
-    VectorIcon = require('react-native-vector-icons/MaterialCommunityIcons').default;
+    VectorIcon = require('@expo/vector-icons/MaterialCommunityIcons').default;
   }
 } catch (error) {
   // Vector icons not available

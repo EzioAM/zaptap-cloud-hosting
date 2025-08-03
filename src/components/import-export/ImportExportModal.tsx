@@ -17,7 +17,7 @@ import {
   Card,
   Divider,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationData } from '../../types';
 import { 
   automationImportExportService, 
@@ -183,7 +183,7 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({
           <View style={styles.formatList}>
             <View style={styles.formatItem}>
               <Icon name="code-json" size={20} color="#6200ee" />
-              <Text style={styles.formatText}>ShortcutsLike JSON (.json)</Text>
+              <Text style={styles.formatText}>Zaptap JSON (.json)</Text>
             </View>
             <View style={styles.formatItem}>
               <Icon name="apple" size={20} color="#6200ee" />

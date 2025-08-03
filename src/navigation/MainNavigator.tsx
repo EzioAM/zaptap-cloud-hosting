@@ -31,7 +31,7 @@ export const MainNavigator = () => {
         name="Home"
         component={HomeScreen}
         options={{ 
-          title: 'Shortcuts Like',
+          title: 'Zaptap',
           headerShown: false 
         }}
       />

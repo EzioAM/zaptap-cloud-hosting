@@ -6,7 +6,9 @@
         "appID": "QH729XYMW4.com.zaptap.app",
         "paths": [
           "/automation/*",
-          "/shared/*",
+          "/share/*",
+          "/link/*",
+          "/run/*",
           "/emergency/*"
         ]
       }

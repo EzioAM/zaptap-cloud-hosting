@@ -179,7 +179,7 @@ export class LocationTriggerService {
         deferredUpdatesInterval: 60000, // 1 minute
         showsBackgroundLocationIndicator: true,
         foregroundService: {
-          notificationTitle: 'Shortcuts Like',
+          notificationTitle: 'Zaptap',
           notificationBody: 'Location-based automations are active',
         },
       });

@@ -13,7 +13,7 @@ import {
   useTheme,
   HelperText,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 interface ModernTextInputProps {
   label: string;

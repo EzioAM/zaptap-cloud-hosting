@@ -71,7 +71,7 @@ export const PlatformUtils = {
   // Platform-specific implementations
   getStoragePath: () => Platform.select({
     ios: 'Documents/',
-    android: 'DCIM/ShortcutsLike/',
+    android: 'DCIM/Zaptap/',
     default: 'Documents/'
   }),
   
@@ -79,7 +79,7 @@ export const PlatformUtils = {
     ios: {
       title: 'Share Automation',
       subject: 'Check out this automation!',
-      message: 'I created an automation with Shortcuts Like',
+      message: 'I created an automation with Zaptap',
     },
     android: {
       title: 'Share Automation',
@@ -93,7 +93,7 @@ export const PlatformUtils = {
   // Check if vector icons are supported
   areVectorIconsSupported: () => {
     try {
-      require('react-native-vector-icons/MaterialCommunityIcons');
+      require('@expo/vector-icons/MaterialCommunityIcons');
       return true;
     } catch (error) {
       return false;

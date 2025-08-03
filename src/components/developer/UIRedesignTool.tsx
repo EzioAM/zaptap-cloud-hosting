@@ -31,6 +31,7 @@ import { UIRedesignRequest } from '../../services/developer/UIRedesignPromptServ
 import { UIMockupService } from '../../services/developer/UIMockupService';
 import { UIPromptFormatter, DesignInputs } from '../../services/developer/UIPromptFormatter';
 import { UIImageGenerator } from '../../services/developer/UIImageGenerator';
+import { ChangeHistoryIntegration } from '../../services/developer/ChangeHistoryIntegration';
 import Constants from 'expo-constants';
 
 export const UIRedesignTool: React.FC = () => {
@@ -91,6 +92,18 @@ export const UIRedesignTool: React.FC = () => {
     setResults(null);
 
     try {
+      console.log('🚀 Starting redesign process for:', screenName);
+      
+      // Test imports
+      console.log('🔍 Testing imports...');
+      console.log('UIPromptFormatter:', typeof UIPromptFormatter);
+      console.log('UIPromptFormatter.formatPrompts:', typeof UIPromptFormatter.formatPrompts);
+      console.log('UIPromptFormatter.createSearchQuery:', typeof UIPromptFormatter.createSearchQuery);
+      console.log('ScreenAnalysisService:', typeof ScreenAnalysisService);
+      console.log('ScreenAnalysisService.getScreenAnalysis:', typeof ScreenAnalysisService.getScreenAnalysis);
+      console.log('UIImageGenerator:', typeof UIImageGenerator);
+      console.log('UIImageGenerator.generateMockupImage:', typeof UIImageGenerator.generateMockupImage);
+      console.log('AIResearchService:', typeof AIResearchService);
       // Step 1: Format design inputs into optimized prompts
       const designInputs: DesignInputs = {
         screenName,
@@ -106,13 +119,20 @@ export const UIRedesignTool: React.FC = () => {
       };
 
       // Generate optimized prompts for different AI services
-      const formattedPrompts = UIPromptFormatter.formatPrompts(designInputs);
+      console.log('📋 Calling UIPromptFormatter.formatPrompts...');
+      let formattedPrompts;
+      try {
+        formattedPrompts = UIPromptFormatter.formatPrompts(designInputs);
+      } catch (promptError) {
+        console.error('❌ UIPromptFormatter.formatPrompts failed:', promptError);
+        throw new Error(`Failed to format prompts: ${promptError.message}`);
+      }
       
       console.log('🎨 Optimized Prompts Generated:', {
-        claudePromptLength: formattedPrompts.claudePrompt.length,
-        chatgptPromptLength: formattedPrompts.chatgptPrompt.length,
-        imagePromptLength: formattedPrompts.imageGenerationPrompt.length,
-        searchKeywords: formattedPrompts.searchKeywords
+        claudePromptLength: formattedPrompts?.claudePrompt?.length || 0,
+        chatgptPromptLength: formattedPrompts?.chatgptPrompt?.length || 0,
+        imagePromptLength: formattedPrompts?.imageGenerationPrompt?.length || 0,
+        searchKeywords: formattedPrompts?.searchKeywords?.length || 0
       });
 
       // Step 2: Get API keys and setup image generation
@@ -132,6 +152,7 @@ export const UIRedesignTool: React.FC = () => {
       }
 
       // Step 3: Generate AI recommendations using optimized prompts
+      console.log('🤖 Creating AIResearchService...');
       const service = new AIResearchService(claudeApiKey, openaiApiKey);
       
       // Use the optimized prompts for better AI analysis
@@ -144,33 +165,81 @@ export const UIRedesignTool: React.FC = () => {
         currentDescription: `${designInputs.currentDescription}\n\n[OPTIMIZED ANALYSIS CONTEXT]\n${aiAnalysisPrompt}`
       };
 
-      const redesignResponse = await service.generateUIRedesign(redesignRequest);
+      console.log('📤 Calling service.generateUIRedesign...');
+      let redesignResponse;
+      try {
+        redesignResponse = await service.generateUIRedesign(redesignRequest);
+      } catch (serviceError) {
+        console.error('❌ service.generateUIRedesign failed:', serviceError);
+        console.error('Stack trace:', serviceError.stack);
+        throw new Error(`AI service failed: ${serviceError.message}`);
+      }
+      
+      // Validate response structure
+      if (!redesignResponse || typeof redesignResponse !== 'object') {
+        console.error('❌ Invalid response structure:', redesignResponse);
+        throw new Error('Invalid response from AI service');
+      }
+      
+      console.log('✅ AI response received:', {
+        hasDesignConcepts: !!redesignResponse.designConcepts,
+        hasMockupDescriptions: !!redesignResponse.mockupDescriptions,
+        mockupCount: redesignResponse.mockupDescriptions?.length || 0
+      });
 
       // Step 4: Generate actual UI mockup images
       const mockupStyles: Array<'enhanced' | 'reimagined' | 'interaction-focused'> = 
         ['enhanced', 'reimagined', 'interaction-focused'];
 
       const mockupPromises = mockupStyles.map(async (style, index) => {
-        const imageRequest = {
-          prompt: formattedPrompts.imageGenerationPrompt,
-          style,
-          screenType: screenName.toLowerCase(),
-          designGoals
-        };
+        try {
+          // Get screen analysis for context
+          const screenAnalysis = await ScreenAnalysisService.getScreenAnalysis(screenName);
+          
+          const imageRequest = {
+            prompt: formattedPrompts.imageGenerationPrompt,
+            style,
+            screenType: screenName.toLowerCase(),
+            designGoals,
+            screenContext: screenAnalysis
+          };
 
-        const generatedImage = await UIImageGenerator.generateMockupImage(imageRequest);
-        const mockupData = redesignResponse.mockupDescriptions[index];
+          const generatedImage = await UIImageGenerator.generateMockupImage(imageRequest);
+          
+          // Safely access mockup data with fallback
+          const mockupData = redesignResponse.mockupDescriptions?.[index] || {
+            name: style.charAt(0).toUpperCase() + style.slice(1) + ' Design',
+            description: `${style} variation of ${screenName}`,
+            keyFeatures: ['Modern design', 'Improved UX', 'Better accessibility'],
+            colorScheme: ['#6200EE', '#FFFFFF', '#F5F5F5', '#03DAC6'],
+            layoutChanges: ['Updated layout'],
+            userBenefits: ['Enhanced user experience']
+          };
 
-        return {
-          name: mockupData.name,
-          description: mockupData.description,
-          imageUrl: generatedImage.url,
-          colors: mockupData.colorScheme,
-          features: mockupData.keyFeatures,
-          layoutChanges: mockupData.layoutChanges || [],
-          userBenefits: mockupData.userBenefits || [],
-          isAIGenerated: generatedImage.isAIGenerated
-        };
+          return {
+            name: mockupData.name,
+            description: mockupData.description,
+            imageUrl: generatedImage.url,
+            colors: mockupData.colorScheme || [],
+            features: mockupData.keyFeatures || [],
+            layoutChanges: mockupData.layoutChanges || [],
+            userBenefits: mockupData.userBenefits || [],
+            isAIGenerated: generatedImage.isAIGenerated
+          };
+        } catch (error) {
+          console.error(`Error generating mockup for ${style}:`, error);
+          // Return a fallback mockup
+          return {
+            name: style.charAt(0).toUpperCase() + style.slice(1) + ' Design',
+            description: `Failed to generate ${style} mockup`,
+            imageUrl: 'https://via.placeholder.com/400x800/f0f0f0/666?text=Mockup+Generation+Failed',
+            colors: ['#6200EE', '#FFFFFF'],
+            features: ['Mockup generation failed'],
+            layoutChanges: [],
+            userBenefits: [],
+            isAIGenerated: false
+          };
+        }
       });
 
       const mockups = await Promise.all(mockupPromises);
@@ -192,19 +261,48 @@ export const UIRedesignTool: React.FC = () => {
         aiAnalysis: redesignResponse
       });
 
+      // Track the redesign in change history
+      try {
+        await ChangeHistoryIntegration.trackUIRedesign({
+          screenName,
+          changes: [
+            {
+              filepath: `src/screens/${screenName}.tsx`,
+              description: `Generated UI redesign concepts with ${designGoals.join(', ')} design goals`,
+              content: JSON.stringify(redesignResponse.specificRecommendations, null, 2),
+            },
+            {
+              filepath: `src/mockups/${screenName}_mockups.json`,
+              description: `Created ${mockups.length} UI mockup variations`,
+              content: JSON.stringify(mockups, null, 2),
+            },
+          ],
+          aiModel: claudeApiKey ? 'claude' : openaiApiKey ? 'chatgpt' : undefined,
+        });
+      } catch (historyError) {
+        console.error('Failed to track redesign in history:', historyError);
+      }
+
       const aiGeneratedCount = mockups.filter(m => m.isAIGenerated).length;
       
       Alert.alert(
         'Redesign Complete!',
-        `✅ AI-powered UI/UX redesign generated for ${screenName}\n\n🎯 Optimized prompts: ${formattedPrompts.searchKeywords.length} keywords\n📊 Design goals: ${designGoals.length} applied\n📝 Screen analysis: ${Math.round(currentDescription.length / 100)} pages\n🎨 UI mockups: ${mockups.length} created${aiGeneratedCount > 0 ? ` (${aiGeneratedCount} AI-generated)` : ''}\n\n💡 Review the enhanced analysis and mockups below!`,
+        `✅ AI-powered UI/UX redesign generated for ${screenName}\n\n🎯 Optimized prompts: ${formattedPrompts.searchKeywords.length} keywords\n📊 Design goals: ${designGoals.length} applied\n📝 Screen analysis: ${Math.round(currentDescription.length / 100)} pages\n🎨 UI mockups: ${mockups.length} created${aiGeneratedCount > 0 ? ` (${aiGeneratedCount} AI-generated)` : ''}\n\n💡 Review the enhanced analysis and mockups below!\n\n📋 Changes tracked in history for undo capability.`,
         [{ text: 'OK' }]
       );
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Redesign error:', error);
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      const errorMessage = error.message || 'Unknown error occurred';
+      const errorDetails = `Error: ${errorMessage}${error.stack ? '\n\nCheck console for detailed stack trace.' : ''}`;
+      
       Alert.alert(
         'Redesign Failed',
-        `Unable to generate redesign concepts. ${error.message || 'Please check your network connection and API configuration.'}\n\nFalling back to structured analysis mode.`,
+        `Unable to generate redesign concepts.\n\n${errorDetails}\n\nPlease check:\n1. API keys are configured\n2. Network connection is active\n3. Console for detailed error logs`,
         [{ text: 'OK' }]
       );
     } finally {

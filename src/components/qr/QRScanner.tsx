@@ -15,7 +15,7 @@ import React, { useState, useEffect } from 'react';
     ActivityIndicator,
   } from 'react-native-paper';
   import { CameraView, Camera } from 'expo-camera';
-  import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+  import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
   interface QRScannerProps {
     onScan: (automationId: string, metadata: any) => void;

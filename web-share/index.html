@@ -33,6 +33,54 @@
         .title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
         .description { opacity: 0.9; font-size: 14px; }
         .content { padding: 24px; }
+        .options-container {
+            display: flex;
+            gap: 16px;
+            margin: 24px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .option-card {
+            flex: 1;
+            min-width: 280px;
+            max-width: 350px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .option-card:hover {
+            border-color: #6200ee;
+            box-shadow: 0 4px 12px rgba(98, 0, 238, 0.15);
+        }
+        .option-card h3 {
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 20px;
+        }
+        .option-card p {
+            margin: 0 0 16px 0;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .compatibility-info {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 16px 0;
+            font-size: 14px;
+            color: #1976d2;
+        }
+        .incompatible-warning {
+            background: #fff3cd;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 16px 0;
+            font-size: 14px;
+            color: #856404;
+        }
         .loading {
             text-align: center;
             padding: 40px 20px;
@@ -130,13 +178,27 @@
             <div id="automation-content" style="display: none;">
                 <div id="steps"></div>
                 
-                <button class="action-btn" id="run-btn" onclick="executeAutomation()" disabled>
-                    🚀 Run Automation
-                </button>
+                <div class="options-container">
+                    <div class="option-card">
+                        <h3>🌐 Run in Browser</h3>
+                        <p>Execute this automation right now without installing any app</p>
+                        <button class="action-btn" id="run-btn" onclick="executeAutomation()" disabled>
+                            🚀 Run Automation Now
+                        </button>
+                        <div id="compatibility-info" class="compatibility-info" style="display: none;"></div>
+                    </div>
+                    
+                    <div class="option-card">
+                        <h3>📱 Use Zaptap App</h3>
+                        <p>Get the full experience with all features and background execution</p>
+                        <button class="action-btn secondary-btn" onclick="tryApp()">
+                            📲 Open in Zaptap App
+                        </button>
+                        <p style="font-size: 12px; margin-top: 12px; opacity: 0.8;">App not installed? It will open the download page</p>
+                    </div>
+                </div>
                 
-                <button class="action-btn secondary-btn" onclick="tryApp()">
-                    📱 Open in Zaptap App
-                </button>
+                <div id="incompatible-warning" class="incompatible-warning" style="display: none;"></div>
             </div>
             
             <div id="error-content" style="display: none;">
@@ -226,6 +288,16 @@
             }
         }
         
+        // Check if step type is web compatible
+        function isStepWebCompatible(stepType) {
+            const webCompatibleTypes = [
+                'sms', 'email', 'notification', 'open_url', 'delay', 
+                'text', 'location', 'variable', 'get_variable', 'math',
+                'clipboard'
+            ];
+            return webCompatibleTypes.includes(stepType);
+        }
+        
         // Display automation details
         function displayAutomation(automation) {
             document.getElementById('automation-title').textContent = automation.title;
@@ -234,18 +306,48 @@
             const stepsContainer = document.getElementById('steps');
             stepsContainer.innerHTML = '';
             
+            let webCompatibleCount = 0;
+            let totalEnabledSteps = 0;
+            const incompatibleTypes = [];
+            
             if (automation.steps && automation.steps.length > 0) {
                 automation.steps.forEach((step, index) => {
                     if (!step.enabled) return;
                     
+                    totalEnabledSteps++;
+                    
+                    const isWebCompatible = isStepWebCompatible(step.type);
+                    if (isWebCompatible) {
+                        webCompatibleCount++;
+                    } else if (!incompatibleTypes.includes(step.type)) {
+                        incompatibleTypes.push(step.type);
+                    }
+                    
                     const stepDiv = document.createElement('div');
                     stepDiv.className = 'step';
                     stepDiv.innerHTML = `
-                        <div class="step-type">${step.type}</div>
+                        <div class="step-type">${step.type} ${!isWebCompatible ? '⚠️' : ''}</div>
                         <div class="step-content">${generateStepHTML(step)}</div>
                     `;
                     stepsContainer.appendChild(stepDiv);
                 });
+            }
+            
+            // Show compatibility info
+            const compatibilityInfo = document.getElementById('compatibility-info');
+            if (webCompatibleCount === totalEnabledSteps) {
+                compatibilityInfo.innerHTML = '✅ All steps can run in your browser!';
+                compatibilityInfo.style.display = 'block';
+            } else if (webCompatibleCount > 0) {
+                compatibilityInfo.innerHTML = `⚠️ ${webCompatibleCount} of ${totalEnabledSteps} steps will run in browser`;
+                compatibilityInfo.style.display = 'block';
+            }
+            
+            // Show incompatible warning if needed
+            if (incompatibleTypes.length > 0) {
+                const warningDiv = document.getElementById('incompatible-warning');
+                warningDiv.innerHTML = `⚠️ Some features require the app: ${incompatibleTypes.join(', ')}`;
+                warningDiv.style.display = 'block';
             }
             
             document.getElementById('loading').style.display = 'none';
@@ -281,6 +383,8 @@
                     return `📖 Get variable "${config.name}"`;
                 case 'math':
                     return `🧮 Calculate: ${config.operation || ''} with ${config.value || ''}`;
+                case 'clipboard':
+                    return `📋 Clipboard: ${config.action === 'copy' ? `Copy "${config.text || ''}"` : 'Paste from clipboard'}`;
                 default:
                     return `⚙️ ${step.type}: ${JSON.stringify(config)}`;
             }
@@ -458,6 +562,33 @@
                         const { name } = step.config;
                         const value = this.variables.get(name);
                         return { success: true, action: 'variable_retrieved', name, value };
+                    },
+                    math: (step) => {
+                        const { operation, value } = step.config;
+                        let result = 0;
+                        const numValue = parseFloat(value) || 0;
+                        
+                        switch (operation) {
+                            case 'add': result = numValue; break;
+                            case 'subtract': result = -numValue; break;
+                            case 'multiply': result = numValue; break;
+                            case 'divide': result = numValue !== 0 ? 1 / numValue : 0; break;
+                            default: result = numValue;
+                        }
+                        
+                        return { success: true, action: 'math_calculated', result };
+                    },
+                    clipboard: async (step) => {
+                        const { action, text } = step.config;
+                        if (action === 'copy' && navigator.clipboard) {
+                            await navigator.clipboard.writeText(text || '');
+                            return { success: true, action: 'clipboard_copied' };
+                        } else if (action === 'paste' && navigator.clipboard) {
+                            const pastedText = await navigator.clipboard.readText();
+                            alert(`Pasted: ${pastedText}`);
+                            return { success: true, action: 'clipboard_pasted', text: pastedText };
+                        }
+                        return { success: false, error: 'Clipboard operation not supported' };
                     }
                 };
             }

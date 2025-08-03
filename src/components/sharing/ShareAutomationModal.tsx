@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,16 @@ import {
   Alert,
   Clipboard,
   Share,
+  Platform,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationData } from '../../types';
 import { automationSharingService } from '../../services/sharing/AutomationSharingService';
 import { smartLinkService } from '../../services/linking/SmartLinkService';
+import { sharingAnalyticsService } from '../../services/sharing/SharingAnalyticsService';
+import QRCode from 'react-native-qrcode-svg';
+import { captureRef } from 'react-native-view-shot';
+import * as MediaLibrary from 'expo-media-library';
 
 interface ShareAutomationModalProps {
   visible: boolean;
@@ -27,12 +32,37 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
   automation,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'quick' | 'advanced' | 'analytics'>('quick');
+  const [activeTab, setActiveTab] = useState<'quick' | 'qr' | 'advanced' | 'analytics'>('quick');
   const [customMessage, setCustomMessage] = useState('');
   const [publicLinkEnabled, setPublicLinkEnabled] = useState(false);
   const [embedData, setEmbedData] = useState(false);
   const [recipients, setRecipients] = useState('');
   const [loading, setLoading] = useState(false);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [isSharingQR, setIsSharingQR] = useState(false);
+  const [isSavingQR, setIsSavingQR] = useState(false);
+  const qrRef = useRef<View>(null);
+
+  useEffect(() => {
+    if (visible && automation && activeTab === 'analytics') {
+      loadAnalytics();
+    }
+  }, [visible, automation, activeTab]);
+
+  const loadAnalytics = async () => {
+    if (!automation) return;
+    
+    setLoadingAnalytics(true);
+    try {
+      const analyticsData = await sharingAnalyticsService.getAutomationAnalytics(automation.id);
+      setAnalytics(analyticsData);
+    } catch (error) {
+      console.error('Failed to load analytics:', error);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
 
   if (!automation) return null;
 
@@ -112,6 +142,111 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
       Alert.alert('Share Failed', error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const shareQRCode = async () => {
+    try {
+      if (!qrRef.current) {
+        Alert.alert('Error', 'QR code not ready. Please try again.');
+        return;
+      }
+
+      setIsSharingQR(true);
+
+      const uri = await captureRef(qrRef.current, {
+        format: 'png',
+        quality: 1.0,
+        result: 'tmpfile',
+      });
+
+      const shareMessage = `Scan this QR code to run "${automation.title}" automation.\n\nWorks with or without the app!\n\nCreated with Shortcuts Like`;
+
+      const shareOptions = {
+        title: `${automation.title} - Automation QR Code`,
+        message: shareMessage,
+        url: Platform.OS === 'ios' ? uri : `file://${uri}`,
+        subject: `${automation.title} - Automation QR Code`,
+        failOnCancel: false,
+      };
+
+      const result = await Share.share(shareOptions);
+
+      if (result.action === Share.sharedAction) {
+        await sharingAnalyticsService.trackShare(automation.id, 'qr', {
+          method: 'native_share',
+          success: true,
+        });
+      }
+    } catch (error: any) {
+      console.error('QR share error:', error);
+      if (!error.message?.includes('cancel')) {
+        Alert.alert(
+          'Share Failed',
+          'Could not share QR code. Try saving to camera roll instead.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Save to Camera Roll', onPress: saveQRToCameraRoll },
+            { text: 'Copy Link', onPress: handleCopyLink }
+          ]
+        );
+      }
+    } finally {
+      setIsSharingQR(false);
+    }
+  };
+
+
+  const saveQRToCameraRoll = async () => {
+    try {
+      if (!qrRef.current) {
+        Alert.alert('Error', 'QR code not ready. Please try again.');
+        return;
+      }
+
+      setIsSavingQR(true);
+
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to save QR code to your camera roll.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      const uri = await captureRef(qrRef.current, {
+        format: 'png',
+        quality: 1.0,
+        result: 'tmpfile',
+      });
+
+      const asset = await MediaLibrary.createAssetAsync(uri);
+      await MediaLibrary.createAlbumAsync('Shortcuts Like QR Codes', asset, false);
+
+      Alert.alert(
+        'Saved! 📸',
+        'QR code has been saved to your camera roll.',
+        [
+          { text: 'OK' },
+          { text: 'Share Now', onPress: shareQRCode }
+        ]
+      );
+
+      await sharingAnalyticsService.trackShare(automation.id, 'qr', {
+        method: 'save_to_camera_roll',
+        success: true,
+      });
+    } catch (error: any) {
+      console.error('Save QR error:', error);
+      Alert.alert(
+        'Save Failed',
+        'Could not save QR code. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsSavingQR(false);
     }
   };
 
@@ -217,6 +352,115 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
     </ScrollView>
   );
 
+  const renderQRTab = () => {
+    const [qrError, setQrError] = useState(false);
+    
+    try {
+      const shareUrl = automationSharingService.generateShareUrl(automation.id);
+      const QR_SIZE = 200;
+
+      return (
+      <ScrollView style={styles.tabContent}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📱 QR Code Sharing</Text>
+          <Text style={styles.sectionDescription}>
+            Share your automation via QR code for easy scanning
+          </Text>
+        </View>
+
+        <View style={styles.qrContainer}>
+          <View ref={qrRef} style={styles.qrWrapper}>
+            <View style={styles.qrCode}>
+              {!qrError ? (
+                <QRCode
+                  value={shareUrl}
+                  size={QR_SIZE}
+                  backgroundColor="#ffffff"
+                  color="#000000"
+                  ecl="M"
+                  quietZone={15}
+                  getRef={() => {
+                    // Verify QRCode rendered successfully
+                    setQrError(false);
+                  }}
+                  onError={(error: any) => {
+                    console.error('QR Code generation error:', error);
+                    setQrError(true);
+                  }}
+                />
+              ) : (
+                <View style={[styles.qrCode, { width: QR_SIZE, height: QR_SIZE, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Icon name="qrcode" size={QR_SIZE / 2} color="#ccc" />
+                  <Text style={{ marginTop: 8, color: '#666', fontSize: 12 }}>QR Error</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.qrTitle}>{automation.title}</Text>
+            <Text style={styles.qrSubtitle}>Scan to run automation</Text>
+          </View>
+        </View>
+
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.primaryButton, isSharingQR && styles.disabledButton]}
+            onPress={shareQRCode}
+            disabled={isSharingQR || isSavingQR}
+          >
+            <Icon name="share" size={20} color="white" />
+            <Text style={styles.primaryButtonText}>
+              {isSharingQR ? 'Sharing...' : 'Share QR Code'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.secondaryButton, isSavingQR && styles.disabledButton]}
+            onPress={saveQRToCameraRoll}
+            disabled={isSharingQR || isSavingQR}
+          >
+            <Icon name="content-save" size={20} color="#6200ee" />
+            <Text style={styles.secondaryButtonText}>
+              {isSavingQR ? 'Saving...' : 'Save to Camera Roll'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.qrInfo}>
+          <Icon name="information" size={16} color="#666" />
+          <Text style={styles.qrInfoText}>
+            QR codes work with or without the app installed. When scanned, they'll either open the app directly or redirect to a web page where the automation can be run.
+          </Text>
+        </View>
+      </ScrollView>
+    );
+    } catch (error) {
+      console.error('Error rendering QR tab:', error);
+      return (
+        <ScrollView style={styles.tabContent}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📱 QR Code Sharing</Text>
+            <Text style={styles.sectionDescription}>
+              Share your automation via QR code for easy scanning
+            </Text>
+          </View>
+          <View style={styles.analyticsPlaceholder}>
+            <Icon name="alert-circle" size={64} color="#ff5252" />
+            <Text style={styles.placeholderTitle}>QR Code Generation Failed</Text>
+            <Text style={styles.placeholderDescription}>
+              Unable to generate QR code. Please try again or use the Share option.
+            </Text>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.secondaryButton, { marginTop: 16 }]}
+              onPress={handleCopyLink}
+            >
+              <Icon name="content-copy" size={20} color="#6200ee" />
+              <Text style={styles.secondaryButtonText}>Copy Link Instead</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      );
+    }
+  };
+
   const renderAdvancedTab = () => (
     <ScrollView style={styles.tabContent}>
       <View style={styles.section}>
@@ -277,43 +521,119 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
     </ScrollView>
   );
 
-  const renderAnalyticsTab = () => (
-    <ScrollView style={styles.tabContent}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📊 Sharing Analytics</Text>
-        <Text style={styles.sectionDescription}>
-          Track how your automation is being shared and used
-        </Text>
-      </View>
+  const renderAnalyticsTab = () => {
+    if (loadingAnalytics) {
+      return (
+        <View style={[styles.tabContent, styles.centerContent]}>
+          <Icon name="loading" size={48} color="#6200ee" />
+          <Text style={styles.loadingText}>Loading analytics...</Text>
+        </View>
+      );
+    }
 
-      <View style={styles.analyticsPlaceholder}>
-        <Icon name="chart-line" size={64} color="#ccc" />
-        <Text style={styles.placeholderTitle}>Analytics Coming Soon</Text>
-        <Text style={styles.placeholderDescription}>
-          View sharing statistics, link clicks, and user engagement metrics
-        </Text>
-      </View>
+    if (!analytics) {
+      return (
+        <ScrollView style={styles.tabContent}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📊 Sharing Analytics</Text>
+            <Text style={styles.sectionDescription}>
+              Track how your automation is being shared and used
+            </Text>
+          </View>
+          <View style={styles.analyticsPlaceholder}>
+            <Icon name="chart-line" size={64} color="#ccc" />
+            <Text style={styles.placeholderTitle}>No Analytics Data Yet</Text>
+            <Text style={styles.placeholderDescription}>
+              Share your automation to start tracking engagement
+            </Text>
+          </View>
+        </ScrollView>
+      );
+    }
 
-      <View style={styles.featureList}>
-        <View style={styles.featureItem}>
-          <Icon name="eye" size={20} color="#666" />
-          <Text style={styles.featureText}>Track link views and clicks</Text>
+    return (
+      <ScrollView style={styles.tabContent}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📊 Sharing Analytics</Text>
+          <Text style={styles.sectionDescription}>
+            Performance metrics for your shared automation
+          </Text>
         </View>
-        <View style={styles.featureItem}>
-          <Icon name="share-variant" size={20} color="#666" />
-          <Text style={styles.featureText}>Monitor sharing methods</Text>
+
+        {/* Key Metrics */}
+        <View style={styles.metricsGrid}>
+          <View style={styles.metricCard}>
+            <Icon name="share-variant" size={24} color="#6200ee" />
+            <Text style={styles.metricValue}>{analytics.totalShares}</Text>
+            <Text style={styles.metricLabel}>Total Shares</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Icon name="eye" size={24} color="#6200ee" />
+            <Text style={styles.metricValue}>{analytics.totalViews}</Text>
+            <Text style={styles.metricLabel}>Total Views</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Icon name="account-multiple" size={24} color="#6200ee" />
+            <Text style={styles.metricValue}>{analytics.uniqueViewers}</Text>
+            <Text style={styles.metricLabel}>Unique Viewers</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Icon name="percent" size={24} color="#6200ee" />
+            <Text style={styles.metricValue}>{analytics.conversionRate.toFixed(1)}%</Text>
+            <Text style={styles.metricLabel}>Conversion Rate</Text>
+          </View>
         </View>
-        <View style={styles.featureItem}>
-          <Icon name="chart-timeline-variant" size={20} color="#666" />
-          <Text style={styles.featureText}>View usage over time</Text>
+
+        {/* Share Methods Breakdown */}
+        {Object.keys(analytics.sharesByMethod).length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.subsectionTitle}>Share Methods</Text>
+            {Object.entries(analytics.sharesByMethod).map(([method, count]) => (
+              <View key={method} style={styles.methodRow}>
+                <Icon 
+                  name={method === 'link' ? 'link' : method === 'qr' ? 'qrcode' : 'share'} 
+                  size={20} 
+                  color="#666" 
+                />
+                <Text style={styles.methodName}>{method.toUpperCase()}</Text>
+                <Text style={styles.methodCount}>{count as number}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Recent Shares */}
+        {analytics.recentShares.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.subsectionTitle}>Recent Shares</Text>
+            {analytics.recentShares.slice(0, 5).map((share: any, index: number) => (
+              <View key={index} style={styles.recentShareItem}>
+                <Icon name="share-variant" size={16} color="#999" />
+                <Text style={styles.shareTime}>
+                  {new Date(share.sharedAt).toLocaleDateString()} via {share.method}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Engagement Tips */}
+        <View style={styles.tipsCard}>
+          <Icon name="lightbulb-outline" size={24} color="#ff9800" />
+          <View style={styles.tipsContent}>
+            <Text style={styles.tipsTitle}>Boost Engagement</Text>
+            <Text style={styles.tipsText}>
+              {analytics.conversionRate < 10 
+                ? 'Add a compelling description to improve conversion rates'
+                : analytics.totalShares < 5
+                ? 'Share more frequently to increase visibility'
+                : 'Your automation is performing well! Keep sharing'}
+            </Text>
+          </View>
         </View>
-        <View style={styles.featureItem}>
-          <Icon name="map-marker" size={20} color="#666" />
-          <Text style={styles.featureText}>Geographic usage data</Text>
-        </View>
-      </View>
-    </ScrollView>
-  );
+      </ScrollView>
+    );
+  };
 
   return (
     <Modal
@@ -341,6 +661,7 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
         <View style={styles.tabBar}>
           {[
             { key: 'quick', label: 'Quick', icon: 'flash' },
+            { key: 'qr', label: 'QR Code', icon: 'qrcode' },
             { key: 'advanced', label: 'Advanced', icon: 'cog' },
             { key: 'analytics', label: 'Analytics', icon: 'chart-line' },
           ].map((tab) => (
@@ -367,6 +688,7 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
         </View>
 
         {activeTab === 'quick' && renderQuickShareTab()}
+        {activeTab === 'qr' && renderQRTab()}
         {activeTab === 'advanced' && renderAdvancedTab()}
         {activeTab === 'analytics' && renderAnalyticsTab()}
       </View>
@@ -564,5 +886,140 @@ const styles = StyleSheet.create({
   featureText: {
     fontSize: 14,
     color: '#666',
+  },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -8,
+    marginBottom: 24,
+  },
+  metricCard: {
+    width: '50%',
+    padding: 8,
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 8,
+  },
+  metricLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  subsectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  methodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  methodName: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 14,
+    color: '#333',
+  },
+  methodCount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6200ee',
+  },
+  recentShareItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  shareTime: {
+    marginLeft: 8,
+    fontSize: 12,
+    color: '#666',
+  },
+  tipsCard: {
+    flexDirection: 'row',
+    backgroundColor: '#fff8e1',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+  },
+  tipsContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  tipsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#f57c00',
+    marginBottom: 4,
+  },
+  tipsText: {
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 18,
+  },
+  qrContainer: {
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  qrWrapper: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  qrCode: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  qrTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  qrSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  qrInfo: {
+    flexDirection: 'row',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+  },
+  qrInfoText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 18,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

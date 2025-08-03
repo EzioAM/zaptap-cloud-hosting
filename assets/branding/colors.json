@@ -1,0 +1,36 @@
+{
+  "brand": {
+    "primary": "#6200ee",
+    "primaryDark": "#3700B3",
+    "primaryLight": "#BB86FC",
+    "secondary": "#FFD600",
+    "secondaryDark": "#FFC107",
+    "secondaryLight": "#FFF59D",
+    "accent": "#03DAC6",
+    "background": "#FFFFFF",
+    "surface": "#F5F5F5",
+    "error": "#B00020",
+    "success": "#4CAF50",
+    "warning": "#FF9800",
+    "info": "#2196F3"
+  },
+  "text": {
+    "primary": "#000000",
+    "secondary": "#666666",
+    "disabled": "#999999",
+    "inverse": "#FFFFFF"
+  },
+  "icons": {
+    "automation": "#6200ee",
+    "myAutomations": "#2196F3",
+    "gallery": "#FF9800",
+    "templates": "#4CAF50",
+    "locationTriggers": "#F44336",
+    "developer": "#4b5563"
+  },
+  "gradients": {
+    "lightning": ["#6200ee", "#FFD600"],
+    "primary": ["#6200ee", "#BB86FC"],
+    "secondary": ["#FFD600", "#FFF59D"]
+  }
+}

@@ -13,7 +13,7 @@ import {
   Surface,
   ActivityIndicator,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 interface RatingInputProps {
   visible: boolean;

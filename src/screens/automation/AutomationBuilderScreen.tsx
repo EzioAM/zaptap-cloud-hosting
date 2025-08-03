@@ -21,7 +21,7 @@ import React, { useState, useEffect } from 'react';
     TextInput,
     SegmentedButtons,
   } from 'react-native-paper';
-  import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+  import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
   import { AutomationStep, StepType, AutomationData } from '../../types';
   import { AutomationEngine } from '../../services/automation/AutomationEngine';
   import { useCreateAutomationMutation } from '../../store/api/automationApi';
@@ -285,38 +285,90 @@ import React, { useState, useEffect } from 'react';
       try {
         console.log('NFC scan received:', { automationId, metadata });
         
-        // Fetch the automation from database
-        const { data, error } = await supabase
-          .from('automations')
-          .select('*')
-          .eq('id', automationId)
-          .single();
+        let automationData: AutomationData | null = null;
+        
+        // Check if this is a public share URL
+        if (metadata?.source === 'web' && metadata?.url?.includes('/share/')) {
+          console.log('NFC tag contains public share link, fetching from public_shares');
+          
+          // This is a public share ID, not an automation ID
+          const { data: shareData, error: shareError } = await supabase
+            .from('public_shares')
+            .select('*')
+            .eq('id', automationId)
+            .eq('is_active', true)
+            .single();
+          
+          if (shareError || !shareData) {
+            console.error('Failed to fetch public share:', shareError);
+            Alert.alert(
+              'Share Link Invalid',
+              'This shared automation link is invalid or has expired.'
+            );
+            setShowNFCScanner(false);
+            return;
+          }
+          
+          // Check if expired
+          if (new Date(shareData.expires_at) < new Date()) {
+            Alert.alert(
+              'Share Link Expired',
+              'This shared automation link has expired.'
+            );
+            setShowNFCScanner(false);
+            return;
+          }
+          
+          // Get automation data from the share
+          automationData = shareData.automation_data;
+          
+          // Increment access count
+          await supabase
+            .from('public_shares')
+            .update({ access_count: (shareData.access_count || 0) + 1 })
+            .eq('id', automationId);
+            
+        } else {
+          // Regular automation ID lookup
+          const { data, error } = await supabase
+            .from('automations')
+            .select('*')
+            .eq('id', automationId)
+            .single();
 
-        if (error) {
-          console.error('Database error:', error);
-          Alert.alert(
-            'Automation Not Found',
-            `Could not find automation with ID: ${automationId}\n\nError: ${error.message}`
-          );
-          setShowNFCScanner(false);
-          return;
-        }
+          if (error) {
+            console.error('Database error:', error);
+            Alert.alert(
+              'Automation Not Found',
+              `Could not find automation with ID: ${automationId}\n\nError: ${error.message}`
+            );
+            setShowNFCScanner(false);
+            return;
+          }
 
-        if (!data) {
-          Alert.alert(
-            'Automation Not Found',
-            'This automation may have been deleted or is no longer available.'
-          );
-          setShowNFCScanner(false);
-          return;
+          if (!data) {
+            Alert.alert(
+              'Automation Not Found',
+              'This automation may have been deleted or is no longer available.'
+            );
+            setShowNFCScanner(false);
+            return;
+          }
+          
+          automationData = data;
         }
 
         setShowNFCScanner(false);
 
+        if (!automationData) {
+          Alert.alert('Error', 'Failed to load automation data');
+          return;
+        }
+
         // Show confirmation to execute
         Alert.alert(
           'Execute Automation? 🚀',
-          `Title: ${data.title}\nDescription: ${data.description || 'No description'}\nSteps: ${data.steps?.length || 0}\n\nDo you want to run this automation?`,
+          `Title: ${automationData.title}\nDescription: ${automationData.description || 'No description'}\nSteps: ${automationData.steps?.length || 0}\n\nDo you want to run this automation?`,
           [
             {
               text: 'Cancel',
@@ -326,7 +378,7 @@ import React, { useState, useEffect } from 'react';
               text: 'Execute',
               onPress: () => {
                 // Execute in a separate function to avoid blocking the alert
-                executeAutomationSafely(data);
+                executeAutomationSafely(automationData);
               }
             }
           ]

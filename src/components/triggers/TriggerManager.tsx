@@ -17,7 +17,7 @@ import {
   Modal,
   SegmentedButtons,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationTrigger, LocationTriggerConfig, TriggerType } from '../../types';
 import LocationTriggerConfigModal from './LocationTriggerConfig';
 import { locationTriggerService } from '../../services/triggers/LocationTriggerService';

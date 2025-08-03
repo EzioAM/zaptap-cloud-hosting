@@ -15,11 +15,17 @@ import {
   Appbar,
   ActivityIndicator,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { ResearchDashboardEnhanced } from '../../components/research/ResearchDashboardEnhanced';
 import { UIRedesignTool } from '../../components/developer/UIRedesignTool';
 import { ChangeHistoryView } from '../../components/developer/ChangeHistoryView';
+import { DatabaseInspector } from '../../components/developer/DatabaseInspector';
+import { PerformanceMonitor } from '../../components/developer/PerformanceMonitor';
+import { NetworkMonitor } from '../../components/developer/NetworkMonitor';
+import { TestRunner } from '../../components/developer/TestRunner';
+import { StorageInspector } from '../../components/developer/StorageInspector';
 import { RoleService } from '../../services/auth/RoleService';
+import { DeveloperService } from '../../services/developer/DeveloperService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase/client';
 import Constants from 'expo-constants';
@@ -71,11 +77,52 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
 
   const developerTools = [
     {
+      id: 'database',
+      title: 'Database Inspector',
+      description: 'View and manage database tables and data',
+      icon: 'database',
+      component: DatabaseInspector,
+      color: '#4caf50',
+    },
+    {
+      id: 'performance',
+      title: 'Performance Monitor',
+      description: 'Real-time memory, API, and performance metrics',
+      icon: 'speedometer',
+      component: PerformanceMonitor,
+      color: '#ff9800',
+    },
+    {
+      id: 'network',
+      title: 'Network Monitor',
+      description: 'Monitor API calls, responses, and errors',
+      icon: 'web',
+      component: NetworkMonitor,
+      color: '#2196f3',
+    },
+    {
+      id: 'storage',
+      title: 'Storage Inspector',
+      description: 'View, edit, and manage AsyncStorage data',
+      icon: 'harddisk',
+      component: StorageInspector,
+      color: '#9c27b0',
+    },
+    {
+      id: 'testing',
+      title: 'Test Runner',
+      description: 'Run automated tests and simulate automations',
+      icon: 'test-tube',
+      component: TestRunner,
+      color: '#00bcd4',
+    },
+    {
       id: 'research',
       title: 'AI Research Assistant',
       description: 'Get insights for app improvements',
       icon: 'brain',
       component: ResearchDashboardEnhanced,
+      color: '#e91e63',
     },
     {
       id: 'redesign',
@@ -83,6 +130,7 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
       description: 'AI-powered interface redesign with mockups',
       icon: 'palette',
       component: UIRedesignTool,
+      color: '#ff5722',
     },
     {
       id: 'history',
@@ -90,130 +138,17 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
       description: 'Track and undo AI-generated changes',
       icon: 'history',
       component: ChangeHistoryView,
-    },
-    {
-      id: 'database',
-      title: 'Database Tools',
-      description: 'View and manage app data',
-      icon: 'database',
-      onPress: async () => {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || 'Not configured';
-          
-          if (user) {
-            Alert.alert(
-              'Database Info',
-              `User ID: ${user.id}\nEmail: ${user.email}\n\nSupabase URL: ${supabaseUrl.substring(0, 50)}...`,
-              [{ text: 'OK' }]
-            );
-          } else {
-            Alert.alert(
-              'Database Info',
-              `Not signed in\n\nSupabase URL: ${supabaseUrl.substring(0, 50)}...`,
-              [{ text: 'OK' }]
-            );
-          }
-        } catch (error) {
-          Alert.alert('Error', 'Unable to fetch database info');
-        }
-      },
-    },
-    {
-      id: 'performance',
-      title: 'Performance Monitor',
-      description: 'Check app performance metrics',
-      icon: 'speedometer',
-      onPress: () => {
-        let memoryInfo = 'Not available';
-        let jsHeapUsed = 'Not available';
-        
-        try {
-          // Try to get memory info (works in some environments)
-          if ((performance as any).memory) {
-            const memory = (performance as any).memory;
-            jsHeapUsed = `${(memory.usedJSHeapSize / 1048576).toFixed(2)} MB`;
-            memoryInfo = `Used: ${(memory.usedJSHeapSize / 1048576).toFixed(2)} MB\nLimit: ${(memory.jsHeapSizeLimit / 1048576).toFixed(2)} MB`;
-          }
-        } catch (e) {
-          // Memory info not available
-        }
-
-        Alert.alert(
-          'Performance Metrics',
-          `Platform: ${Platform.OS} ${Platform.Version}\nJS Heap: ${jsHeapUsed}\nMemory: ${memoryInfo}\nApp Version: ${Constants.expoConfig?.version}\nRuntime: ${Constants.expoConfig?.runtimeVersion}`,
-          [{ text: 'OK' }]
-        );
-      },
-    },
-    {
-      id: 'logs',
-      title: 'Debug Logs',
-      description: 'View application logs',
-      icon: 'file-document-outline',
-      onPress: () => {
-        Alert.alert(
-          'Debug Logs',
-          'Console logs are available in:\n\n• Chrome DevTools (Cmd+D → Debug JS)\n• React Native Debugger\n• Xcode Console (iOS)\n• Android Studio Logcat',
-          [{ text: 'OK' }]
-        );
-      },
-    },
-    {
-      id: 'storage',
-      title: 'Storage Inspector',
-      description: 'Inspect local storage and cache',
-      icon: 'harddisk',
-      onPress: async () => {
-        try {
-          const keys = await AsyncStorage.getAllKeys();
-          let storageSize = 'Unknown';
-          
-          try {
-            // Try to estimate storage size
-            const values = await AsyncStorage.multiGet(keys);
-            const totalSize = values.reduce((size, [key, value]) => {
-              return size + (key?.length || 0) + (value?.length || 0);
-            }, 0);
-            storageSize = `~${(totalSize / 1024).toFixed(1)} KB`;
-          } catch (e) {
-            // Size calculation failed
-          }
-
-          const storageInfo = `Total Keys: ${keys.length}\nEstimated Size: ${storageSize}\n\nSample Keys:\n${keys.slice(0, 6).map(key => `• ${key}`).join('\n')}${keys.length > 6 ? '\n• ...' : ''}`;
-          Alert.alert('Storage Inspector', storageInfo, [{ text: 'OK' }]);
-        } catch (error) {
-          Alert.alert('Error', 'Unable to read storage');
-        }
-      },
-    },
-    {
-      id: 'network',
-      title: 'Network Monitor',
-      description: 'Monitor API calls and responses',
-      icon: 'web',
-      onPress: () => {
-        const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl;
-        const claudeApiKey = Constants.expoConfig?.extra?.claudeApiKey;
-        const openaiApiKey = Constants.expoConfig?.extra?.openaiApiKey;
-        const claudeStatus = (claudeApiKey && claudeApiKey.length > 10) ? 'Configured ✅' : 'Not configured ❌';
-        const openaiStatus = (openaiApiKey && openaiApiKey.length > 10) ? 'Configured ✅' : 'Not configured ❌';
-        
-        Alert.alert(
-          'Network Monitor',
-          `API Endpoints:\n\n• Supabase: ${supabaseUrl ? 'Active ✅' : 'Not configured ❌'}\n• Claude API: ${claudeStatus}\n• OpenAI API: ${openaiStatus}\n\nNetwork: ${Constants.isDevice ? 'Device' : 'Simulator'}`,
-          [{ text: 'OK' }]
-        );
-      },
+      color: '#607d8b',
     },
   ];
 
   const appInfo = {
-    version: '2.3.0',
-    buildNumber: '1',
+    version: Constants.expoConfig?.version || '2.3.0',
+    buildNumber: Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode || '1',
     environment: __DEV__ ? 'Development' : 'Production',
-    platform: 'React Native',
-    bundleId: 'com.zaptap.app',
+    platform: `${Platform.OS} ${Platform.Version}`,
+    bundleId: Constants.expoConfig?.ios?.bundleIdentifier || Constants.expoConfig?.android?.package || 'com.zaptap.app',
+    expoVersion: Constants.expoVersion,
   };
 
   // Show loading while checking access
@@ -278,6 +213,10 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
                 <Text style={styles.infoLabel}>Platform</Text>
                 <Text style={styles.infoValue}>{appInfo.platform}</Text>
               </View>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>Expo SDK</Text>
+                <Text style={styles.infoValue}>{appInfo.expoVersion}</Text>
+              </View>
             </View>
           </Card.Content>
         </Card>
@@ -292,17 +231,13 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
                   title={tool.title}
                   description={tool.description}
                   left={(props) => (
-                    <List.Icon {...props} icon={tool.icon} color="#6200ee" />
+                    <List.Icon {...props} icon={tool.icon} color={tool.color || '#6200ee'} />
                   )}
                   right={(props) => (
                     <List.Icon {...props} icon="chevron-right" />
                   )}
                   onPress={() => {
-                    if (tool.component) {
-                      setActiveSection(tool.id);
-                    } else if (tool.onPress) {
-                      tool.onPress();
-                    }
+                    setActiveSection(tool.id);
                   }}
                   style={styles.toolItem}
                 />
@@ -323,16 +258,31 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
               description="Clear app cache and temporary files"
               left={(props) => <List.Icon {...props} icon="trash-can" />}
               onPress={async () => {
-                try {
-                  await AsyncStorage.clear();
-                  Alert.alert(
-                    'Cache Cleared',
-                    'All cached data has been cleared. You may need to sign in again.',
-                    [{ text: 'OK', onPress: () => navigation.navigate('Auth') }]
-                  );
-                } catch (error) {
-                  Alert.alert('Error', 'Failed to clear cache');
-                }
+                Alert.alert(
+                  'Clear Cache',
+                  'This will clear all cached data but preserve authentication. Continue?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Clear Cache',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          const keys = await AsyncStorage.getAllKeys();
+                          const cacheKeys = keys.filter(key => 
+                            !key.includes('supabase') && 
+                            !key.includes('auth') &&
+                            !key.includes('user')
+                          );
+                          await AsyncStorage.multiRemove(cacheKeys);
+                          Alert.alert('Success', 'Cache cleared successfully');
+                        } catch (error) {
+                          Alert.alert('Error', 'Failed to clear cache');
+                        }
+                      },
+                    },
+                  ]
+                );
               }}
             />
             <Divider style={styles.toolDivider} />
@@ -370,32 +320,18 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
               title="Export Logs"
               description="Export debug logs for troubleshooting"
               left={(props) => <List.Icon {...props} icon="export" />}
-              onPress={() => {
-                const logs = {
-                  timestamp: new Date().toISOString(),
-                  platform: `${Platform.OS} ${Platform.Version}`,
-                  version: Constants.expoConfig?.version,
-                  runtimeVersion: Constants.expoConfig?.runtimeVersion,
-                  environment: __DEV__ ? 'Development' : 'Production',
-                  device: Constants.isDevice ? 'Physical Device' : 'Simulator',
-                  apis: {
-                    supabase: !!Constants.expoConfig?.extra?.supabaseUrl,
-                    claude: !!(Constants.expoConfig?.extra?.claudeApiKey && Constants.expoConfig?.extra?.claudeApiKey.length > 10),
-                    openai: !!(Constants.expoConfig?.extra?.openaiApiKey && Constants.expoConfig?.extra?.openaiApiKey.length > 10),
-                  },
-                  expo: {
-                    projectId: Constants.expoConfig?.extra?.eas?.projectId,
-                    deviceId: Constants.deviceId,
-                  }
-                };
-                Alert.alert(
-                  'Debug Logs Export',
-                  `Debug Information:\n\n${JSON.stringify(logs, null, 2)}`,
-                  [
-                    { text: 'Copy to Console', onPress: () => console.log('ZAPTAP_DEBUG_LOGS:', logs) },
-                    { text: 'OK' }
-                  ]
-                );
+              onPress={async () => {
+                try {
+                  const debugBundle = await DeveloperService.exportDebugBundle();
+                  console.log('DEVELOPER_DEBUG_BUNDLE:', debugBundle);
+                  Alert.alert(
+                    'Debug Bundle Exported',
+                    'Complete debug bundle has been exported to console logs. Check console for DEVELOPER_DEBUG_BUNDLE.',
+                    [{ text: 'OK' }]
+                  );
+                } catch (error) {
+                  Alert.alert('Error', 'Failed to export debug bundle');
+                }
               }}
             />
           </Card.Content>

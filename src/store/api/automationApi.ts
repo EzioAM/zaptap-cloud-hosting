@@ -23,15 +23,31 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
       getMyAutomations: builder.query<AutomationData[], void>({
         queryFn: async () => {
           try {
+            // Get current user
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+              console.log('No authenticated user found');
+              return { data: [] };
+            }
+
+            console.log('Fetching automations for user:', user.id);
+
             const { data, error } = await supabase
               .from('automations')
               .select('*')
+              .eq('created_by', user.id)
               .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+              console.error('Error fetching user automations:', error);
+              throw error;
+            }
 
+            console.log(`Found ${data?.length || 0} automations for user`);
             return { data: data || [] };
           } catch (error: any) {
+            console.error('Failed to fetch user automations:', error);
             return { error: error.message };
           }
         },
@@ -122,11 +138,40 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
         },
         invalidatesTags: ['Automation'],
       }),
+
+      // Get public automations for gallery
+      getPublicAutomations: builder.query<AutomationData[], void>({
+        queryFn: async () => {
+          try {
+            console.log('Fetching public automations for gallery...');
+
+            const { data, error } = await supabase
+              .from('automations')
+              .select('*')
+              .eq('is_public', true)
+              .order('created_at', { ascending: false })
+              .limit(50);
+
+            if (error) {
+              console.error('Error fetching public automations:', error);
+              throw error;
+            }
+
+            console.log(`Found ${data?.length || 0} public automations`);
+            return { data: data || [] };
+          } catch (error: any) {
+            console.error('Failed to fetch public automations:', error);
+            return { error: error.message };
+          }
+        },
+        providesTags: ['Automation'],
+      }),
     }),
   });
 
   export const {
     useGetMyAutomationsQuery,
+    useGetPublicAutomationsQuery,
     useCreateAutomationMutation,
     useUpdateAutomationMutation,
     useDeleteAutomationMutation,

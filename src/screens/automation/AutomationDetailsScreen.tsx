@@ -24,7 +24,7 @@ import {
 } from 'react-native-paper';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationData } from '../../types';
 import { supabase } from '../../services/supabase/client';
 import { useSelector } from 'react-redux';
@@ -137,7 +137,7 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleCopyLink = async () => {
-    const shareUrl = `shortcuts-like://automation/${automation.id}`;
+    const shareUrl = `zaptap://automation/${automation.id}`;
     await Clipboard.setStringAsync(shareUrl);
     Alert.alert('Copied!', 'Automation link copied to clipboard');
   };

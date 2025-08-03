@@ -38,7 +38,7 @@ export const PlatformUtils = {
    */
   areVectorIconsSupported(): boolean {
     try {
-      require('react-native-vector-icons/MaterialCommunityIcons');
+      require('@expo/vector-icons/MaterialCommunityIcons');
       return this.areNativeModulesAvailable();
     } catch {
       return false;
