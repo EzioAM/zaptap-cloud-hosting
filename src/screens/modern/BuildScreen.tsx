@@ -10,6 +10,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -25,6 +26,8 @@ import { useCreateAutomationMutation } from '../../store/api/automationApi';
 import { Alert } from 'react-native';
 import { useAutomationForm } from '../../hooks/useAutomationForm';
 import { useOptimizedComponents } from '../../hooks/useOptimizedComponents';
+import { ErrorState } from '../../components/states/ErrorState';
+import { EmptyState } from '../../components/states/EmptyState';
 
 interface AutomationStep {
   id: string;
@@ -138,7 +141,6 @@ const BuildScreen = () => {
     return () => {
       setIsAddStepModalVisible(false);
       setEditingStep(null);
-      setFormErrors({});
     };
   }, []);
 
@@ -146,16 +148,13 @@ const BuildScreen = () => {
   const updateStepConfig = useCallback((configUpdate: Partial<any>) => {
     if (!editingStep) return;
     
-    const updatedConfig = { ...editingStep.config, ...configUpdate };
-    const updatedSteps = steps.map(step =>
-      step.id === editingStep.id
-        ? { ...step, config: updatedConfig }
-        : step
-    );
-    
-    setSteps(updatedSteps);
-    setEditingStep({ ...editingStep, config: updatedConfig });
-  }, [editingStep, steps]);
+    const stepIndex = formData.steps.findIndex(step => step.id === editingStep.id);
+    if (stepIndex >= 0) {
+      const updatedConfig = { ...editingStep.config, ...configUpdate };
+      formUpdateStep(stepIndex, { config: updatedConfig });
+      setEditingStep({ ...editingStep, config: updatedConfig });
+    }
+  }, [editingStep, formData.steps, formUpdateStep]);
 
   const getStepCategories = () => {
     const categories = new Map<string, typeof stepTypes>();
@@ -180,26 +179,8 @@ const BuildScreen = () => {
   }, [formAddStep]);
 
   const validateForm = useCallback(() => {
-    const errors: {[key: string]: string} = {};
-    
-    if (!automationName.trim()) {
-      errors.name = 'Automation name is required';
-    }
-    
-    if (steps.length === 0) {
-      errors.steps = 'At least one step is required';
-    }
-    
-    // Validate step configurations
-    steps.forEach((step, index) => {
-      if (!step.config || Object.keys(step.config).length === 0) {
-        errors[`step_${index}`] = `Step ${index + 1} needs configuration`;
-      }
-    });
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [automationName, steps]);
+    return isValid; // Use the form hook's validation
+  }, [isValid]);
 
   const handleTestRun = useCallback(() => {
     if (!validateForm()) {
@@ -210,7 +191,7 @@ const BuildScreen = () => {
     // Create temporary automation for testing
     const testAutomation = {
       id: 'test-' + Date.now(),
-      title: automationName || 'Test Automation',
+      title: formData.title || 'Test Automation',
       description: 'Test run',
       created_by: user?.id || 'anonymous',
       created_at: new Date().toISOString(),
@@ -221,7 +202,7 @@ const BuildScreen = () => {
       execution_count: 0,
       average_rating: 0,
       rating_count: 0,
-      steps: steps.map((step, index) => ({
+      steps: formData.steps.map((step, index) => ({
         id: step.id,
         type: step.type,
         title: step.title,
@@ -237,31 +218,50 @@ const BuildScreen = () => {
       console.error('Navigation error:', error);
       Alert.alert('Error', 'Failed to start test');
     }
-  }, [automationName, steps, user, navigation, validateForm]);
+  }, [formData.title, formData.steps, user, navigation, validateForm]);
 
   const handleSave = useCallback(async () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors before saving');
+      Alert.alert(
+        'Validation Error', 
+        formData.title.trim() === '' 
+          ? 'Please enter an automation name'
+          : formData.steps.length === 0
+          ? 'Please add at least one step'
+          : 'Please fix the errors before saving'
+      );
       return;
     }
 
     if (!user) {
-      Alert.alert('Authentication Required', 'Please log in to save automations');
-      navigation.navigate('SignIn' as never);
+      Alert.alert(
+        'Authentication Required', 
+        'Please log in to save automations',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Sign In',
+            onPress: () => navigation.navigate('SignIn' as never),
+          },
+        ]
+      );
       return;
     }
 
     try {
       console.log('Starting save automation...');
       console.log('User:', user);
-      console.log('Automation name:', automationName);
-      console.log('Steps:', steps);
+      console.log('Automation name:', formData.title);
+      console.log('Steps:', formData.steps);
 
       const automationData = {
-        title: automationName,
-        description: `Created with ${steps.length} steps`,
+        title: formData.title.trim(),
+        description: `Created with ${formData.steps.length} steps`,
         category: 'Productivity',
-        steps: steps.map((step, index) => ({
+        steps: formData.steps.map((step, index) => ({
           id: step.id,
           type: step.type,
           title: step.title,
@@ -278,8 +278,8 @@ const BuildScreen = () => {
       console.log('Save result:', result);
       
       Alert.alert(
-        'Success',
-        'Automation created successfully!',
+        'Success!',
+        'Your automation has been created successfully.',
         [
           {
             text: 'View Details',
@@ -290,50 +290,74 @@ const BuildScreen = () => {
             onPress: () => navigation.navigate('AutomationBuilder', { automationId: result.id }),
           },
           {
-            text: 'OK',
+            text: 'Create Another',
+            onPress: () => {
+              // Reset form for creating another automation
+              updateField('title', '');
+              updateField('steps', []);
+            },
+          },
+          {
+            text: 'Done',
             style: 'cancel',
           },
         ],
       );
       
-      // Reset form
-      setAutomationName('');
-      setSteps([]);
-      setFormErrors({});
+      // Don't auto-reset form, let user choose via alert buttons
     } catch (error: any) {
       console.error('Failed to create automation:', error);
-      const errorMessage = error?.message || error?.error || 'Failed to create automation';
-      Alert.alert('Error', errorMessage);
+      
+      let errorMessage = 'Failed to create automation';
+      let errorTitle = 'Save Error';
+      
+      if (error?.message) {
+        if (error.message.includes('network')) {
+          errorTitle = 'Connection Error';
+          errorMessage = 'Please check your internet connection and try again.';
+        } else if (error.message.includes('timeout')) {
+          errorTitle = 'Request Timeout';
+          errorMessage = 'The request is taking too long. Please try again.';
+        } else if (error.message.includes('unauthorized') || error.message.includes('auth')) {
+          errorTitle = 'Authentication Error';
+          errorMessage = 'Your session has expired. Please sign in again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      Alert.alert(
+        errorTitle,
+        errorMessage,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Try Again',
+            onPress: () => handleSave(),
+          },
+        ]
+      );
     }
-  }, [automationName, steps, user, navigation, createAutomation, validateForm]);
+  }, [formData.title, formData.steps, user, navigation, createAutomation, validateForm, updateField]);
 
   const removeStep = useCallback((stepId: string) => {
-    setSteps(prevSteps => prevSteps.filter(step => step.id !== stepId));
-    // Clear any errors for this step
-    setFormErrors(prevErrors => {
-      const newErrors = { ...prevErrors };
-      Object.keys(newErrors).forEach(key => {
-        if (key.includes(stepId)) {
-          delete newErrors[key];
-        }
-      });
-      return newErrors;
-    });
-  }, []);
+    const stepIndex = formData.steps.findIndex(step => step.id === stepId);
+    if (stepIndex >= 0) {
+      formRemoveStep(stepIndex);
+    }
+  }, [formData.steps, formRemoveStep]);
 
   const duplicateStep = useCallback((step: AutomationStep) => {
-    const newStep: AutomationStep = {
-      ...step,
-      id: Date.now().toString(),
-      config: { ...step.config },
-    };
-    setSteps(prevSteps => {
-      const stepIndex = prevSteps.findIndex(s => s.id === step.id);
-      const newSteps = [...prevSteps];
-      newSteps.splice(stepIndex + 1, 0, newStep);
-      return newSteps;
-    });
-  }, []);
+    // Find the step index
+    const stepIndex = formData.steps.findIndex(s => s.id === step.id);
+    if (stepIndex >= 0) {
+      // Add the step using form methods
+      formAddStep(step.type as any, { ...step.config });
+    }
+  }, [formData.steps, formAddStep]);
 
   const renderStep = useCallback(({ item, drag, isActive }: RenderItemParams<AutomationStep>) => {
     return (
@@ -453,14 +477,18 @@ const BuildScreen = () => {
           <TouchableOpacity
             style={[
               styles.saveButton,
-              { opacity: isValid ? 1 : 0.5 },
+              { opacity: isValid && !isLoading ? 1 : 0.5 },
             ]}
             disabled={!isValid || isLoading}
             onPress={formHandleSubmit}
           >
-            <Text style={[styles.saveButtonText, { color: theme.colors.primary }]}>
-              Save
-            </Text>
+            {isLoading ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <Text style={[styles.saveButtonText, { color: theme.colors.primary }]}>
+                Save
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -495,19 +523,14 @@ const BuildScreen = () => {
               Steps
             </Text>
             {formData.steps.length === 0 ? (
-              <View style={[styles.emptyState, { backgroundColor: theme.colors.surface }]}>
-                <MaterialCommunityIcons
-                  name="robot-outline"
-                  size={48}
-                  color={theme.colors.textSecondary}
-                />
-                <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-                  No steps added yet
-                </Text>
-                <Text style={[styles.emptySubtext, { color: theme.colors.textSecondary }]}>
-                  Add your first step to get started
-                </Text>
-              </View>
+              <EmptyState
+                type="getting-started"
+                title="Build Your Automation"
+                message="Start by adding steps that define what your automation will do."
+                onAction={() => setIsAddStepModalVisible(true)}
+                actionLabel="Add First Step"
+                showAction={true}
+              />
             ) : (
               <DraggableFlatList
                 data={stepRenderData}
@@ -781,15 +804,7 @@ const BuildScreen = () => {
                     value={editingStep.config?.message || ''}
                     multiline
                     numberOfLines={3}
-                    onChangeText={(text) => {
-                      const updatedSteps = steps.map(step =>
-                        step.id === editingStep.id
-                          ? { ...step, config: { ...step.config, message: text } }
-                          : step
-                      );
-                      setSteps(updatedSteps);
-                      setEditingStep({ ...editingStep, config: { ...editingStep.config, message: text } });
-                    }}
+                    onChangeText={(text) => updateStepConfig({ message: text })}
                   />
                 </>
               )}
@@ -807,15 +822,7 @@ const BuildScreen = () => {
                     placeholder="myVariable"
                     placeholderTextColor={theme.colors.textSecondary}
                     value={editingStep.config?.name || ''}
-                    onChangeText={(text) => {
-                      const updatedSteps = steps.map(step =>
-                        step.id === editingStep.id
-                          ? { ...step, config: { ...step.config, name: text } }
-                          : step
-                      );
-                      setSteps(updatedSteps);
-                      setEditingStep({ ...editingStep, config: { ...editingStep.config, name: text } });
-                    }}
+                    onChangeText={(text) => updateStepConfig({ name: text })}
                   />
                   <Text style={[styles.configLabel, { color: theme.colors.text }]}>
                     Variable Value
@@ -828,15 +835,7 @@ const BuildScreen = () => {
                     placeholder="Value or {{otherVariable}}"
                     placeholderTextColor={theme.colors.textSecondary}
                     value={editingStep.config?.value || ''}
-                    onChangeText={(text) => {
-                      const updatedSteps = steps.map(step =>
-                        step.id === editingStep.id
-                          ? { ...step, config: { ...step.config, value: text } }
-                          : step
-                      );
-                      setSteps(updatedSteps);
-                      setEditingStep({ ...editingStep, config: { ...editingStep.config, value: text } });
-                    }}
+                    onChangeText={(text) => updateStepConfig({ value: text })}
                   />
                 </>
               )}
@@ -856,15 +855,7 @@ const BuildScreen = () => {
                     value={editingStep.config?.text || ''}
                     multiline
                     numberOfLines={3}
-                    onChangeText={(text) => {
-                      const updatedSteps = steps.map(step =>
-                        step.id === editingStep.id
-                          ? { ...step, config: { ...step.config, text, action: 'copy' } }
-                          : step
-                      );
-                      setSteps(updatedSteps);
-                      setEditingStep({ ...editingStep, config: { ...editingStep.config, text, action: 'copy' } });
-                    }}
+                    onChangeText={(text) => updateStepConfig({ text, action: 'copy' })}
                   />
                 </>
               )}

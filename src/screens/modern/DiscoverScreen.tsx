@@ -27,6 +27,9 @@ import { RefreshControl } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { useConnection } from '../../contexts/ConnectionContext';
+import { DiscoverScreenSkeleton } from '../../components/loading/SkeletonLoading';
+import { ErrorState } from '../../components/states/ErrorState';
+import { EmptyState } from '../../components/states/EmptyState';
 
 interface Automation {
   id: string;
@@ -66,14 +69,18 @@ const DiscoverScreen = () => {
   const styles = createStyles(theme);
   
   const { data: publicAutomations = [], isLoading, error, refetch, isFetching } = useGetPublicAutomationsQuery(undefined, {
-    // Enable fetching on mount and background refetch
-    refetchOnMountOrArgChange: true,
-    refetchOnReconnect: true,
+    // Optimized fetching configuration to prevent infinite loops
+    refetchOnMountOrArgChange: 30, // Only refetch if data is older than 30 seconds
+    refetchOnReconnect: false, // Don't auto-refetch on reconnect
+    refetchOnFocus: false, // Don't refetch when screen comes into focus
+    skip: false, // Always fetch
   });
-  const { data: trendingData = [], error: trendingError } = useGetTrendingAutomationsQuery({ limit: 6 }, {
-    // Cache trending data for 5 minutes
-    pollingInterval: 300000,
-    refetchOnMountOrArgChange: true,
+  const { data: trendingData = [], error: trendingError, isLoading: trendingLoading } = useGetTrendingAutomationsQuery({ limit: 6 }, {
+    // Optimized fetching configuration to prevent repeated requests
+    refetchOnMountOrArgChange: 30, // Only refetch if data is older than 30 seconds
+    refetchOnReconnect: false,
+    refetchOnFocus: false,
+    skip: false, // Always fetch
   });
   const [likeAutomation] = useLikeAutomationMutation();
   const [unlikeAutomation] = useUnlikeAutomationMutation();
@@ -88,15 +95,24 @@ const DiscoverScreen = () => {
     setRefreshing(true);
     setPage(1);
     setHasMore(true);
+    setLoadingTimedOut(false);
     
-    // Check connection first
-    await checkConnection();
-    
-    if (connectionState.isConnected) {
-      await refetch();
+    try {
+      // Check connection first
+      await checkConnection();
+      
+      if (connectionState.isConnected) {
+        // Refresh both queries in parallel for better performance
+        await Promise.all([
+          refetch(),
+          // Add trending data refetch if available
+        ]);
+      }
+    } catch (error) {
+      console.error('Error during refresh:', error);
+    } finally {
+      setRefreshing(false);
     }
-    
-    setRefreshing(false);
   };
   
   // Component to fetch engagement data for a single automation
@@ -533,40 +549,91 @@ const DiscoverScreen = () => {
     </TouchableOpacity>
   );
 
-  // Loading timeout effect
+  // Enhanced loading timeout effect with better UX
   React.useEffect(() => {
-    if (isLoading && !refreshing && publicAutomations.length === 0) {
+    if ((isLoading || trendingLoading) && !refreshing && publicAutomations.length === 0) {
       const timeout = setTimeout(() => {
+        console.warn('⚠️ Loading timeout after 12 seconds');
         setLoadingTimedOut(true);
-      }, 3000); // 3 second timeout for better UX
+      }, 12000); // Increased timeout to 12 seconds for better UX
       return () => clearTimeout(timeout);
     } else {
       setLoadingTimedOut(false);
     }
-  }, [isLoading, refreshing, publicAutomations.length]);
+  }, [isLoading, trendingLoading, refreshing, publicAutomations.length]);
 
-  // Handle initial loading state - show loading only briefly when we have no data
-  if (isLoading && !refreshing && publicAutomations.length === 0 && !loadingTimedOut && !error) {
+  // Show skeleton loading for better perceived performance
+  if ((isLoading || trendingLoading) && !refreshing && publicAutomations.length === 0 && !loadingTimedOut && !error && !trendingError) {
+    console.log('🔄 DiscoverScreen: Showing skeleton loading', { 
+      isLoading, 
+      trendingLoading, 
+      publicAutomationsCount: publicAutomations.length,
+      hasError: !!error,
+      hasTrendingError: !!trendingError
+    });
+    
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>
-            Discovering amazing automations...
-          </Text>
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm, fontSize: 12 }]}>
-            This may take a moment
-          </Text>
-        </View>
+        <DiscoverScreenSkeleton />
       </SafeAreaView>
     );
   }
 
-  // Handle error state or timeout
+  // Enhanced error handling with user-friendly messages
   const hasError = error || trendingError || loadingTimedOut;
-  if (hasError) {
-    console.warn('Failed to load automations:', error || trendingError || 'Loading timeout');
+  if (hasError && publicAutomations.length === 0 && !refreshing) {
+    console.warn('❌ DiscoverScreen: Failed to load automations', {
+      error: error?.message || error,
+      trendingError: trendingError?.message || trendingError,
+      loadingTimedOut,
+      isLoading,
+      trendingLoading,
+      publicAutomationsCount: publicAutomations.length
+    });
+
+    const getErrorType = () => {
+      if (!connectionState.isConnected) return 'network';
+      if (loadingTimedOut) return 'timeout';
+      return 'generic';
+    };
+
+    const getErrorMessage = () => {
+      if (!connectionState.isConnected) return 'Please check your internet connection and try again.';
+      if (loadingTimedOut) return 'The request is taking longer than expected. Please check your connection and try again.';
+      if (error?.message || trendingError?.message) return error?.message || trendingError?.message;
+      return 'Unable to load automations. Please try again later.';
+    };
+
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <ErrorState
+          type={getErrorType()}
+          message={getErrorMessage()}
+          onRetry={async () => {
+            setLoadingTimedOut(false);
+            await checkConnection();
+            if (connectionState.isConnected) {
+              refetch();
+            }
+          }}
+        />
+      </SafeAreaView>
+    );
   }
+  
+  // Debug current state
+  React.useEffect(() => {
+    console.log('🔍 DiscoverScreen state:', {
+      isLoading,
+      trendingLoading,
+      error: error?.message,
+      trendingError: trendingError?.message,
+      publicAutomationsCount: publicAutomations.length,
+      trendingDataCount: trendingData.length,
+      loadingTimedOut,
+      connectionState: connectionState.isConnected
+    });
+  }, [isLoading, trendingLoading, error, trendingError, publicAutomations.length, trendingData.length, loadingTimedOut, connectionState.isConnected]);
 
   // Show connection error banner if not connected
   const showConnectionBanner = !connectionState.isConnected || connectionState.error;
@@ -743,39 +810,38 @@ const DiscoverScreen = () => {
               )}
             </>
           ) : (
-            <View style={styles.emptyStateContainer}>
-              <MaterialCommunityIcons
-                name="robot-off"
-                size={64}
-                color={theme.colors.textSecondary}
-              />
-              <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>
-                No Automations Found
-              </Text>
-              <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
-                {!connectionState.isConnected 
-                  ? 'Please check your internet connection and try again.' 
-                  : error 
-                  ? 'Unable to load automations. Please try again later.' 
-                  : loadingTimedOut
-                  ? 'Loading is taking longer than expected. Please check your connection.'
-                  : 'Be the first to create and share an automation!'}
-              </Text>
-              {(error || !connectionState.isConnected || loadingTimedOut) && (
-                <TouchableOpacity
-                  style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
-                  onPress={async () => {
-                    setLoadingTimedOut(false);
-                    await checkConnection();
-                    if (connectionState.isConnected) {
-                      refetch();
-                    }
-                  }}
-                >
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <EmptyState
+              type={!connectionState.isConnected ? 'offline' : 'no-content'}
+              title={searchQuery || selectedCategory !== 'All' ? 'No Results Found' : 'No Automations Available'}
+              message={
+                searchQuery || selectedCategory !== 'All' 
+                  ? 'Try adjusting your search or browse different categories.'
+                  : !connectionState.isConnected
+                  ? 'Please check your internet connection and try again.'
+                  : 'New automations will appear here as they become available.'
+              }
+              onAction={async () => {
+                if (!connectionState.isConnected || error || loadingTimedOut) {
+                  setLoadingTimedOut(false);
+                  await checkConnection();
+                  if (connectionState.isConnected) {
+                    refetch();
+                  }
+                } else if (searchQuery || selectedCategory !== 'All') {
+                  setSearchQuery('');
+                  setSelectedCategory('All');
+                } else {
+                  navigation.navigate('Build' as never);
+                }
+              }}
+              actionLabel={
+                !connectionState.isConnected || error || loadingTimedOut
+                  ? 'Retry'
+                  : searchQuery || selectedCategory !== 'All'
+                  ? 'Clear Filters'
+                  : 'Create Automation'
+              }
+            />
           )}
         </View>
       </ScrollView>

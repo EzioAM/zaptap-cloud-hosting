@@ -5,82 +5,34 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
   
   const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdma2RjbHpnZGxjdmhmaXVqa3d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0OTI2NTcsImV4cCI6MjA2OTA2ODY1N30.lJpGLp14e_9ku8n3WN8i61jYPohfx7htTEmTrnje-uE';
 
-  // Enhanced base query with token refresh handling
+  // Simplified base query without complex auth handling
   const supabaseBaseQuery = fetchBaseQuery({
     baseUrl: '/',
-    prepareHeaders: async (headers, { getState, dispatch }) => {
+    timeout: 10000, // 10 second timeout
+    prepareHeaders: async (headers, { getState }) => {
       try {
-        // Get session from Redux state first (faster)
+        // Only add auth headers if we have a token in Redux state
         const state = getState() as any;
-        let accessToken = state.auth?.accessToken;
-        
-        // If no token in Redux, try to get from Supabase
-        if (!accessToken) {
-          const { data: { session } } = await supabase.auth.getSession();
-          accessToken = session?.access_token;
-          
-          // Update Redux if we found a session
-          if (session?.access_token && session?.refresh_token) {
-            const { updateTokens } = await import('../slices/authSlice');
-            dispatch(updateTokens({
-              accessToken: session.access_token,
-              refreshToken: session.refresh_token,
-            }));
-          }
-        }
+        const accessToken = state.auth?.accessToken;
         
         if (accessToken) {
           headers.set('authorization', `Bearer ${accessToken}`);
-          headers.set('apikey', supabaseAnonKey);
         }
+        
+        // Always add the anon key for public access
+        headers.set('apikey', supabaseAnonKey);
+        
+        return headers;
       } catch (error) {
-        console.warn('Failed to get auth token for API request:', error);
-        // Continue without auth - API will handle unauthorized requests
+        console.warn('Failed to prepare headers:', error);
+        headers.set('apikey', supabaseAnonKey);
+        return headers;
       }
-      return headers;
     },
   });
 
-  // Enhanced base query with retry logic for auth errors
-  const enhancedBaseQuery = async (args: any, api: any, extraOptions: any) => {
-    let result = await supabaseBaseQuery(args, api, extraOptions);
-    
-    // Handle 401 errors by attempting token refresh
-    if (result.error && (result.error as any).status === 401) {
-      console.log('🔄 API request unauthorized, attempting token refresh...');
-      
-      try {
-        const { data: refreshResult, error: refreshError } = await supabase.auth.refreshSession();
-        
-        if (refreshError || !refreshResult.session) {
-          console.error('❌ Token refresh failed:', refreshError);
-          // Sign out user if refresh fails
-          const { signOut } = await import('../slices/authSlice');
-          api.dispatch(signOut());
-          return result;
-        }
-        
-        // Update tokens in Redux
-        const { updateTokens } = await import('../slices/authSlice');
-        api.dispatch(updateTokens({
-          accessToken: refreshResult.session.access_token,
-          refreshToken: refreshResult.session.refresh_token,
-        }));
-        
-        console.log('✅ Token refreshed, retrying API request');
-        
-        // Retry the original request with new token
-        result = await supabaseBaseQuery(args, api, extraOptions);
-      } catch (refreshError) {
-        console.error('❌ Token refresh failed:', refreshError);
-        // Sign out user if refresh fails
-        const { signOut } = await import('../slices/authSlice');
-        api.dispatch(signOut());
-      }
-    }
-    
-    return result;
-  };
+  // Simplified base query without retry logic to prevent infinite loops
+  const enhancedBaseQuery = supabaseBaseQuery;
 
   export const automationApi = createApi({
     reducerPath: 'automationApi',
@@ -111,7 +63,13 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
             if (error) {
               console.error('Error fetching user automations:', error);
               // Return error properly so UI can handle it
-              return { error: { status: 'CUSTOM_ERROR', error: error.message, data: null } };
+              return { 
+                error: { 
+                  status: 'FETCH_ERROR', 
+                  error: error.message || 'Failed to fetch automations',
+                  data: null 
+                } 
+              };
             }
 
             console.log(`Found ${data?.length || 0} automations for user`);
@@ -119,7 +77,13 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
           } catch (error: any) {
             console.error('Failed to fetch user automations:', error);
             // Return error properly so UI can handle it
-            return { error: { status: 'CUSTOM_ERROR', error: error.message || 'Failed to fetch automations', data: null } };
+            return { 
+              error: { 
+                status: 'FETCH_ERROR', 
+                error: error.message || 'Failed to fetch automations', 
+                data: null 
+              } 
+            };
           }
         },
         providesTags: ['Automation'],
@@ -210,31 +174,36 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
         invalidatesTags: ['Automation'],
       }),
 
-      // Get public automations for gallery
+      // Get public automations for gallery (simplified with timeout)
       getPublicAutomations: builder.query<AutomationData[], void>({
         queryFn: async () => {
           try {
-            console.log('Fetching public automations for gallery...');
-
-            const { data, error } = await supabase
+            console.log('🔍 Fetching public automations...');
+            
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('Request timeout')), 10000);
+            });
+            
+            const queryPromise = supabase
               .from('automations')
               .select('*')
               .eq('is_public', true)
               .order('created_at', { ascending: false })
               .limit(50);
+            
+            const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
 
             if (error) {
-              console.error('Error fetching public automations:', error);
-              // Return error properly so UI can handle it
-              return { error: { status: 'CUSTOM_ERROR', error: error.message, data: null } };
+              console.error('❌ Error fetching public automations:', error);
+              return { error: { status: 'FETCH_ERROR', error: error.message, data: null } };
             }
 
-            console.log(`Found ${data?.length || 0} public automations`);
+            console.log(`✅ Found ${data?.length || 0} public automations`);
             return { data: data || [] };
           } catch (error: any) {
-            console.error('Failed to fetch public automations:', error);
-            // Return error properly so UI can handle it
-            return { error: { status: 'CUSTOM_ERROR', error: error.message || 'Failed to fetch automations', data: null } };
+            console.error('❌ Failed to fetch public automations:', error);
+            return { error: { status: 'FETCH_ERROR', error: error.message || 'Failed to fetch automations', data: null } };
           }
         },
         providesTags: ['Automation'],
@@ -464,36 +433,50 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
         providesTags: ['Automation'],
       }),
 
-      // Get trending automations
+      // Get trending automations (simplified with timeout)
       getTrendingAutomations: builder.query<any[], { limit?: number; timeWindow?: string }>({
         queryFn: async ({ limit = 10, timeWindow = '7 days' }) => {
           try {
-            const { data, error } = await supabase
+            console.log('🔍 Fetching trending automations...');
+            
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('Request timeout')), 10000);
+            });
+            
+            const rpcPromise = supabase
               .rpc('get_trending_automations', { 
                 p_limit: limit,
                 p_time_window: timeWindow 
               });
 
+            const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
+
             if (error) {
-              // If the function doesn't exist, fallback to regular public automations
-              console.warn('get_trending_automations function not found, falling back to public automations');
+              console.warn('⚠️ RPC function failed, using fallback:', error.message);
               
-              const { data: fallbackData, error: fallbackError } = await supabase
+              const fallbackPromise = supabase
                 .from('automations')
                 .select('*')
                 .eq('is_public', true)
                 .order('created_at', { ascending: false })
                 .limit(limit);
               
-              if (fallbackError) throw fallbackError;
+              const { data: fallbackData, error: fallbackError } = await Promise.race([fallbackPromise, timeoutPromise]) as any;
               
+              if (fallbackError) {
+                console.error('❌ Fallback also failed:', fallbackError);
+                return { data: [] };
+              }
+              
+              console.log(`✅ Fallback found ${fallbackData?.length || 0} automations`);
               return { data: fallbackData || [] };
             }
 
+            console.log(`✅ Found ${data?.length || 0} trending automations`);
             return { data: data || [] };
           } catch (error: any) {
-            console.error('Failed to fetch trending automations:', error);
-            // Return empty array instead of error to prevent UI from getting stuck
+            console.error('❌ Failed to fetch trending automations:', error);
             return { data: [] };
           }
         },

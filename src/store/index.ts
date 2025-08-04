@@ -51,14 +51,11 @@ import { configureStore } from '@reduxjs/toolkit';
         },
       });
       
-      // Add API middleware safely
-      try {
-        return defaultMiddleware.concat(automationApi.middleware, analyticsApi.middleware);
-      } catch (error) {
-        console.error('❌ API middleware configuration failed:', error);
-        // Return default middleware only if API middleware fails
-        return defaultMiddleware;
-      }
+      // Add API middleware with error boundary protection
+      return defaultMiddleware.concat(
+        automationApi.middleware,
+        analyticsApi.middleware
+      );
     },
   });
 
