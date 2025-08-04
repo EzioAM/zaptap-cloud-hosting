@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUnifiedTheme as useTheme } from '../../contexts/UnifiedThemeProvider';
 import { theme } from '../../theme';
 import {
   QuickStatsWidget,

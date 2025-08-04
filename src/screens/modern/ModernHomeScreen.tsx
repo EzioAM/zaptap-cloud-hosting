@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,42 +12,54 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUnifiedTheme as useTheme } from '../../contexts/UnifiedThemeProvider';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { useGetMyAutomationsQuery, useGetUserStatsQuery, useGetRecentExecutionsQuery } from '../../store/api/automationApi';
+import ComponentErrorBoundary from '../../components/common/ComponentErrorBoundary';
+import EnhancedLoadingSkeleton from '../../components/common/EnhancedLoadingSkeleton';
+import { useCleanup } from '../../hooks/useCleanup';
 
 const { width } = Dimensions.get('window');
 
-const ModernHomeScreen = () => {
+const ModernHomeScreen = React.memo(() => {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const { user } = useSelector((state: RootState) => state.auth);
   const [refreshing, setRefreshing] = React.useState(false);
+  const { addCleanup } = useCleanup();
   
   const { data: myAutomations = [], isLoading, refetch } = useGetMyAutomationsQuery();
   const { data: userStats, isLoading: statsLoading, refetch: refetchStats } = useGetUserStatsQuery();
   const { data: recentExecutions, isLoading: executionsLoading, refetch: refetchExecutions } = useGetRecentExecutionsQuery({ limit: 5 });
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refetch(), refetchStats(), refetchExecutions()]);
-    setRefreshing(false);
-  };
+    try {
+      await Promise.all([refetch(), refetchStats(), refetchExecutions()]);
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch, refetchStats, refetchExecutions]);
 
-  const featuredCategories = [
+  const featuredCategories = useMemo(() => [
     { id: '1', name: 'Productivity', icon: 'rocket-launch', color: '#FF6B6B' },
     { id: '2', name: 'Smart Home', icon: 'home-automation', color: '#4ECDC4' },
     { id: '3', name: 'Social', icon: 'share-variant', color: '#95E1D3' },
     { id: '4', name: 'Health', icon: 'heart-pulse', color: '#F38181' },
-  ];
+  ], []);
 
-  // Get recent automations (last 3)
-  const recentAutomations = myAutomations.slice(0, 3);
+  // Get recent automations (last 3) - memoized to prevent recalculation
+  const recentAutomations = useMemo(
+    () => myAutomations.slice(0, 3),
+    [myAutomations]
+  );
   
-  // Helper function to get relative time
-  const getRelativeTime = (dateString: string) => {
+  // Helper function to get relative time - memoized
+  const getRelativeTime = useCallback((dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
@@ -57,49 +69,87 @@ const ModernHomeScreen = () => {
     if (diffInHours < 48) return 'Yesterday';
     const days = Math.floor(diffInHours / 24);
     return `${days} days ago`;
-  };
+  }, []);
   
-  // Use real stats from API
-  const stats = {
+  // Use real stats from API - memoized to prevent recalculation
+  const stats = useMemo(() => ({
     automations: userStats?.total_automations || myAutomations.length || 0,
     totalRuns: userStats?.total_runs || 0,
     timeSaved: Math.floor((userStats?.total_time_saved || 0) / 60000) // Convert ms to minutes
-  };
+  }), [userStats, myAutomations.length]);
 
-  // Calculate recent activity from executions
-  const recentActivity = recentExecutions?.slice(0, 3).map(execution => {
-    const automation = myAutomations?.find(a => a.id === execution.automation_id);
-    return {
-      id: execution.id,
-      automation,
-      execution,
-      lastRun: new Date(execution.created_at),
-      status: execution.status
-    };
-  }) || [];
+  // Calculate recent activity from executions - memoized
+  const recentActivity = useMemo(() => {
+    return recentExecutions?.slice(0, 3).map(execution => {
+      const automation = myAutomations?.find(a => a.id === execution.automation_id);
+      return {
+        id: execution.id,
+        automation,
+        execution,
+        lastRun: new Date(execution.created_at),
+        status: execution.status
+      };
+    }) || [];
+  }, [recentExecutions, myAutomations]);
 
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
+  // Memoized icon mappings to prevent recreation on every render
+  const categoryIcons = useMemo(() => ({
+    'Productivity': 'briefcase',
+    'Smart Home': 'home-automation',
+    'Social': 'share-variant',
+    'Health': 'heart-pulse',
+    'Communication': 'message',
+    'Entertainment': 'movie',
+  }), []);
+
+  const statusIcons = useMemo(() => ({
+    'success': 'check-circle',
+    'failed': 'alert-circle',
+    'running': 'progress-clock',
+    'cancelled': 'cancel'
+  }), []);
+
+  const statusColors = useMemo(() => ({
+    'success': theme.colors.success,
+    'failed': theme.colors.error,
+    'running': theme.colors.info,
+    'cancelled': theme.colors.textSecondary
+  }), [theme.colors]);
 
   if ((isLoading || statsLoading || executionsLoading) && !refreshing) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <MaterialCommunityIcons
-            name="loading"
-            size={48}
-            color={theme.colors.primary}
-          />
-          <Text style={[styles.welcomeText, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>
-            Loading your automations...
-          </Text>
-        </View>
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+          {/* Header Skeleton */}
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <View style={[styles.skeletonText, { width: 100, height: 16, backgroundColor: theme.colors.surface }]} />
+              <View style={[styles.skeletonText, { width: 150, height: 24, backgroundColor: theme.colors.surface, marginTop: 4 }]} />
+            </View>
+          </View>
+          
+          {/* CTA Card Skeleton */}
+          <View style={[styles.ctaCard, { backgroundColor: theme.colors.surface }]} />
+          
+          {/* Stats Skeleton */}
+          <EnhancedLoadingSkeleton variant="stats" showAnimation={true} />
+          
+          {/* Activity Skeleton */}
+          <View style={styles.section}>
+            <View style={[styles.skeletonText, { width: 120, height: 20, backgroundColor: theme.colors.surface, marginBottom: 16 }]} />
+            <EnhancedLoadingSkeleton variant="automation" count={3} showAnimation={true} />
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView
+    <ComponentErrorBoundary componentName="ModernHomeScreen">
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -224,29 +274,6 @@ const ModernHomeScreen = () => {
             recentActivity.map((item) => {
               const { automation, execution } = item;
               if (!automation) return null;
-
-              const categoryIcons: Record<string, string> = {
-                'Productivity': 'briefcase',
-                'Smart Home': 'home-automation',
-                'Social': 'share-variant',
-                'Health': 'heart-pulse',
-                'Communication': 'message',
-                'Entertainment': 'movie',
-              };
-
-              const statusIcons: Record<string, string> = {
-                'success': 'check-circle',
-                'failed': 'alert-circle',
-                'running': 'progress-clock',
-                'cancelled': 'cancel'
-              };
-
-              const statusColors: Record<string, string> = {
-                'success': theme.colors.success,
-                'failed': theme.colors.error,
-                'running': theme.colors.info,
-                'cancelled': theme.colors.textSecondary
-              };
               
               return (
                 <TouchableOpacity
@@ -338,9 +365,10 @@ const ModernHomeScreen = () => {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ComponentErrorBoundary>
   );
-};
+});
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
@@ -520,6 +548,10 @@ const createStyles = (theme: any) =>
     categoryName: {
       fontSize: 14,
       fontWeight: '600',
+    },
+    skeletonText: {
+      borderRadius: 4,
+      marginBottom: 4,
     },
   });
 

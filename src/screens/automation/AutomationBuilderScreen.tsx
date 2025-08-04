@@ -22,7 +22,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     SegmentedButtons,
   } from 'react-native-paper';
   import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-  import { AutomationStep, StepType, AutomationData } from '../../types';
+  import type { AutomationStep, StepType, AutomationData } from '../../types';
+  import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+  import type { RootStackParamList } from '../../navigation/types';
   import { AutomationEngine } from '../../services/automation/AutomationEngine';
   import { useCreateAutomationMutation, useGetAutomationQuery } from '../../store/api/automationApi';
   import { supabase } from '../../services/supabase/client';
@@ -36,23 +38,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
   import StepConfigModal from '../../components/automation/StepConfigModal';
   import ModernStepConfigRenderer from '../../components/automation/ModernStepConfigRenderer';
   import { VisualStepEditor } from '../../components/organisms/StepEditor';
-  import { useTheme } from '../../contexts/ThemeContext';
+  import { useUnifiedTheme as useTheme } from '../../contexts/UnifiedThemeProvider';
   import { theme } from '../../theme';
 
-  interface AutomationBuilderScreenProps {
-    navigation: any;
-    route?: {
-      params?: {
-        automationId?: string;
-        automation?: AutomationData;
-        showQRGenerator?: boolean;
-        readonly?: boolean;
-        isTemplate?: boolean;
-      };
-    };
-  }
+  type Props = NativeStackScreenProps<RootStackParamList, 'AutomationBuilder'>;
 
-  const AutomationBuilderScreen: React.FC<AutomationBuilderScreenProps> = ({ navigation, route }) => {
+  const AutomationBuilderScreen: React.FC<Props> = ({ navigation, route }) => {
     const { theme: currentTheme } = useTheme();
     const colors = theme.getColors(currentTheme);
     const [steps, setSteps] = useState<AutomationStep[]>([]);
@@ -81,6 +72,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     });
 
     // Handle route params for editing existing automation or showing QR generator
+    // Fixed dependency array to prevent infinite loops
     useEffect(() => {
       const automation = route?.params?.automation || fetchedAutomation;
       const shouldShowQR = route?.params?.showQRGenerator;
@@ -109,9 +101,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
           setIsTemplatePreview(false);
         }
       };
-    }, [route?.params, fetchedAutomation]);
+    }, [
+      route?.params?.automation?.id, // Only track ID to prevent deep comparison issues
+      route?.params?.showQRGenerator,
+      route?.params?.isTemplate,
+      fetchedAutomation?.id // Only track ID to prevent deep comparison issues
+    ]);
 
-    const availableSteps = [
+    const availableSteps = useMemo(() => [
       { type: 'notification' as StepType, label: 'Show Notification', icon: 'bell', description: 'Display a notification' },
       { type: 'sms' as StepType, label: 'Send SMS', icon: 'message-text', description: 'Send a text message' },
       { type: 'email' as StepType, label: 'Send Email', icon: 'email', description: 'Send an email' },
@@ -128,7 +125,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       { type: 'photo' as StepType, label: 'Take Photo', icon: 'camera', description: 'Capture or select photos' },
       { type: 'clipboard' as StepType, label: 'Clipboard', icon: 'content-paste', description: 'Copy or paste text' },
       { type: 'app' as StepType, label: 'Open App', icon: 'application', description: 'Launch another application' },
-    ];
+    ], []);
 
     const addStep = useCallback((stepType: StepType) => {
       const stepInfo = availableSteps.find(s => s.type === stepType);

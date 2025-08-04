@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUnifiedTheme, useThemedStyles } from '../../contexts/UnifiedThemeProvider';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
@@ -23,6 +23,7 @@ import {
   useUpdateAutomationMutation 
 } from '../../store/api/automationApi';
 import { useConnection } from '../../contexts/ConnectionContext';
+import { Theme } from '../../theme';
 
 interface SavedAutomation {
   id: string;
@@ -39,7 +40,7 @@ interface SavedAutomation {
 }
 
 const LibraryScreen = () => {
-  const { theme } = useTheme();
+  const { theme } = useUnifiedTheme();
   const navigation = useNavigation();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const { connectionState, checkConnection } = useConnection();
@@ -48,7 +49,7 @@ const LibraryScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<'recent' | 'alphabetical' | 'most-used'>('recent');
 
-  const styles = createStyles(theme);
+  const styles = useThemedStyles(createStyles);
   
   const { data: automations = [], isLoading, refetch } = useGetMyAutomationsQuery();
   const [deleteAutomation] = useDeleteAutomationMutation();
@@ -627,7 +628,7 @@ const LibraryScreen = () => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,

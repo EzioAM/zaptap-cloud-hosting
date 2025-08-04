@@ -15,7 +15,7 @@ import { Card, CardBody } from '../components/atoms/Card';
 import { Badge } from '../components/atoms/Badge';
 import { Button } from '../components/atoms/Button';
 import { EmptyState } from '../components/molecules/EmptyState';
-import { useTheme } from '../contexts/ThemeContext';
+import { useUnifiedTheme as useTheme } from '../contexts/UnifiedThemeProvider';
 import { theme } from '../theme';
 import { useGetExecutionHistoryQuery, useClearHistoryMutation } from '../store/api/automationApi';
 import { formatDistanceToNow } from 'date-fns';

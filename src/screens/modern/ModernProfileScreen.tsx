@@ -14,7 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUnifiedTheme, useThemedStyles } from '../../contexts/UnifiedThemeProvider';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
@@ -22,16 +22,18 @@ import { signOut } from '../../store/slices/authSlice';
 import { useGetMyAutomationsQuery, useGetPublicAutomationsQuery } from '../../store/api/automationApi';
 import { useUserRole } from '../../hooks/useUserRole';
 import { DeveloperSection } from '../../components/developer/DeveloperSection';
+import { Theme } from '../../theme';
+import { commonStyles, createTextStyle } from '../../utils/ThemeUtils';
 
 const ModernProfileScreen = () => {
-  const { theme, themeMode, setThemeMode } = useTheme();
+  const { theme, themeMode, setThemeMode } = useUnifiedTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const { isDeveloper } = useUserRole();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
 
-  const styles = createStyles(theme);
+  const styles = useThemedStyles(createStyles);
 
   // Load notification settings on mount
   useEffect(() => {
@@ -181,8 +183,13 @@ const ModernProfileScreen = () => {
         <Switch
           value={notificationsEnabled}
           onValueChange={handleNotificationChange}
-          trackColor={{ false: theme.colors.surfaceVariant, true: theme.colors.primary }}
-          thumbColor={notificationsEnabled ? '#FFFFFF' : '#F4F3F4'}
+          trackColor={{ 
+            false: theme.colors.surface.secondary, 
+            true: theme.colors.brand.primary 
+          }}
+          thumbColor={notificationsEnabled ? theme.colors.text.inverse : theme.colors.surface.elevated}
+          accessibilityLabel="Toggle notifications"
+          accessibilityHint="Enables or disables push notifications for this app"
         />
       ),
     },
@@ -204,6 +211,9 @@ const ModernProfileScreen = () => {
                 },
               ]}
               onPress={() => setThemeMode(mode as any)}
+            accessibilityRole="button"
+            accessibilityLabel={`Set theme to ${mode}`}
+            accessibilityState={{ selected: themeMode === mode }}
             >
               <Text
                 style={[
@@ -295,8 +305,11 @@ const ModernProfileScreen = () => {
             Profile
           </Text>
           <TouchableOpacity
-            style={[styles.settingsButton, { backgroundColor: theme.colors.surface }]}
+            style={styles.settingsButton}
             onPress={() => navigation.navigate('Settings' as never)}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+            accessibilityHint="Navigate to app settings screen"
           >
             <MaterialCommunityIcons
               name="cog"
@@ -308,15 +321,15 @@ const ModernProfileScreen = () => {
 
         {/* Profile Info */}
         <View style={styles.profileSection}>
-          <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
+          <View style={styles.avatar}>
             <Text style={styles.avatarText}>
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </Text>
           </View>
-          <Text style={[styles.userName, { color: theme.colors.text }]}>
+          <Text style={styles.userName}>
             {user?.name || 'User'}
           </Text>
-          <Text style={[styles.userEmail, { color: theme.colors.textSecondary }]}>
+          <Text style={[styles.userEmail, { color: theme.colors.text.secondary }]}>
             {user?.email || 'email@example.com'}
           </Text>
           <View style={[styles.rankBadge, { backgroundColor: theme.colors.primary + '20' }]}>
@@ -410,9 +423,12 @@ const ModernProfileScreen = () => {
           {menuItems.map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={[styles.menuItem, { backgroundColor: theme.colors.surface }]}
+              style={[styles.menuItem, { backgroundColor: theme.colors.surface.primary }]}
               onPress={item.onPress}
-              activeOpacity={0.7}
+              activeOpacity={theme.constants.activeOpacity}
+              accessibilityRole="button"
+              accessibilityLabel={item.title}
+              accessibilityHint={`Open ${item.title.toLowerCase()} screen`}
             >
               <View style={styles.menuItemLeft}>
                 <MaterialCommunityIcons
@@ -438,8 +454,11 @@ const ModernProfileScreen = () => {
         {/* Sign Out & Delete Account */}
         <View style={styles.dangerSection}>
           <TouchableOpacity
-            style={[styles.dangerButton, { borderColor: theme.colors.error }]}
+            style={[styles.dangerButton, { borderColor: theme.colors.semantic.error }]}
             onPress={handleSignOut}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+            accessibilityHint="Sign out of your account"
           >
             <MaterialCommunityIcons
               name="logout"
@@ -471,7 +490,7 @@ const ModernProfileScreen = () => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -485,15 +504,15 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing.lg,
     },
     headerTitle: {
-      fontSize: theme.typography.h1.fontSize,
-      fontWeight: theme.typography.h1.fontWeight,
+      ...createTextStyle(theme, '3xl', 'bold'),
     },
     settingsButton: {
-      width: 44,
-      height: 44,
-      borderRadius: theme.borderRadius.round,
+      width: theme.accessibility.minTouchTarget,
+      height: theme.accessibility.minTouchTarget,
+      borderRadius: theme.tokens.borderRadius.full,
       justifyContent: 'center',
       alignItems: 'center',
+      backgroundColor: theme.colors.surface.primary,
     },
     profileSection: {
       alignItems: 'center',
@@ -509,13 +528,10 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing.md,
     },
     avatarText: {
-      fontSize: 32,
-      fontWeight: '600',
-      color: '#FFFFFF',
+      ...createTextStyle(theme, '3xl', 'semibold', theme.colors.text.inverse),
     },
     userName: {
-      fontSize: 24,
-      fontWeight: '600',
+      ...createTextStyle(theme, 'xl', 'semibold'),
       marginBottom: theme.spacing.xs,
     },
     userEmail: {

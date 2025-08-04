@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 // Safe imports for Victory Native with error fallback
-let VictoryChart, VictoryLine, VictoryPie, VictoryBar, VictoryAxis, VictoryTheme;
+let VictoryChart: any, VictoryLine: any, VictoryPie: any, VictoryBar: any, VictoryAxis: any, VictoryTheme: any;
 try {
   const victory = require('victory-native');
   VictoryChart = victory.VictoryChart;
@@ -29,11 +29,11 @@ try {
     </View>
   );
   VictoryChart = VictoryLine = VictoryPie = VictoryBar = VictoryAxis = FallbackChart;
-  VictoryTheme = {};
+  VictoryTheme = { material: {} };
 }
 import { Card, CardHeader, CardBody } from '../components/atoms/Card';
 import { Button, Badge, Shimmer, ShimmerPlaceholder } from '../components/atoms';
-import { useTheme } from '../contexts/ThemeContext';
+import { useUnifiedTheme as useTheme } from '../contexts/UnifiedThemeProvider';
 import { theme } from '../theme';
 import { useGetAnalyticsQuery } from '../store/api/analyticsApi';
 import Animated, { FadeInDown } from 'react-native-reanimated';

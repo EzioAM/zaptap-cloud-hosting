@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUnifiedTheme as useTheme } from '../../contexts/UnifiedThemeProvider';
 import { useNavigation } from '@react-navigation/native';
 import { useConnection } from '../../contexts/ConnectionContext';
 import { StarRating } from '../../components/reviews/StarRating';

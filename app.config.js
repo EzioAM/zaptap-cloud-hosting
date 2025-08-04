@@ -52,7 +52,8 @@ export default {
         NFCReaderUsageDescription: "This app uses NFC to read and write automation tags.",
         NSFaceIDUsageDescription: "This app uses Face ID for secure automation access.",
         "com.apple.developer.nfc.readersession.iso7816.select-identifiers": ["*"],
-        "com.apple.developer.nfc.readersession.iso14443.select-identifiers": ["*"]
+        "com.apple.developer.nfc.readersession.iso14443.select-identifiers": ["*"],
+        ITSAppUsesNonExemptEncryption: false
       },
       entitlements: {
         "com.apple.developer.nfc.readersession.formats": ["NDEF", "TAG"]

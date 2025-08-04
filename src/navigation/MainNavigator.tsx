@@ -24,15 +24,28 @@ export const MainNavigator = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   
   React.useEffect(() => {
-    checkOnboardingStatus();
+    // Add timeout protection to prevent infinite loading
+    const timeout = setTimeout(() => {
+      console.warn('⚠️ Onboarding check timed out, proceeding with default');
+      setHasSeenOnboarding(false);
+      setIsLoading(false);
+    }, 5000);
+
+    checkOnboardingStatus().finally(() => {
+      clearTimeout(timeout);
+    });
+
+    return () => clearTimeout(timeout);
   }, []);
   
   const checkOnboardingStatus = async () => {
     try {
+      console.log('🔍 Checking onboarding status...');
       const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
       setHasSeenOnboarding(hasSeenOnboarding === 'true');
+      console.log('✅ Onboarding status checked:', hasSeenOnboarding === 'true');
     } catch (error) {
-      console.error('Failed to check onboarding status:', error);
+      console.error('❌ Failed to check onboarding status:', error);
       // Default to false - user will see onboarding
       setHasSeenOnboarding(false);
     } finally {

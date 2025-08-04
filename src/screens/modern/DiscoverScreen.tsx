@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUnifiedTheme, useThemedStyles } from '../../contexts/UnifiedThemeProvider';
 import { useNavigation } from '@react-navigation/native';
 import { 
   useGetPublicAutomationsQuery, 
@@ -30,6 +30,8 @@ import { useConnection } from '../../contexts/ConnectionContext';
 import { DiscoverScreenSkeleton } from '../../components/loading/SkeletonLoading';
 import { ErrorState } from '../../components/states/ErrorState';
 import { EmptyState } from '../../components/states/EmptyState';
+import { Theme } from '../../theme';
+import { createTextStyle } from '../../utils/ThemeUtils';
 
 interface Automation {
   id: string;
@@ -55,7 +57,7 @@ interface Category {
 }
 
 const DiscoverScreen = () => {
-  const { theme } = useTheme();
+  const { theme } = useUnifiedTheme();
   const navigation = useNavigation();
   const { connectionState, checkConnection } = useConnection();
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,7 +68,7 @@ const DiscoverScreen = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
-  const styles = createStyles(theme);
+  const styles = useThemedStyles(createStyles);
   
   const { data: publicAutomations = [], isLoading, error, refetch, isFetching } = useGetPublicAutomationsQuery(undefined, {
     // Optimized fetching configuration to prevent infinite loops
@@ -146,14 +148,14 @@ const DiscoverScreen = () => {
     };
     
     const categoryColors: Record<string, string> = {
-      'Productivity': '#FF6B6B',
-      'Smart Home': '#4ECDC4',
-      'Social': '#95E1D3',
-      'Health': '#F38181',
-      'Communication': '#6750A4',
-      'Entertainment': '#625B71',
-      'Business': '#4ECDC4',
-      'Finance': '#FFD93D',
+      'Productivity': theme.colors.semantic.error,
+      'Smart Home': theme.colors.brand.accent,
+      'Social': theme.colors.semantic.success,
+      'Health': theme.colors.semantic.warning,
+      'Communication': theme.colors.brand.primary,
+      'Entertainment': theme.colors.brand.secondary,
+      'Business': theme.colors.brand.accent,
+      'Finance': theme.colors.semantic.warning,
     };
     
     // Calculate popularity based on creation date (newer = more trending)
@@ -170,7 +172,7 @@ const DiscoverScreen = () => {
       uses: estimatedUses,
       category: automation.category,
       icon: categoryIcons[automation.category] || 'robot',
-      color: categoryColors[automation.category] || '#6750A4',
+      color: categoryColors[automation.category] || theme.colors.brand.primary,
       trending: daysOld < 7, // Trending if created in last 7 days
     };
   });
@@ -203,14 +205,14 @@ const DiscoverScreen = () => {
     };
     
     const categoryColors: Record<string, string> = {
-      'Productivity': '#FF6B6B',
-      'Smart Home': '#4ECDC4',
-      'Social': '#95E1D3',
-      'Health': '#F38181',
-      'Communication': '#6750A4',
-      'Entertainment': '#625B71',
-      'Business': '#4ECDC4',
-      'Finance': '#FFD93D',
+      'Productivity': theme.colors.semantic.error,
+      'Smart Home': theme.colors.brand.accent,
+      'Social': theme.colors.semantic.success,
+      'Health': theme.colors.semantic.warning,
+      'Communication': theme.colors.brand.primary,
+      'Entertainment': theme.colors.brand.secondary,
+      'Business': theme.colors.brand.accent,
+      'Finance': theme.colors.semantic.warning,
     };
     
     const engagement = engagementData[automation.id];
@@ -224,7 +226,7 @@ const DiscoverScreen = () => {
       uses: engagement?.downloads_count ?? automation.downloads_count ?? 0,
       category: automation.category,
       icon: categoryIcons[automation.category] || 'robot',
-      color: categoryColors[automation.category] || '#6750A4',
+      color: categoryColors[automation.category] || theme.colors.brand.primary,
       trending: true,
       hasLiked: engagement?.user_has_liked ?? false,
     };
@@ -274,23 +276,23 @@ const DiscoverScreen = () => {
   };
 
   const categoryColors: Record<string, string> = {
-    'Productivity': '#FF6B6B',
-    'Smart Home': '#4ECDC4',
-    'Social': '#95E1D3',
-    'Health': '#F38181',
-    'Business': '#FFD93D',
-    'Entertainment': '#6BCF7F',
-    'Finance': '#FFD93D',
-    'Communication': '#6750A4',
+    'Productivity': theme.colors.semantic.error,
+    'Smart Home': theme.colors.brand.accent,
+    'Social': theme.colors.semantic.success,
+    'Health': theme.colors.semantic.warning,
+    'Business': theme.colors.semantic.warning,
+    'Entertainment': theme.colors.semantic.success,
+    'Finance': theme.colors.semantic.warning,
+    'Communication': theme.colors.brand.primary,
   };
 
   const categories: Category[] = [
-    { id: '1', name: 'All', icon: 'apps', color: '#6750A4', count: mappedAutomations.length },
+    { id: '1', name: 'All', icon: 'apps', color: theme.colors.brand.primary, count: mappedAutomations.length },
     ...Array.from(categoryMap.entries()).map((entry, index) => ({
       id: (index + 2).toString(),
       name: entry[0],
       icon: categoryIcons[entry[0]] || 'folder',
-      color: categoryColors[entry[0]] || '#6750A4',
+      color: categoryColors[entry[0]] || theme.colors.brand.primary,
       count: entry[1],
     })),
   ];
@@ -301,23 +303,26 @@ const DiscoverScreen = () => {
         styles.categoryChip,
         {
           backgroundColor: item.name === (selectedCategory || 'All') 
-            ? theme.colors.primary 
-            : theme.colors.surface,
+            ? theme.colors.brand.primary 
+            : theme.colors.surface.secondary,
         },
       ]}
-      onPress={() => setSelectedCategory(item.name)}
-      activeOpacity={0.7}
+      onPress={() => setSelectedCategory(item.name === 'All' ? null : item.name)}
+      activeOpacity={theme.constants.activeOpacity}
+      accessibilityRole="button"
+      accessibilityLabel={`Filter by ${item.name} category`}
+      accessibilityState={{ selected: item.name === (selectedCategory || 'All') }}
     >
       <MaterialCommunityIcons
         name={item.icon as any}
         size={18}
-        color={item.name === (selectedCategory || 'All') ? '#FFFFFF' : theme.colors.text}
+        color={item.name === (selectedCategory || 'All') ? theme.colors.text.inverse : theme.colors.text.primary}
       />
       <Text
         style={[
           styles.categoryChipText,
           {
-            color: item.name === (selectedCategory || 'All') ? '#FFFFFF' : theme.colors.text,
+            color: item.name === (selectedCategory || 'All') ? theme.colors.text.inverse : theme.colors.text.primary,
           },
         ]}
       >
@@ -328,8 +333,8 @@ const DiscoverScreen = () => {
           styles.categoryCount,
           {
             color: item.name === (selectedCategory || 'All')
-              ? '#FFFFFF'
-              : theme.colors.textSecondary,
+              ? theme.colors.text.inverse
+              : theme.colors.text.secondary,
           },
         ]}
       >
@@ -456,7 +461,7 @@ const DiscoverScreen = () => {
     >
       {item.trending && (
         <View style={styles.trendingBadge}>
-          <MaterialCommunityIcons name="trending-up" size={14} color="#FFFFFF" />
+          <MaterialCommunityIcons name="trending-up" size={14} color={theme.colors.text.inverse} />
           <Text style={styles.trendingText}>Trending</Text>
         </View>
       )}
@@ -650,7 +655,7 @@ const DiscoverScreen = () => {
           <MaterialCommunityIcons 
             name="wifi-off" 
             size={20} 
-            color="#FFFFFF" 
+            color={theme.colors.text.inverse} 
           />
           <Text style={styles.connectionBannerText}>
             {connectionState.error || 'No connection'}
@@ -658,7 +663,7 @@ const DiscoverScreen = () => {
           <MaterialCommunityIcons 
             name="refresh" 
             size={20} 
-            color="#FFFFFF" 
+            color={theme.colors.text.inverse} 
           />
         </TouchableOpacity>
       )}
@@ -735,7 +740,11 @@ const DiscoverScreen = () => {
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity 
+                onPress={() => setSearchQuery('')}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+              >
                 <MaterialCommunityIcons
                   name="close-circle"
                   size={18}
@@ -765,8 +774,11 @@ const DiscoverScreen = () => {
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
                 🔥 Trending Now
               </Text>
-              <TouchableOpacity>
-                <Text style={[styles.seeAllText, { color: theme.colors.primary }]}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="See all automations"
+              >
+                <Text style={[styles.seeAllText, { color: theme.colors.brand.primary }]}>
                   See All
                 </Text>
               </TouchableOpacity>
@@ -849,7 +861,7 @@ const DiscoverScreen = () => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -863,7 +875,7 @@ const createStyles = (theme: any) =>
       gap: theme.spacing.sm,
     },
     connectionBannerText: {
-      color: '#FFFFFF',
+      color: theme.colors.text.inverse,
       fontSize: 14,
       fontWeight: '600',
     },
@@ -982,7 +994,7 @@ const createStyles = (theme: any) =>
       marginRight: theme.spacing.md,
     },
     trendingRankText: {
-      color: '#FFFFFF',
+      color: theme.colors.text.inverse,
       fontSize: 14,
       fontWeight: '700',
     },
@@ -1015,7 +1027,7 @@ const createStyles = (theme: any) =>
     trendingText: {
       fontSize: 11,
       fontWeight: '600',
-      color: '#FFFFFF',
+      color: theme.colors.text.inverse,
       marginLeft: 4,
     },
     automationHeader: {
@@ -1089,7 +1101,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.round,
     },
     loadMoreText: {
-      color: '#FFFFFF',
+      color: theme.colors.text.inverse,
       fontSize: 16,
       fontWeight: '600',
     },
@@ -1120,7 +1132,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.round,
     },
     retryButtonText: {
-      color: '#FFFFFF',
+      color: theme.colors.text.inverse,
       fontSize: 16,
       fontWeight: '600',
     },
