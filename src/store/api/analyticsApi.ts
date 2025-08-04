@@ -1,5 +1,17 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
-import { supabaseBaseQuery } from './baseQuery';
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { supabase } from '../../services/supabase/client';
+
+// Custom base query for Supabase
+const supabaseBaseQuery = fetchBaseQuery({
+  baseUrl: '/',
+  prepareHeaders: async (headers, { getState }) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers.set('authorization', `Bearer ${session.access_token}`);
+    }
+    return headers;
+  },
+});
 
 export type TimeRange = '24h' | '7d' | '30d' | 'all';
 
