@@ -329,10 +329,10 @@ const DiscoverScreen = () => {
       onPress={async () => {
         // Track view when opening automation
         await trackView(item.id);
-        navigation.navigate('AutomationDetails' as never, { 
+        navigation.navigate('AutomationDetails', { 
           automationId: item.id,
           fromGallery: true 
-        } as never);
+        });
       }}
     >
       <View style={styles.trendingRank}>
@@ -429,10 +429,10 @@ const DiscoverScreen = () => {
       onPress={async () => {
         // Track view when opening automation
         await trackView(item.id);
-        navigation.navigate('AutomationDetails' as never, { 
+        navigation.navigate('AutomationDetails', { 
           automationId: item.id,
           fromGallery: true 
-        } as never);
+        });
       }}
     >
       {item.trending && (

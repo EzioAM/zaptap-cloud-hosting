@@ -1,3 +1,5 @@
+import { AutomationData } from '../types';
+
 export type RootStackParamList = {
   // Main app flow
   MainTabs: undefined;
@@ -15,7 +17,13 @@ export type RootStackParamList = {
   SignUp: undefined;
   
   // Automation screens
-  AutomationBuilder: { automationId?: string };
+  AutomationBuilder: { 
+    automationId?: string;
+    automation?: AutomationData;
+    readonly?: boolean;
+    isTemplate?: boolean;
+    showQRGenerator?: boolean;
+  } | undefined;
   MyAutomations: undefined;
   Gallery: undefined;
   AutomationDetails: { 
@@ -54,7 +62,13 @@ export type AuthStackParamList = {
 
 export type AutomationStackParamList = {
   AutomationList: undefined;
-  AutomationBuilder: { automationId?: string };
+  AutomationBuilder: { 
+    automationId?: string;
+    automation?: AutomationData;
+    readonly?: boolean;
+    isTemplate?: boolean;
+    showQRGenerator?: boolean;
+  } | undefined;
   AutomationDetails: { 
     automationId: string;
     fromGallery?: boolean;

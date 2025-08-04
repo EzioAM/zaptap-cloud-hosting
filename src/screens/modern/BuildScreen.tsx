@@ -188,11 +188,11 @@ const BuildScreen = () => {
         [
           {
             text: 'View Details',
-            onPress: () => navigation.navigate('AutomationDetails' as never, { automationId: result.id } as never),
+            onPress: () => navigation.navigate('AutomationDetails', { automationId: result.id }),
           },
           {
             text: 'Advanced Edit',
-            onPress: () => navigation.navigate('AutomationBuilder' as never, { automationId: result.id } as never),
+            onPress: () => navigation.navigate('AutomationBuilder', { automationId: result.id }),
           },
           {
             text: 'OK',
@@ -424,7 +424,7 @@ const BuildScreen = () => {
           {/* Advanced Builder Link */}
           <TouchableOpacity
             style={styles.advancedBuilderLink}
-            onPress={() => navigation.navigate('AutomationBuilder' as never)}
+            onPress={() => navigation.navigate('AutomationBuilder')}
           >
             <MaterialCommunityIcons 
               name="code-tags" 

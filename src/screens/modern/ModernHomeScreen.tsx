@@ -253,7 +253,7 @@ const ModernHomeScreen = () => {
                   key={item.id}
                   style={[styles.activityCard, { backgroundColor: theme.colors.surface }]}
                   activeOpacity={0.7}
-                  onPress={() => navigation.navigate('AutomationDetails' as never, { automationId: automation.id } as never)}
+                  onPress={() => navigation.navigate('AutomationDetails', { automationId: automation.id })}
                   accessibilityLabel={`Automation: ${automation.title}`}
                   accessibilityHint={`${automation.description}. Last run ${getRelativeTime(execution.created_at)}. Status: ${execution.status}. Tap to view details.`}
                   accessibilityRole="button"

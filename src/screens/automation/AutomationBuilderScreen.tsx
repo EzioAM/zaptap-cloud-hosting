@@ -24,7 +24,7 @@ import React, { useState, useEffect } from 'react';
   import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
   import { AutomationStep, StepType, AutomationData } from '../../types';
   import { AutomationEngine } from '../../services/automation/AutomationEngine';
-  import { useCreateAutomationMutation } from '../../store/api/automationApi';
+  import { useCreateAutomationMutation, useGetAutomationQuery } from '../../store/api/automationApi';
   import { supabase } from '../../services/supabase/client';
   import QRGenerator from '../../components/qr/QRGenerator';
   import QRScanner from '../../components/qr/QRScanner';
@@ -35,11 +35,15 @@ import React, { useState, useEffect } from 'react';
   import { FullScreenModal } from '../../components/common/FullScreenModal';
   import StepConfigModal from '../../components/automation/StepConfigModal';
   import ModernStepConfigRenderer from '../../components/automation/ModernStepConfigRenderer';
+  import { VisualStepEditor } from '../../components/organisms/StepEditor';
+  import { useTheme } from '../../contexts/ThemeContext';
+  import { theme } from '../../theme';
 
   interface AutomationBuilderScreenProps {
     navigation: any;
     route?: {
       params?: {
+        automationId?: string;
         automation?: AutomationData;
         showQRGenerator?: boolean;
         readonly?: boolean;
@@ -49,6 +53,8 @@ import React, { useState, useEffect } from 'react';
   }
 
   const AutomationBuilderScreen: React.FC<AutomationBuilderScreenProps> = ({ navigation, route }) => {
+    const { theme: currentTheme } = useTheme();
+    const colors = theme.getColors(currentTheme);
     const [steps, setSteps] = useState<AutomationStep[]>([]);
     const [automationTitle, setAutomationTitle] = useState('My Automation');
     const [isExecuting, setIsExecuting] = useState(false);
@@ -67,10 +73,16 @@ import React, { useState, useEffect } from 'react';
     const [isTemplatePreview, setIsTemplatePreview] = useState(false);
 
     const [createAutomation] = useCreateAutomationMutation();
+    
+    // Fetch automation data if automationId is provided
+    const automationId = route?.params?.automationId;
+    const { data: fetchedAutomation, isLoading: isLoadingAutomation } = useGetAutomationQuery(automationId, {
+      skip: !automationId
+    });
 
     // Handle route params for editing existing automation or showing QR generator
     useEffect(() => {
-      const automation = route?.params?.automation;
+      const automation = route?.params?.automation || fetchedAutomation;
       const shouldShowQR = route?.params?.showQRGenerator;
       const isTemplate = route?.params?.isTemplate;
       
@@ -89,7 +101,7 @@ import React, { useState, useEffect } from 'react';
           setShowQRGenerator(true);
         }
       }
-    }, [route?.params]);
+    }, [route?.params, fetchedAutomation]);
 
     const availableSteps = [
       { type: 'notification' as StepType, label: 'Show Notification', icon: 'bell', description: 'Display a notification' },
@@ -1110,87 +1122,16 @@ import React, { useState, useEffect } from 'react';
             </Card.Content>
           </Card>
 
-          {steps.length === 0 ? (
-            <Card style={styles.emptyCard}>
-              <Card.Content>
-                <View style={styles.emptyState}>
-                  <Icon name="robot" size={64} color="#ccc" />
-                  <Text style={styles.emptyTitle}>No Steps Added</Text>
-                  <Text style={styles.emptyDescription}>
-                    Tap the + button below to add your first automation step
-                  </Text>
-                  <Button
-                    mode="contained"
-                    onPress={() => setShowStepPicker(true)}
-                    icon="plus"
-                    style={styles.emptyButton}
-                  >
-                    Add First Step
-                  </Button>
-                </View>
-              </Card.Content>
-            </Card>
-          ) : (
-            steps.map((step, index) => (
-              <Card key={step.id} style={styles.stepCard}>
-                <Card.Content>
-                  <View style={styles.stepHeader}>
-                    <TouchableOpacity 
-                      onPress={() => openStepConfig(index)}
-                      style={styles.stepInfo}
-                      activeOpacity={0.7}
-                    >
-                      <Icon
-                        name={getStepIcon(step.type)}
-                        size={24}
-                        color={step.enabled ? '#6200ee' : '#999'}
-                      />
-                      <View style={styles.stepText}>
-                        <Text style={[styles.stepTitle, !step.enabled && styles.disabledText]}>
-                          {step.title}
-                        </Text>
-                        <Text style={[styles.stepType, !step.enabled && styles.disabledText]}>
-                          {getStepTypeDisplayName(step.type)}
-                        </Text>
-                        <Text style={[styles.stepConfig, !step.enabled && styles.disabledText]}>
-                          {getStepDescription(step)}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-
-                    <View style={styles.stepActions}>
-                      <IconButton
-                        icon="cog"
-                        size={20}
-                        onPress={() => openStepConfig(index)}
-                      />
-                      <IconButton
-                        icon={step.enabled ? 'pause' : 'play'}
-                        size={20}
-                        onPress={() => toggleStep(index)}
-                      />
-                      <IconButton
-                        icon="delete"
-                        size={20}
-                        onPress={() => removeStep(index)}
-                      />
-                    </View>
-                  </View>
-                </Card.Content>
-              </Card>
-            ))
-          )}
-
-          <View style={styles.bottomSpacer} />
+          <View style={styles.stepEditorContainer}>
+            <VisualStepEditor
+              steps={steps}
+              onStepsChange={setSteps}
+              onStepEdit={openStepConfig}
+              onStepDelete={removeStep}
+              readonly={route?.params?.readonly}
+            />
+          </View>
         </ScrollView>
-
-        {steps.length > 0 && (
-          <FAB
-            icon="plus"
-            style={styles.fab}
-            onPress={() => setShowStepPicker(true)}
-          />
-        )}
 
         {renderStepPicker()}
 
@@ -1520,6 +1461,10 @@ import React, { useState, useEffect } from 'react';
       paddingTop: 16,
       borderTopWidth: 1,
       borderTopColor: '#eee',
+    },
+    stepEditorContainer: {
+      flex: 1,
+      marginTop: 16,
     },
   });
 

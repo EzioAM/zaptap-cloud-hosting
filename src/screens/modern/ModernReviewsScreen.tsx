@@ -180,9 +180,9 @@ const ModernReviewsScreen = () => {
       style={[styles.reviewCard, { backgroundColor: theme.colors.surface }]}
       onPress={() => {
         if (item.automation_id) {
-          navigation.navigate('AutomationDetails' as never, { 
+          navigation.navigate('AutomationDetails', { 
             automationId: item.automation_id 
-          } as never);
+          });
         }
       }}
       activeOpacity={0.7}

@@ -237,7 +237,7 @@ const LibraryScreen = () => {
     <TouchableOpacity
       style={[styles.automationCard, { backgroundColor: theme.colors.surface }]}
       activeOpacity={0.7}
-      onPress={() => navigation.navigate('AutomationDetails' as never, { automationId: item.id } as never)}
+      onPress={() => navigation.navigate('AutomationDetails', { automationId: item.id })}
     >
       <View style={styles.automationHeader}>
         <View

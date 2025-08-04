@@ -5,19 +5,20 @@ export type RootStackParamList = {
   SignIn: undefined;
   SignUp: undefined;
   AutomationBuilder: {
-    automation?: AutomationData;
+    automationId?: string;
   } | undefined;
   MyAutomations: undefined;
   Gallery: {
     category?: string;
   } | undefined;
   AutomationDetails: {
-    automation: AutomationData;
+    automationId: string;
+    fromGallery?: boolean;
   };
   Templates: undefined;
   LocationTriggers: undefined;
   Reviews: {
-    automation: AutomationData;
+    automationId: string;
   };
   DeveloperMenu: undefined;
 };

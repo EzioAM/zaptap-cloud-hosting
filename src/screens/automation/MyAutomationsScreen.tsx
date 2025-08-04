@@ -146,7 +146,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
   };
 
   const handleEditAutomation = (automation: AutomationData) => {
-    navigation.navigate('AutomationBuilderScreen', { automation });
+    navigation.navigate('AutomationBuilder', { automationId: automation.id });
   };
 
   const handleDeployAutomation = (automation: AutomationData) => {
@@ -161,8 +161,8 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
         },
         {
           text: '📋 QR Code',
-          onPress: () => navigation.navigate('AutomationBuilderScreen', { 
-            automation, 
+          onPress: () => navigation.navigate('AutomationBuilder', { 
+            automationId: automation.id, 
             showQRGenerator: true 
           }),
         },
@@ -307,10 +307,10 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
     <AutomationCard
       key={automation.id}
       automation={automation}
-      onPress={() => navigation.navigate('AutomationDetails', { automation })}
+      onPress={() => navigation.navigate('AutomationDetails', { automationId: automation.id })}
       onRun={() => handleRunAutomation(automation)}
       onPublish={!automation.is_public ? () => handlePublishAutomation(automation) : undefined}
-      onLocationTrigger={() => navigation.navigate('LocationTriggers', { automation })}
+      onLocationTrigger={() => navigation.navigate('LocationTriggers')}
       onEdit={() => navigation.navigate('AutomationBuilder', { automationId: automation.id })}
       onDelete={async () => {
         Alert.alert(
@@ -434,7 +434,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
         />
         <Appbar.Action
           icon="plus"
-          onPress={() => navigation.navigate('AutomationBuilderScreen')}
+          onPress={() => navigation.navigate('AutomationBuilder')}
         />
       </Appbar.Header>
 
@@ -520,7 +520,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
       <FAB
         icon="plus"
         style={[styles.fab, { bottom: insets.bottom + 16 }]}
-        onPress={() => navigation.navigate('AutomationBuilderScreen')}
+        onPress={() => navigation.navigate('AutomationBuilder')}
       />
 
       {/* NFC Scanner Modal */}

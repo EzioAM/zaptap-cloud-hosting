@@ -237,7 +237,7 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
     <AutomationCard
       key={automation.id}
       automation={automation}
-      onPress={() => navigation.navigate('AutomationDetails', { automation })}
+      onPress={() => navigation.navigate('AutomationDetails', { automationId: automation.id, fromGallery: true })}
       onRun={() => handleImportAutomation(automation)}
       showActions={true}
     />

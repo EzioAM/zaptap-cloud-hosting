@@ -30,7 +30,7 @@ import { supabase } from '../../services/supabase/client';
 import { useSelector } from 'react-redux';
 import { smartLinkService } from '../../services/linking/SmartLinkService';
 import { RootState } from '../../store';
-import { useTrackAutomationDownloadMutation } from '../../store/api/automationApi';
+import { useTrackAutomationDownloadMutation, useGetAutomationQuery } from '../../store/api/automationApi';
 import NFCWriter from '../../components/nfc/NFCWriter';
 import QRGenerator from '../../components/qr/QRGenerator';
 import StarRating from '../../components/reviews/StarRating';
@@ -45,8 +45,9 @@ import { CommentsModal } from '../../components/comments/CommentsModal';
 type Props = NativeStackScreenProps<RootStackParamList, 'AutomationDetails'>;
 
 const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { automation } = route.params;
+  const { automationId, fromGallery } = route.params;
   const { user } = useSelector((state: RootState) => state.auth);
+  const { data: automation, isLoading, error } = useGetAutomationQuery(automationId);
   const [trackDownload] = useTrackAutomationDownloadMutation();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -55,7 +56,7 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   
   // Privacy settings
-  const [isPublic, setIsPublic] = useState(automation.is_public);
+  const [isPublic, setIsPublic] = useState(automation?.is_public || false);
   const [allowDuplication, setAllowDuplication] = useState(true);
   const [allowComments, setAllowComments] = useState(true);
 
@@ -65,9 +66,38 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showComments, setShowComments] = useState(false);
   
   const insets = useSafeAreaInsets();
-  const isOwner = user?.id === automation.created_by;
+  const isOwner = user?.id === automation?.created_by;
+
+  // Update privacy settings when automation data loads
+  React.useEffect(() => {
+    if (automation) {
+      setIsPublic(automation.is_public);
+    }
+  }, [automation]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" />
+        <Text>Loading automation...</Text>
+      </View>
+    );
+  }
+
+  // Show error state
+  if (error || !automation) {
+    return (
+      <View style={[styles.container, styles.errorContainer]}>
+        <Text>Failed to load automation</Text>
+        <Button onPress={() => navigation.goBack()}>Go Back</Button>
+      </View>
+    );
+  }
 
   const handleRunAutomation = async () => {
+    if (!automation) return;
+    
     try {
       const { AutomationEngine } = await import('../../services/automation/AutomationEngine');
       const engine = new AutomationEngine();
@@ -94,6 +124,8 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleShareAutomation = async () => {
+    if (!automation) return;
+
     try {
       // Generate smart link with web fallback
       const smartLink = smartLinkService.generateSmartLink(automation);
@@ -110,6 +142,8 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleDuplicateAutomation = async () => {
+    if (!automation) return;
+
     try {
       const { error } = await supabase
         .from('automations')
@@ -118,7 +152,7 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
           description: automation.description,
           steps: automation.steps,
           category: automation.category,
-          tags: [...automation.tags, 'duplicate'],
+          tags: [...(automation.tags || []), 'duplicate'],
           created_by: user?.id,
           is_public: false,
         });
@@ -142,6 +176,8 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleCopyLink = async () => {
+    if (!automation) return;
+
     const shareUrl = `zaptap://automation/${automation.id}`;
     await Clipboard.setStringAsync(shareUrl);
     Alert.alert('Copied!', 'Automation link copied to clipboard');
@@ -254,7 +290,7 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
         <Appbar.Action icon="play" onPress={handleRunAutomation} />
         <Appbar.Action icon="share-variant" onPress={() => setShowShareModal(true)} />
         {isOwner && (
-          <Appbar.Action icon="pencil" onPress={() => navigation.navigate('AutomationBuilder', { automation })} />
+          <Appbar.Action icon="pencil" onPress={() => navigation.navigate('AutomationBuilder', { automationId })} />
         )}
       </Appbar.Header>
 
@@ -553,8 +589,7 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
         onDismiss={() => setShowVersionHistory(false)}
         automation={automation}
         onAutomationUpdated={() => {
-          // Refresh automation data if needed
-          navigation.setParams({ automation: { ...automation, updated_at: new Date().toISOString() } });
+          // RTK Query will automatically refetch updated data
         }}
       />
 
@@ -579,6 +614,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   content: {
     flex: 1,
