@@ -9,7 +9,28 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { VictoryChart, VictoryLine, VictoryPie, VictoryBar, VictoryAxis, VictoryTheme } from 'victory-native';
+// Safe imports for Victory Native with error fallback
+let VictoryChart, VictoryLine, VictoryPie, VictoryBar, VictoryAxis, VictoryTheme;
+try {
+  const victory = require('victory-native');
+  VictoryChart = victory.VictoryChart;
+  VictoryLine = victory.VictoryLine;
+  VictoryPie = victory.VictoryPie;
+  VictoryBar = victory.VictoryBar;
+  VictoryAxis = victory.VictoryAxis;
+  VictoryTheme = victory.VictoryTheme;
+} catch (error) {
+  console.warn('Victory Native failed to load, charts will be disabled:', error);
+  // Fallback components
+  const FallbackChart = () => (
+    <View style={{ padding: 20, alignItems: 'center' }}>
+      <MaterialCommunityIcons name="chart-line" size={48} color="#666" />
+      <Text style={{ marginTop: 10, color: '#666' }}>Charts unavailable</Text>
+    </View>
+  );
+  VictoryChart = VictoryLine = VictoryPie = VictoryBar = VictoryAxis = FallbackChart;
+  VictoryTheme = {};
+}
 import { Card, CardHeader, CardBody } from '../components/atoms/Card';
 import { Button, Badge, Shimmer, ShimmerPlaceholder } from '../components/atoms';
 import { useTheme } from '../contexts/ThemeContext';

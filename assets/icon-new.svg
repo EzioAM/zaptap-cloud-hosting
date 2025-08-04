@@ -1,0 +1,62 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Main gradient - Indigo to Pink -->
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" />
+      <stop offset="50%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#EC4899" />
+    </linearGradient>
+    
+    <!-- Accent gradient - Emerald touch -->
+    <linearGradient id="accentGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0.8" />
+    </linearGradient>
+    
+    <!-- Background gradient -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1F2937" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background with rounded corners -->
+  <rect x="0" y="0" width="1024" height="1024" rx="230" ry="230" fill="url(#bgGradient)" />
+  
+  <!-- Lightning bolt symbol - representing automation/speed -->
+  <g transform="translate(512, 512)">
+    <!-- Outer glow effect -->
+    <circle r="350" fill="url(#mainGradient)" opacity="0.2" />
+    <circle r="280" fill="url(#mainGradient)" opacity="0.3" />
+    
+    <!-- Main lightning bolt -->
+    <path
+      d="M -120 -200 L 40 -40 L -20 -40 L 120 200 L -40 40 L 20 40 Z"
+      fill="url(#mainGradient)"
+      stroke="#FFFFFF"
+      stroke-width="12"
+      stroke-linejoin="round"
+      stroke-linecap="round"
+    />
+    
+    <!-- Inner highlight -->
+    <path
+      d="M -100 -180 L 30 -50 L -10 -50 L 100 180 L -30 30 L 10 30 Z"
+      fill="#FFFFFF"
+      opacity="0.3"
+    />
+    
+    <!-- Accent dots representing connectivity -->
+    <circle cx="-200" cy="-100" r="20" fill="url(#accentGradient)" />
+    <circle cx="200" cy="-100" r="20" fill="url(#accentGradient)" />
+    <circle cx="-200" cy="100" r="20" fill="url(#accentGradient)" />
+    <circle cx="200" cy="100" r="20" fill="url(#accentGradient)" />
+  </g>
+  
+  <!-- Subtle Z letter overlay (for Zaptap) -->
+  <path
+    d="M 300 350 L 724 350 L 724 400 L 380 674 L 724 674 L 724 724 L 300 724 L 300 674 L 644 400 L 300 400 Z"
+    fill="#FFFFFF"
+    opacity="0.1"
+  />
+</svg>
