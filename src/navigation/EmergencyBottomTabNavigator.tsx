@@ -1,7 +1,11 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { ReduxTestComponent } from '../components/test/ReduxTestComponent';
+import { SupabaseTestComponent } from '../components/test/SupabaseTestComponent';
+import { ThemeTestComponent } from '../components/test/ThemeTestComponent';
+import { ScreenLoaderTest } from '../components/test/ScreenLoaderTest';
 
 console.log('🚨 EmergencyBottomTabNavigator loading...');
 
@@ -16,7 +20,26 @@ const EmergencyScreen = ({ title }: { title: string }) => (
   </View>
 );
 
-const HomeScreen = () => <EmergencyScreen title="Home" />;
+// Enhanced Home Screen with System Tests
+const HomeScreen = () => (
+  <ScrollView style={styles.scrollView}>
+    <View style={styles.header}>
+      <Text style={styles.headerTitle}>🚨 System Recovery Dashboard</Text>
+      <Text style={styles.headerSubtitle}>Testing core systems...</Text>
+    </View>
+    
+    <ReduxTestComponent />
+    <SupabaseTestComponent />
+    <ThemeTestComponent />
+    <ScreenLoaderTest />
+    
+    <View style={styles.footer}>
+      <Text style={styles.footerText}>
+        Check console logs for detailed debugging information
+      </Text>
+    </View>
+  </ScrollView>
+);
 const BuildScreen = () => <EmergencyScreen title="Build" />;
 const DiscoverScreen = () => <EmergencyScreen title="Discover" />;
 const LibraryScreen = () => <EmergencyScreen title="Library" />;
@@ -125,6 +148,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     padding: 20,
   },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    backgroundColor: '#ff6b6b',
+    padding: 20,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 5,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: 'white',
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -139,6 +181,15 @@ const styles = StyleSheet.create({
   info: {
     fontSize: 14,
     color: '#999',
+    textAlign: 'center',
+  },
+  footer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
   },
 });
