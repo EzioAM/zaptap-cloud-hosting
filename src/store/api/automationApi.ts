@@ -1,729 +1,909 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-  import { supabase } from '../../services/supabase/client';
-  import { AutomationData, UserStats, AutomationExecution } from '../../types';
-  import Constants from 'expo-constants';
-  
-  const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdma2RjbHpnZGxjdmhmaXVqa3d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0OTI2NTcsImV4cCI6MjA2OTA2ODY1N30.lJpGLp14e_9ku8n3WN8i61jYPohfx7htTEmTrnje-uE';
+/**
+ * Automation API - Unified and Optimized
+ * 
+ * This module provides consistent API endpoints for automation management
+ * with proper error handling, caching, and authentication.
+ */
 
-  // Simplified base query without complex auth handling
-  const supabaseBaseQuery = fetchBaseQuery({
-    baseUrl: '/',
-    timeout: 10000, // 10 second timeout
-    prepareHeaders: async (headers, { getState }) => {
-      try {
-        // Only add auth headers if we have a token in Redux state
-        const state = getState() as any;
-        const accessToken = state.auth?.accessToken;
-        
-        if (accessToken) {
-          headers.set('authorization', `Bearer ${accessToken}`);
-        }
-        
-        // Always add the anon key for public access
-        headers.set('apikey', supabaseAnonKey);
-        
-        return headers;
-      } catch (error) {
-        console.warn('Failed to prepare headers:', error);
-        headers.set('apikey', supabaseAnonKey);
-        return headers;
-      }
-    },
-  });
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { supabase } from '../../services/supabase/client';
+import { AutomationData, UserStats, AutomationExecution } from '../../types';
+import { baseApiConfig, createQueryConfig, createCacheTags, ApiError } from './baseApi';
 
-  // Simplified base query without retry logic to prevent infinite loops
-  const enhancedBaseQuery = supabaseBaseQuery;
+/**
+ * Enhanced automation API with unified configuration
+ */
+export const automationApi = createApi({
+  reducerPath: 'automationApi',
+  ...baseApiConfig,
+  tagTypes: ['Automation', 'User', 'Execution'],
+  endpoints: (builder) => ({
+    // ===== AUTOMATION MANAGEMENT =====
 
-  export const automationApi = createApi({
-    reducerPath: 'automationApi',
-    baseQuery: enhancedBaseQuery,
-    tagTypes: ['Automation'],
-    endpoints: (builder) => ({
-      // Get user's automations
-      getMyAutomations: builder.query<AutomationData[], void>({
-        queryFn: async () => {
-          try {
-            // Get current user
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) {
-              console.log('No authenticated user found');
-              // Return empty data for unauthenticated users
-              return { data: [] };
-            }
+    /**
+     * Get user's automations with proper error handling
+     */
+    getMyAutomations: builder.query<AutomationData[], void>({
+      queryFn: async (_, { signal }) => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            return { data: [] };
+          }
 
-            console.log('Fetching automations for user:', user.id);
+          const { data, error } = await supabase
+            .from('automations')
+            .select('*')
+            .eq('created_by', user.id)
+            .order('created_at', { ascending: false })
+            .abortSignal(signal);
 
-            const { data, error } = await supabase
-              .from('automations')
-              .select('*')
-              .eq('created_by', user.id)
-              .order('created_at', { ascending: false });
-
-            if (error) {
-              console.error('Error fetching user automations:', error);
-              // Return error properly so UI can handle it
-              return { 
-                error: { 
-                  status: 'FETCH_ERROR', 
-                  error: error.message || 'Failed to fetch automations',
-                  data: null 
-                } 
-              };
-            }
-
-            console.log(`Found ${data?.length || 0} automations for user`);
-            return { data: data || [] };
-          } catch (error: any) {
-            console.error('Failed to fetch user automations:', error);
-            // Return error properly so UI can handle it
+          if (error) {
+            console.error('Error fetching user automations:', error);
             return { 
               error: { 
-                status: 'FETCH_ERROR', 
-                error: error.message || 'Failed to fetch automations', 
-                data: null 
+                status: 'FETCH_ERROR',
+                message: error.message || 'Failed to fetch automations',
+                code: error.code,
               } 
             };
           }
-        },
-        providesTags: ['Automation'],
-      }),
 
-      // Create new automation
-  createAutomation: builder.mutation<AutomationData, Partial<AutomationData>>({
-    queryFn: async (automation) => {
-      try {
-        console.log('🔍 Starting automation creation...');
-
-        const { data: { user } } = await supabase.auth.getUser();
-        console.log('👤 Current user:', user);
-
-        if (!user) throw new Error('Not authenticated');
-
-        const automationToInsert = {
-          title: automation.title || 'Untitled Automation',
-          description: automation.description || 'Created with builder',
-          steps: automation.steps || [],
-          created_by: user.id,
-          category: automation.category || 'Productivity',
-          is_public: false,
-          tags: automation.tags || ['custom'],
-        };
-
-        console.log('📝 Inserting automation:', automationToInsert);
-
-        const { data, error } = await supabase
-          .from('automations')
-          .insert(automationToInsert)
-          .select()
-          .single();
-
-        console.log('✅ Supabase response:', { data, error });
-
-        if (error) {
-          console.error('❌ Supabase error:', error);
-          throw error;
+          return { data: data || [] };
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
+          }
+          
+          console.error('Failed to fetch user automations:', error);
+          return { 
+            error: { 
+              status: 'FETCH_ERROR',
+              message: error.message || 'Failed to fetch automations',
+            } 
+          };
         }
+      },
+      providesTags: (result) => 
+        result 
+          ? [...result.map(({ id }) => ({ type: 'Automation' as const, id })), { type: 'Automation', id: 'LIST' }]
+          : [{ type: 'Automation', id: 'LIST' }],
+    }),
 
-        return { data };
-      } catch (error: any) {
-        console.error('❌ Full error:', error);
-        return { error: error.message || 'Unknown error' };
-      }
-    },
-    invalidatesTags: ['Automation'],
-  }),
+    /**
+     * Get single automation by ID
+     */
+    getAutomation: builder.query<AutomationData, string>({
+      queryFn: async (id, { signal }) => {
+        try {
+          const { data, error } = await supabase
+            .from('automations')
+            .select('*')
+            .eq('id', id)
+            .single()
+            .abortSignal(signal);
 
-      // Update automation
-      updateAutomation: builder.mutation<AutomationData, { id: string; updates: Partial<AutomationData> }>({
-        queryFn: async ({ id, updates }) => {
-          try {
-            const { data, error } = await supabase
-              .from('automations')
-              .update(updates)
-              .eq('id', id)
-              .select()
-              .single();
-
-            if (error) throw error;
-
-            return { data };
-          } catch (error: any) {
-            return { error: error.message };
+          if (error) {
+            console.error('Error fetching automation:', error);
+            return {
+              error: {
+                status: error.code === 'PGRST116' ? 'NOT_FOUND' : 'FETCH_ERROR',
+                message: error.code === 'PGRST116' ? 'Automation not found' : error.message,
+                code: error.code,
+              }
+            };
           }
-        },
-        invalidatesTags: ['Automation'],
-      }),
 
-      // Delete automation
-      deleteAutomation: builder.mutation<void, string>({
-        queryFn: async (id) => {
-          try {
-            const { error } = await supabase
-              .from('automations')
-              .delete()
-              .eq('id', id);
-
-            if (error) throw error;
-
-            return { data: undefined };
-          } catch (error: any) {
-            return { error: error.message };
+          return { data };
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
           }
-        },
-        invalidatesTags: ['Automation'],
-      }),
+          
+          console.error('Failed to fetch automation:', error);
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              message: error.message || 'Failed to fetch automation',
+            }
+          };
+        }
+      },
+      providesTags: (result, error, id) => [{ type: 'Automation', id }],
+    }),
 
-      // Get public automations for gallery (simplified with timeout)
-      getPublicAutomations: builder.query<AutomationData[], void>({
-        queryFn: async () => {
-          try {
-            console.log('🔍 Fetching public automations...');
+    /**
+     * Get public automations for gallery
+     */
+    getPublicAutomations: builder.query<AutomationData[], { limit?: number }>({
+      queryFn: async ({ limit = 50 }, { signal }) => {
+        try {
+          const { data, error } = await supabase
+            .from('automations')
+            .select('*')
+            .eq('is_public', true)
+            .order('created_at', { ascending: false })
+            .limit(limit)
+            .abortSignal(signal);
+
+          if (error) {
+            console.error('Error fetching public automations:', error);
+            return {
+              error: {
+                status: 'FETCH_ERROR',
+                message: error.message || 'Failed to fetch public automations',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data: data || [] };
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
+          }
+          
+          console.error('Failed to fetch public automations:', error);
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              message: error.message || 'Failed to fetch public automations',
+            }
+          };
+        }
+      },
+      providesTags: [{ type: 'Automation', id: 'PUBLIC' }],
+    }),
+
+    /**
+     * Create new automation
+     */
+    createAutomation: builder.mutation<AutomationData, Partial<AutomationData>>({
+      queryFn: async (automation) => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            return {
+              error: {
+                status: 'UNAUTHORIZED',
+                message: 'Not authenticated',
+              }
+            };
+          }
+
+          const automationToInsert = {
+            title: automation.title || 'Untitled Automation',
+            description: automation.description || 'Created with builder',
+            steps: automation.steps || [],
+            created_by: user.id,
+            category: automation.category || 'Productivity',
+            is_public: automation.is_public || false,
+            tags: automation.tags || ['custom'],
+          };
+
+          const { data, error } = await supabase
+            .from('automations')
+            .insert(automationToInsert)
+            .select()
+            .single();
+
+          if (error) {
+            console.error('Error creating automation:', error);
+            return {
+              error: {
+                status: 'CREATE_ERROR',
+                message: error.message || 'Failed to create automation',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data };
+        } catch (error: any) {
+          console.error('Failed to create automation:', error);
+          return {
+            error: {
+              status: 'CREATE_ERROR',
+              message: error.message || 'Failed to create automation',
+            }
+          };
+        }
+      },
+      invalidatesTags: [
+        { type: 'Automation', id: 'LIST' },
+        { type: 'User', id: 'STATS' },
+      ],
+    }),
+
+    /**
+     * Update automation
+     */
+    updateAutomation: builder.mutation<AutomationData, { id: string; updates: Partial<AutomationData> }>({
+      queryFn: async ({ id, updates }) => {
+        try {
+          const { data, error } = await supabase
+            .from('automations')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+          if (error) {
+            console.error('Error updating automation:', error);
+            return {
+              error: {
+                status: 'UPDATE_ERROR',
+                message: error.message || 'Failed to update automation',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data };
+        } catch (error: any) {
+          console.error('Failed to update automation:', error);
+          return {
+            error: {
+              status: 'UPDATE_ERROR',
+              message: error.message || 'Failed to update automation',
+            }
+          };
+        }
+      },
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'Automation', id },
+        { type: 'Automation', id: 'LIST' },
+      ],
+    }),
+
+    /**
+     * Delete automation
+     */
+    deleteAutomation: builder.mutation<void, string>({
+      queryFn: async (id) => {
+        try {
+          const { error } = await supabase
+            .from('automations')
+            .delete()
+            .eq('id', id);
+
+          if (error) {
+            console.error('Error deleting automation:', error);
+            return {
+              error: {
+                status: 'DELETE_ERROR',
+                message: error.message || 'Failed to delete automation',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data: undefined };
+        } catch (error: any) {
+          console.error('Failed to delete automation:', error);
+          return {
+            error: {
+              status: 'DELETE_ERROR',
+              message: error.message || 'Failed to delete automation',
+            }
+          };
+        }
+      },
+      invalidatesTags: (result, error, id) => [
+        { type: 'Automation', id },
+        { type: 'Automation', id: 'LIST' },
+        { type: 'User', id: 'STATS' },
+      ],
+    }),
+
+    /**
+     * Clone automation
+     */
+    cloneAutomation: builder.mutation<AutomationData, string>({
+      queryFn: async (automationId) => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            return {
+              error: {
+                status: 'UNAUTHORIZED',
+                message: 'Not authenticated',
+              }
+            };
+          }
+
+          // Get the automation to clone
+          const { data: originalAutomation, error: fetchError } = await supabase
+            .from('automations')
+            .select('*')
+            .eq('id', automationId)
+            .single();
+
+          if (fetchError) {
+            return {
+              error: {
+                status: fetchError.code === 'PGRST116' ? 'NOT_FOUND' : 'FETCH_ERROR',
+                message: fetchError.code === 'PGRST116' ? 'Automation not found' : fetchError.message,
+                code: fetchError.code,
+              }
+            };
+          }
+
+          // Create a new automation with the same data
+          const { data, error } = await supabase
+            .from('automations')
+            .insert({
+              ...originalAutomation,
+              id: undefined,
+              title: `${originalAutomation.title} (Copy)`,
+              created_by: user.id,
+              created_at: undefined,
+              updated_at: undefined,
+              is_public: false,
+              execution_count: 0,
+              average_rating: null,
+              rating_count: 0
+            })
+            .select()
+            .single();
+
+          if (error) {
+            return {
+              error: {
+                status: 'CREATE_ERROR',
+                message: error.message || 'Failed to clone automation',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data };
+        } catch (error: any) {
+          console.error('Failed to clone automation:', error);
+          return {
+            error: {
+              status: 'CREATE_ERROR',
+              message: error.message || 'Failed to clone automation',
+            }
+          };
+        }
+      },
+      invalidatesTags: [
+        { type: 'Automation', id: 'LIST' },
+        { type: 'User', id: 'STATS' },
+      ],
+    }),
+
+    // ===== USER STATISTICS =====
+
+    /**
+     * Get user statistics with fallback handling
+     */
+    getUserStats: builder.query<UserStats, void>({
+      queryFn: async (_, { signal }) => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            return { 
+              data: { 
+                total_automations: 0, 
+                total_runs: 0, 
+                successful_runs: 0, 
+                failed_runs: 0, 
+                total_time_saved: 0 
+              } 
+            };
+          }
+
+          // Try RPC function first
+          const { data, error } = await supabase
+            .rpc('get_user_automation_stats', { p_user_id: user.id })
+            .abortSignal(signal);
+
+          if (error) {
+            console.warn('RPC function not available, using fallback:', error.message);
             
-            // Add timeout to prevent hanging
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error('Request timeout')), 10000);
-            });
+            // Fallback: manually count automations
+            const { data: automations, error: countError } = await supabase
+              .from('automations')
+              .select('id')
+              .eq('created_by', user.id);
             
-            const queryPromise = supabase
+            if (countError) {
+              console.error('Failed to fetch automation count:', countError);
+              return {
+                error: {
+                  status: 'FETCH_ERROR',
+                  message: countError.message || 'Failed to fetch user statistics',
+                  code: countError.code,
+                }
+              };
+            }
+            
+            return { 
+              data: { 
+                total_automations: automations?.length || 0, 
+                total_runs: 0, 
+                successful_runs: 0, 
+                failed_runs: 0, 
+                total_time_saved: 0 
+              } 
+            };
+          }
+
+          // Ensure we return properly typed object
+          const stats = data?.[0] || { 
+            total_automations: 0, 
+            total_runs: 0, 
+            successful_runs: 0, 
+            failed_runs: 0, 
+            total_time_saved: 0 
+          };
+          
+          return { 
+            data: {
+              total_automations: Number(stats.total_automations) || 0,
+              total_runs: Number(stats.total_runs) || 0,
+              successful_runs: Number(stats.successful_runs) || 0,
+              failed_runs: Number(stats.failed_runs) || 0,
+              total_time_saved: Number(stats.total_time_saved) || 0
+            }
+          };
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
+          }
+          
+          console.error('Failed to fetch user stats:', error);
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              message: error.message || 'Failed to fetch user statistics',
+            }
+          };
+        }
+      },
+      providesTags: [{ type: 'User', id: 'STATS' }],
+    }),
+
+    // ===== EXECUTION MANAGEMENT =====
+
+    /**
+     * Get recent executions
+     */
+    getRecentExecutions: builder.query<AutomationExecution[], { limit?: number }>({
+      queryFn: async ({ limit = 10 }, { signal }) => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            return { data: [] };
+          }
+
+          const { data, error } = await supabase
+            .from('automation_executions')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(limit)
+            .abortSignal(signal);
+
+          if (error) {
+            console.error('Error fetching recent executions:', error);
+            return {
+              error: {
+                status: 'FETCH_ERROR',
+                message: error.message || 'Failed to fetch recent executions',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data: data || [] };
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
+          }
+          
+          console.error('Failed to fetch recent executions:', error);
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              message: error.message || 'Failed to fetch recent executions',
+            }
+          };
+        }
+      },
+      providesTags: [{ type: 'Execution', id: 'RECENT' }],
+    }),
+
+    /**
+     * Get automation executions
+     */
+    getAutomationExecutions: builder.query<AutomationExecution[], string>({
+      queryFn: async (automationId, { signal }) => {
+        try {
+          const { data, error } = await supabase
+            .from('automation_executions')
+            .select('*')
+            .eq('automation_id', automationId)
+            .order('created_at', { ascending: false })
+            .abortSignal(signal);
+
+          if (error) {
+            console.error('Error fetching automation executions:', error);
+            return {
+              error: {
+                status: 'FETCH_ERROR',
+                message: error.message || 'Failed to fetch automation executions',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data: data || [] };
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
+          }
+          
+          console.error('Failed to fetch automation executions:', error);
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              message: error.message || 'Failed to fetch automation executions',
+            }
+          };
+        }
+      },
+      providesTags: (result, error, automationId) => [
+        { type: 'Execution', id: automationId },
+      ],
+    }),
+
+    /**
+     * Get execution history with enhanced data
+     */
+    getExecutionHistory: builder.query<AutomationExecution[], { limit?: number }>({
+      queryFn: async ({ limit = 50 }, { signal }) => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            return { data: [] };
+          }
+
+          const { data, error } = await supabase
+            .from('automation_executions')
+            .select(`
+              *,
+              automation:automations(id, name, title)
+            `)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(limit)
+            .abortSignal(signal);
+
+          if (error) {
+            console.error('Error fetching execution history:', error);
+            return {
+              error: {
+                status: 'FETCH_ERROR',
+                message: error.message || 'Failed to fetch execution history',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data: data || [] };
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
+          }
+          
+          console.error('Failed to fetch execution history:', error);
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              message: error.message || 'Failed to fetch execution history',
+            }
+          };
+        }
+      },
+      providesTags: [{ type: 'Execution', id: 'HISTORY' }],
+    }),
+
+    /**
+     * Clear execution history
+     */
+    clearHistory: builder.mutation<void, void>({
+      queryFn: async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            return {
+              error: {
+                status: 'UNAUTHORIZED',
+                message: 'Not authenticated',
+              }
+            };
+          }
+
+          const { error } = await supabase
+            .from('automation_executions')
+            .delete()
+            .eq('user_id', user.id);
+
+          if (error) {
+            console.error('Error clearing history:', error);
+            return {
+              error: {
+                status: 'DELETE_ERROR',
+                message: error.message || 'Failed to clear history',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data: undefined };
+        } catch (error: any) {
+          console.error('Failed to clear history:', error);
+          return {
+            error: {
+              status: 'DELETE_ERROR',
+              message: error.message || 'Failed to clear history',
+            }
+          };
+        }
+      },
+      invalidatesTags: [
+        { type: 'Execution', id: 'RECENT' },
+        { type: 'Execution', id: 'HISTORY' },
+        { type: 'User', id: 'STATS' },
+      ],
+    }),
+
+    // ===== TRENDING AND ENGAGEMENT =====
+
+    /**
+     * Get trending automations with fallback
+     */
+    getTrendingAutomations: builder.query<AutomationData[], { limit?: number; timeWindow?: string }>({
+      queryFn: async ({ limit = 10, timeWindow = '7 days' }, { signal }) => {
+        try {
+          // Try RPC function first
+          const { data, error } = await supabase
+            .rpc('get_trending_automations', { 
+              p_limit: limit,
+              p_time_window: timeWindow 
+            })
+            .abortSignal(signal);
+
+          if (error) {
+            console.warn('RPC function failed, using fallback:', error.message);
+            
+            // Fallback to simple recent public automations
+            const { data: fallbackData, error: fallbackError } = await supabase
               .from('automations')
               .select('*')
               .eq('is_public', true)
               .order('created_at', { ascending: false })
-              .limit(50);
+              .limit(limit)
+              .abortSignal(signal);
             
-            const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
-
-            if (error) {
-              console.error('❌ Error fetching public automations:', error);
-              return { error: { status: 'FETCH_ERROR', error: error.message, data: null } };
-            }
-
-            console.log(`✅ Found ${data?.length || 0} public automations`);
-            return { data: data || [] };
-          } catch (error: any) {
-            console.error('❌ Failed to fetch public automations:', error);
-            return { error: { status: 'FETCH_ERROR', error: error.message || 'Failed to fetch automations', data: null } };
-          }
-        },
-        providesTags: ['Automation'],
-      }),
-
-      // Get user statistics
-      getUserStats: builder.query<UserStats, void>({
-        queryFn: async () => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) {
-              console.log('No authenticated user found');
-              return { data: { total_automations: 0, total_runs: 0, successful_runs: 0, failed_runs: 0, total_time_saved: 0 } };
-            }
-
-            const { data, error } = await supabase
-              .rpc('get_user_automation_stats', { p_user_id: user.id });
-
-            if (error) {
-              console.warn('get_user_automation_stats function not found, using default values');
-              
-              // Fallback: manually count automations
-              const { data: automations } = await supabase
-                .from('automations')
-                .select('id')
-                .eq('created_by', user.id);
-              
-              return { 
-                data: { 
-                  total_automations: automations?.length || 0, 
-                  total_runs: 0, 
-                  successful_runs: 0, 
-                  failed_runs: 0, 
-                  total_time_saved: 0 
-                } 
-              };
-            }
-
-            // Ensure we return a properly typed object
-            const stats = data?.[0] || { total_automations: 0, total_runs: 0, successful_runs: 0, failed_runs: 0, total_time_saved: 0 };
-            
-            return { 
-              data: {
-                total_automations: Number(stats.total_automations) || 0,
-                total_runs: Number(stats.total_runs) || 0,
-                successful_runs: Number(stats.successful_runs) || 0,
-                failed_runs: Number(stats.failed_runs) || 0,
-                total_time_saved: Number(stats.total_time_saved) || 0
-              }
-            };
-          } catch (error: any) {
-            console.error('Failed to fetch user stats:', error);
-            return { error: error.message };
-          }
-        },
-        providesTags: ['Automation'],
-      }),
-
-      // Get recent executions
-      getRecentExecutions: builder.query<AutomationExecution[], { limit?: number }>({
-        queryFn: async ({ limit = 10 }) => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) {
-              console.log('No authenticated user found');
-              return { data: [] };
-            }
-
-            const { data, error } = await supabase
-              .from('automation_executions')
-              .select('*')
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false })
-              .limit(limit);
-
-            if (error) {
-              console.error('Error fetching recent executions:', error);
-              throw error;
-            }
-
-            return { data: data || [] };
-          } catch (error: any) {
-            console.error('Failed to fetch recent executions:', error);
-            return { error: error.message };
-          }
-        },
-        providesTags: ['Automation'],
-      }),
-
-      // Get automation executions
-      getAutomationExecutions: builder.query<AutomationExecution[], string>({
-        queryFn: async (automationId) => {
-          try {
-            const { data, error } = await supabase
-              .from('automation_executions')
-              .select('*')
-              .eq('automation_id', automationId)
-              .order('created_at', { ascending: false });
-
-            if (error) {
-              console.error('Error fetching automation executions:', error);
-              throw error;
-            }
-
-            return { data: data || [] };
-          } catch (error: any) {
-            console.error('Failed to fetch automation executions:', error);
-            return { error: error.message };
-          }
-        },
-        providesTags: ['Automation'],
-      }),
-
-      // Get single automation
-      getAutomation: builder.query<AutomationData, string>({
-        queryFn: async (id) => {
-          try {
-            const { data, error } = await supabase
-              .from('automations')
-              .select('*')
-              .eq('id', id)
-              .single();
-
-            if (error) {
-              console.error('Error fetching automation:', error);
-              throw error;
-            }
-
-            return { data };
-          } catch (error: any) {
-            console.error('Failed to fetch automation:', error);
-            return { error: error.message };
-          }
-        },
-        providesTags: ['Automation'],
-      }),
-
-      // Clone automation
-      cloneAutomation: builder.mutation<AutomationData, string>({
-        queryFn: async (automationId) => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) throw new Error('Not authenticated');
-
-            // First, get the automation to clone
-            const { data: originalAutomation, error: fetchError } = await supabase
-              .from('automations')
-              .select('*')
-              .eq('id', automationId)
-              .single();
-
-            if (fetchError) throw fetchError;
-
-            // Create a new automation with the same data
-            const { data, error } = await supabase
-              .from('automations')
-              .insert({
-                ...originalAutomation,
-                id: undefined, // Let the database generate a new ID
-                title: `${originalAutomation.title} (Copy)`,
-                created_by: user.id,
-                created_at: undefined,
-                updated_at: undefined,
-                is_public: false,
-                execution_count: 0,
-                average_rating: null,
-                rating_count: 0
-              })
-              .select()
-              .single();
-
-            if (error) throw error;
-
-            return { data };
-          } catch (error: any) {
-            return { error: error.message };
-          }
-        },
-        invalidatesTags: ['Automation'],
-      }),
-
-      // Get automation engagement metrics
-      getAutomationEngagement: builder.query<any, string>({
-        queryFn: async (automationId) => {
-          try {
-            const { data, error } = await supabase
-              .rpc('get_automation_engagement', { p_automation_id: automationId });
-
-            if (error) {
-              // If the function doesn't exist, return default values
-              console.warn('get_automation_engagement function not found, using default values');
-              
-              // Try to get basic data from automations table
-              const { data: automationData } = await supabase
-                .from('automations')
-                .select('likes_count, downloads_count, views_count')
-                .eq('id', automationId)
-                .single();
-              
-              return { 
-                data: {
-                  likes_count: automationData?.likes_count || 0,
-                  downloads_count: automationData?.downloads_count || 0,
-                  executions_count: 0,
-                  user_has_liked: false
+            if (fallbackError) {
+              console.error('Fallback also failed:', fallbackError);
+              return {
+                error: {
+                  status: 'FETCH_ERROR',
+                  message: fallbackError.message || 'Failed to fetch trending automations',
+                  code: fallbackError.code,
                 }
               };
             }
+            
+            return { data: fallbackData || [] };
+          }
 
-            return { data: data?.[0] || { likes_count: 0, downloads_count: 0, executions_count: 0, user_has_liked: false } };
-          } catch (error: any) {
-            console.error('Failed to fetch automation engagement:', error);
-            // Return default values instead of error
-            return { 
-              data: { 
-                likes_count: 0, 
-                downloads_count: 0, 
-                executions_count: 0, 
-                user_has_liked: false 
-              } 
+          return { data: data || [] };
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
+          }
+          
+          console.error('Failed to fetch trending automations:', error);
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              message: error.message || 'Failed to fetch trending automations',
+            }
+          };
+        }
+      },
+      providesTags: [{ type: 'Automation', id: 'TRENDING' }],
+    }),
+
+    // ===== ENGAGEMENT ACTIONS =====
+
+    /**
+     * Like automation
+     */
+    likeAutomation: builder.mutation<void, string>({
+      queryFn: async (automationId) => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            return {
+              error: {
+                status: 'UNAUTHORIZED',
+                message: 'Not authenticated',
+              }
             };
           }
-        },
-        providesTags: ['Automation'],
-      }),
 
-      // Get trending automations (simplified with timeout)
-      getTrendingAutomations: builder.query<any[], { limit?: number; timeWindow?: string }>({
-        queryFn: async ({ limit = 10, timeWindow = '7 days' }) => {
-          try {
-            console.log('🔍 Fetching trending automations...');
-            
-            // Add timeout to prevent hanging
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error('Request timeout')), 10000);
+          const { error } = await supabase
+            .from('automation_likes')
+            .insert({ 
+              automation_id: automationId,
+              user_id: user.id 
             });
-            
-            const rpcPromise = supabase
-              .rpc('get_trending_automations', { 
-                p_limit: limit,
-                p_time_window: timeWindow 
-              });
 
-            const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
-
-            if (error) {
-              console.warn('⚠️ RPC function failed, using fallback:', error.message);
-              
-              const fallbackPromise = supabase
-                .from('automations')
-                .select('*')
-                .eq('is_public', true)
-                .order('created_at', { ascending: false })
-                .limit(limit);
-              
-              const { data: fallbackData, error: fallbackError } = await Promise.race([fallbackPromise, timeoutPromise]) as any;
-              
-              if (fallbackError) {
-                console.error('❌ Fallback also failed:', fallbackError);
-                return { data: [] };
+          if (error && !error.message.includes('duplicate')) {
+            console.error('Error liking automation:', error);
+            return {
+              error: {
+                status: 'ACTION_ERROR',
+                message: error.message || 'Failed to like automation',
+                code: error.code,
               }
-              
-              console.log(`✅ Fallback found ${fallbackData?.length || 0} automations`);
-              return { data: fallbackData || [] };
+            };
+          }
+
+          return { data: undefined };
+        } catch (error: any) {
+          console.error('Failed to like automation:', error);
+          return {
+            error: {
+              status: 'ACTION_ERROR',
+              message: error.message || 'Failed to like automation',
             }
-
-            console.log(`✅ Found ${data?.length || 0} trending automations`);
-            return { data: data || [] };
-          } catch (error: any) {
-            console.error('❌ Failed to fetch trending automations:', error);
-            return { data: [] };
-          }
-        },
-        providesTags: ['Automation'],
-      }),
-
-      // Like automation
-      likeAutomation: builder.mutation<void, string>({
-        queryFn: async (automationId) => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Not authenticated');
-
-            const { error } = await supabase
-              .from('automation_likes')
-              .insert({ 
-                automation_id: automationId,
-                user_id: user.id 
-              });
-
-            if (error) {
-              // If already liked, that's okay
-              if (!error.message.includes('duplicate')) {
-                throw error;
-              }
-            }
-
-            return { data: undefined };
-          } catch (error: any) {
-            return { error: error.message };
-          }
-        },
-        invalidatesTags: ['Automation'],
-      }),
-
-      // Unlike automation
-      unlikeAutomation: builder.mutation<void, string>({
-        queryFn: async (automationId) => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Not authenticated');
-
-            const { error } = await supabase
-              .from('automation_likes')
-              .delete()
-              .match({ 
-                automation_id: automationId,
-                user_id: user.id 
-              });
-
-            if (error) throw error;
-
-            return { data: undefined };
-          } catch (error: any) {
-            return { error: error.message };
-          }
-        },
-        invalidatesTags: ['Automation'],
-      }),
-
-      // Track automation download
-      trackAutomationDownload: builder.mutation<void, string>({
-        queryFn: async (automationId) => {
-          try {
-            const { error } = await supabase
-              .rpc('track_automation_download', { p_automation_id: automationId });
-
-            if (error) throw error;
-
-            return { data: undefined };
-          } catch (error: any) {
-            return { error: error.message };
-          }
-        },
-        invalidatesTags: ['Automation'],
-      }),
-
-      // Get execution history
-      getExecutionHistory: builder.query<AutomationExecution[], { limit?: number }>({
-        queryFn: async ({ limit = 50 }) => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) {
-              console.log('No authenticated user found');
-              return { data: [] };
-            }
-
-            const { data, error } = await supabase
-              .from('automation_executions')
-              .select(`
-                *,
-                automation:automations(id, name, title)
-              `)
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false })
-              .limit(limit);
-
-            if (error) {
-              console.error('Error fetching execution history:', error);
-              throw error;
-            }
-
-            return { data: data || [] };
-          } catch (error: any) {
-            console.error('Failed to fetch execution history:', error);
-            return { error: error.message };
-          }
-        },
-        providesTags: ['Automation'],
-      }),
-
-      // Clear execution history
-      clearHistory: builder.mutation<void, void>({
-        queryFn: async () => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Not authenticated');
-
-            const { error } = await supabase
-              .from('automation_executions')
-              .delete()
-              .eq('user_id', user.id);
-
-            if (error) throw error;
-
-            return { data: undefined };
-          } catch (error: any) {
-            return { error: error.message };
-          }
-        },
-        invalidatesTags: ['Automation'],
-      }),
-
-      // Track automation view
-      trackAutomationView: builder.mutation<void, string>({
-        queryFn: async (automationId) => {
-          try {
-            const { error } = await supabase
-              .rpc('track_automation_view', { p_automation_id: automationId });
-
-            if (error) throw error;
-
-            return { data: undefined };
-          } catch (error: any) {
-            return { error: error.message };
-          }
-        },
-      }),
-
-      // Submit a review
-      submitReview: builder.mutation<any, { automationId: string; rating: number; comment?: string }>({
-        queryFn: async ({ automationId, rating, comment }) => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Not authenticated');
-
-            const { data, error } = await supabase
-              .from('automation_reviews')
-              .upsert({
-                automation_id: automationId,
-                user_id: user.id,
-                rating,
-                comment: comment || null,
-              })
-              .select()
-              .single();
-
-            if (error) throw error;
-
-            return { data };
-          } catch (error: any) {
-            return { error: error.message };
-          }
-        },
-        invalidatesTags: ['Automation'],
-      }),
-
-      // Get reviews for an automation
-      getAutomationReviews: builder.query<any[], string>({
-        queryFn: async (automationId) => {
-          try {
-            const { data, error } = await supabase
-              .from('automation_reviews')
-              .select(`
-                *,
-                users!inner(name, email)
-              `)
-              .eq('automation_id', automationId)
-              .order('created_at', { ascending: false });
-
-            if (error) throw error;
-
-            return { data: data || [] };
-          } catch (error: any) {
-            return { error: error.message };
-          }
-        },
-        providesTags: ['Automation'],
-      }),
-
-      // Get all reviews
-      getAllReviews: builder.query<any[], void>({
-        queryFn: async () => {
-          try {
-            const { data, error } = await supabase
-              .from('automation_reviews')
-              .select(`
-                *,
-                users!inner(name, email, avatar_url),
-                automations!inner(title)
-              `)
-              .order('created_at', { ascending: false })
-              .limit(100);
-
-            if (error) throw error;
-
-            return { data: data || [] };
-          } catch (error: any) {
-            return { error: error.message };
-          }
-        },
-        providesTags: ['Automation'],
-      }),
+          };
+        }
+      },
+      invalidatesTags: (result, error, automationId) => [
+        { type: 'Automation', id: automationId },
+      ],
     }),
-  });
 
-  export const {
-    useGetMyAutomationsQuery,
-    useGetAutomationQuery,
-    useGetPublicAutomationsQuery,
-    useCreateAutomationMutation,
-    useUpdateAutomationMutation,
-    useDeleteAutomationMutation,
-    useCloneAutomationMutation,
-    useGetUserStatsQuery,
-    useGetRecentExecutionsQuery,
-    useGetAutomationExecutionsQuery,
-    useGetAutomationEngagementQuery,
-    useGetTrendingAutomationsQuery,
-    useLikeAutomationMutation,
-    useUnlikeAutomationMutation,
-    useTrackAutomationDownloadMutation,
-    useTrackAutomationViewMutation,
-    useGetExecutionHistoryQuery,
-    useClearHistoryMutation,
-    useSubmitReviewMutation,
-    useGetAutomationReviewsQuery,
-    useGetAllReviewsQuery,
-  } = automationApi;
+    /**
+     * Unlike automation
+     */
+    unlikeAutomation: builder.mutation<void, string>({
+      queryFn: async (automationId) => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            return {
+              error: {
+                status: 'UNAUTHORIZED',
+                message: 'Not authenticated',
+              }
+            };
+          }
+
+          const { error } = await supabase
+            .from('automation_likes')
+            .delete()
+            .match({ 
+              automation_id: automationId,
+              user_id: user.id 
+            });
+
+          if (error) {
+            console.error('Error unliking automation:', error);
+            return {
+              error: {
+                status: 'ACTION_ERROR',
+                message: error.message || 'Failed to unlike automation',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data: undefined };
+        } catch (error: any) {
+          console.error('Failed to unlike automation:', error);
+          return {
+            error: {
+              status: 'ACTION_ERROR',
+              message: error.message || 'Failed to unlike automation',
+            }
+          };
+        }
+      },
+      invalidatesTags: (result, error, automationId) => [
+        { type: 'Automation', id: automationId },
+      ],
+    }),
+
+    /**
+     * Track automation download/clone
+     */
+    trackAutomationDownload: builder.mutation<void, string>({
+      queryFn: async (automationId) => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            return {
+              error: {
+                status: 'UNAUTHORIZED',
+                message: 'Not authenticated',
+              }
+            };
+          }
+
+          // Insert a download/clone tracking record
+          const { error } = await supabase
+            .from('automation_downloads')
+            .insert({ 
+              automation_id: automationId,
+              user_id: user.id,
+              download_type: 'clone'
+            });
+
+          if (error && !error.message.includes('duplicate')) {
+            console.error('Error tracking download:', error);
+            return {
+              error: {
+                status: 'ACTION_ERROR',
+                message: error.message || 'Failed to track download',
+                code: error.code,
+              }
+            };
+          }
+
+          return { data: undefined };
+        } catch (error: any) {
+          console.error('Failed to track download:', error);
+          return {
+            error: {
+              status: 'ACTION_ERROR',
+              message: error.message || 'Failed to track download',
+            }
+          };
+        }
+      },
+      invalidatesTags: (result, error, automationId) => [
+        { type: 'Automation', id: automationId },
+      ],
+    }),
+  }),
+});
+
+// Export hooks
+export const {
+  useGetMyAutomationsQuery,
+  useGetAutomationQuery,
+  useGetPublicAutomationsQuery,
+  useCreateAutomationMutation,
+  useUpdateAutomationMutation,
+  useDeleteAutomationMutation,
+  useCloneAutomationMutation,
+  useGetUserStatsQuery,
+  useGetRecentExecutionsQuery,
+  useGetAutomationExecutionsQuery,
+  useGetExecutionHistoryQuery,
+  useClearHistoryMutation,
+  useGetTrendingAutomationsQuery,
+  useLikeAutomationMutation,
+  useUnlikeAutomationMutation,
+  useTrackAutomationDownloadMutation,
+} = automationApi;

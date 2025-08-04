@@ -149,49 +149,68 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
     }
   );
 
-  // Refresh user profile data
+  // Refresh user profile data with enhanced error handling
   export const refreshProfile = createAsyncThunk(
     'auth/refreshProfile',
     async (_, { getState, rejectWithValue }) => {
       try {
-        const state = getState() as any;
-        const currentUser = state.auth.user;
+        // Ensure we have a valid session first
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (!currentUser) {
-          throw new Error('No authenticated user found');
+        if (sessionError || !session?.user) {
+          console.warn('No valid session found during profile refresh');
+          return rejectWithValue('No valid session');
         }
         
-        console.log('🔄 Refreshing profile for user:', currentUser.email);
+        console.log('🔄 Refreshing profile for user:', session.user.email);
         
-        // Fetch latest profile data from database
-        const { data: profile, error } = await supabase
+        // Fetch latest profile data from database with timeout
+        const profilePromise = supabase
           .from('users')
           .select('*')
-          .eq('id', currentUser.id)
+          .eq('id', session.user.id)
           .single();
         
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
+        });
+        
+        const { data: profile, error } = await Promise.race([profilePromise, timeoutPromise]) as any;
+        
         if (error) {
-          // Handle auth errors by attempting token refresh
+          console.error('Profile fetch error:', error);
+          
+          // For JWT errors, don't retry here - let auth initializer handle it
           if (error.message?.includes('JWT') || error.code === 'PGRST301') {
-            const { data: refreshResult } = await supabase.auth.refreshSession();
-            if (refreshResult.session) {
-              // Retry with refreshed token
-              const { data: retryProfile, error: retryError } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', currentUser.id)
-                .single();
-              
-              if (retryError) throw retryError;
-              return retryProfile;
-            }
+            return rejectWithValue('JWT_ERROR');
           }
-          throw error;
+          
+          // For other errors, return basic profile data
+          return {
+            id: session.user.id,
+            email: session.user.email!,
+            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+            avatar_url: session.user.user_metadata?.avatar_url,
+            role: session.user.user_metadata?.role || 'user',
+            created_at: session.user.created_at
+          };
         }
         
-        return profile;
+        return profile || {
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+          avatar_url: session.user.user_metadata?.avatar_url,
+          role: session.user.user_metadata?.role || 'user',
+          created_at: session.user.created_at
+        };
       } catch (error: any) {
         console.error('❌ Profile refresh failed:', error);
+        
+        if (error.message === 'Profile fetch timeout') {
+          return rejectWithValue('Request timeout - please try again');
+        }
+        
         return rejectWithValue(error.message || 'Failed to refresh profile');
       }
     }

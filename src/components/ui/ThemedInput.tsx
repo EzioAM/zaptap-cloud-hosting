@@ -1,0 +1,215 @@
+/**
+ * Themed Input Component
+ * Material Design 3 compliant input with full accessibility support
+ */
+
+import React, { useState, forwardRef } from 'react';
+import {
+  TextInput,
+  View,
+  Text,
+  StyleSheet,
+  TextInputProps,
+  TouchableOpacity,
+} from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useUnifiedTheme } from '../../contexts/UnifiedThemeProvider';
+import { createInputStyle, createTextStyle } from '../../utils/ThemeUtils';
+
+export interface ThemedInputProps extends Omit<TextInputProps, 'style'> {
+  label?: string;
+  helperText?: string;
+  errorText?: string;
+  leftIcon?: string;
+  rightIcon?: string;
+  onRightIconPress?: () => void;
+  containerStyle?: any;
+  inputStyle?: any;
+  showPassword?: boolean;
+  required?: boolean;
+}
+
+export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
+  label,
+  helperText,
+  errorText,
+  leftIcon,
+  rightIcon,
+  onRightIconPress,
+  containerStyle,
+  inputStyle,
+  showPassword = false,
+  required = false,
+  secureTextEntry,
+  ...textInputProps
+}, ref) => {
+  const { theme } = useUnifiedTheme();
+  const [isFocused, setIsFocused] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
+
+  const hasError = Boolean(errorText);
+  
+  const handleFocus = () => {
+    setIsFocused(true);
+    textInputProps.onFocus && textInputProps.onFocus({} as any);
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    textInputProps.onBlur && textInputProps.onBlur({} as any);
+  };
+
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible(!isPasswordVisible);
+  };
+
+  const getInputStyles = () => {
+    const baseStyles = createInputStyle(theme, hasError);
+    const focusStyles = isFocused ? {
+      borderColor: hasError ? theme.colors.semantic.error : theme.colors.brand.primary,
+      borderWidth: 2,
+    } : {};
+
+    return [baseStyles, focusStyles, inputStyle];
+  };
+
+  const renderLabel = () => {
+    if (!label) return null;
+
+    return (
+      <Text style={[
+        createTextStyle(theme, 'sm', 'medium'),
+        { 
+          color: hasError ? theme.colors.semantic.error : theme.colors.text.secondary,
+          marginBottom: theme.spacing.xs,
+        }
+      ]}>
+        {label}
+        {required && (
+          <Text style={{ color: theme.colors.semantic.error }}> *</Text>
+        )}
+      </Text>
+    );
+  };
+
+  const renderHelperText = () => {
+    const text = errorText || helperText;
+    if (!text) return null;
+
+    return (
+      <Text style={[
+        createTextStyle(theme, 'xs', 'regular'),
+        {
+          color: hasError ? theme.colors.semantic.error : theme.colors.text.tertiary,
+          marginTop: theme.spacing.xs,
+        }
+      ]}>
+        {text}
+      </Text>
+    );
+  };
+
+  const renderLeftIcon = () => {
+    if (!leftIcon) return null;
+
+    return (
+      <MaterialCommunityIcons
+        name={leftIcon as any}
+        size={20}
+        color={theme.colors.text.secondary}
+        style={styles.leftIcon}
+      />
+    );
+  };
+
+  const renderRightIcon = () => {
+    if (showPassword && secureTextEntry) {
+      return (
+        <TouchableOpacity
+          onPress={togglePasswordVisibility}
+          style={styles.rightIconContainer}
+          accessibilityRole="button"
+          accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'}
+        >
+          <MaterialCommunityIcons
+            name={isPasswordVisible ? 'eye-off' : 'eye'}
+            size={20}
+            color={theme.colors.text.secondary}
+          />
+        </TouchableOpacity>
+      );
+    }
+
+    if (!rightIcon) return null;
+
+    const IconComponent = onRightIconPress ? TouchableOpacity : View;
+
+    return (
+      <IconComponent
+        onPress={onRightIconPress}
+        style={styles.rightIconContainer}
+        accessibilityRole={onRightIconPress ? 'button' : undefined}
+      >
+        <MaterialCommunityIcons
+          name={rightIcon as any}
+          size={20}
+          color={theme.colors.text.secondary}
+        />
+      </IconComponent>
+    );
+  };
+
+  return (
+    <View style={[styles.container, containerStyle]}>
+      {renderLabel()}
+      
+      <View style={styles.inputContainer}>
+        {renderLeftIcon()}
+        
+        <TextInput
+          ref={ref}
+          style={[getInputStyles(), styles.input]}
+          placeholderTextColor={theme.colors.text.tertiary}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          secureTextEntry={showPassword ? !isPasswordVisible : secureTextEntry}
+          accessibilityLabel={label}
+          accessibilityHint={helperText}
+          accessibilityRequired={required}
+          {...textInputProps}
+        />
+        
+        {renderRightIcon()}
+      </View>
+      
+      {renderHelperText()}
+    </View>
+  );
+});
+
+ThemedInput.displayName = 'ThemedInput';
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: 16,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  input: {
+    flex: 1,
+  },
+  leftIcon: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 1,
+  },
+  rightIconContainer: {
+    position: 'absolute',
+    right: 12,
+    zIndex: 1,
+    padding: 4,
+  },
+});

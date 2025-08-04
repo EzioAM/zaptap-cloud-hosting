@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ interface AutomationCardProps {
   compact?: boolean;
 }
 
-export const AutomationCard: React.FC<AutomationCardProps> = ({
+export const AutomationCard: React.FC<AutomationCardProps> = React.memo(({
   automation,
   onPress,
   onRun,
@@ -38,36 +38,37 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
   const [showShareModal, setShowShareModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
-  const handleShare = () => {
+  const handleShare = useCallback(() => {
     if (onShare) {
       onShare();
     } else {
       setShowShareModal(true);
     }
-  };
+  }, [onShare]);
 
-  const getCategoryIcon = (category: string) => {
-    const icons: Record<string, string> = {
-      'productivity': 'briefcase',
-      'smart-home': 'home-automation',
-      'health': 'heart',
-      'communication': 'message',
-      'emergency': 'alert-circle',
-      'entertainment': 'movie',
-      'finance': 'cash',
-      'travel': 'airplane',
-      'education': 'school',
-      'other': 'dots-horizontal',
-    };
-    return icons[category] || 'dots-horizontal';
-  };
+  const categoryIcons = useMemo(() => ({
+    'productivity': 'briefcase',
+    'smart-home': 'home-automation',
+    'health': 'heart',
+    'communication': 'message',
+    'emergency': 'alert-circle',
+    'entertainment': 'movie',
+    'finance': 'cash',
+    'travel': 'airplane',
+    'education': 'school',
+    'other': 'dots-horizontal',
+  }), []);
 
-  const getExecutionColor = (count: number) => {
+  const getCategoryIcon = useCallback((category: string) => {
+    return categoryIcons[category] || 'dots-horizontal';
+  }, [categoryIcons]);
+
+  const getExecutionColor = useCallback((count: number) => {
     if (count === 0) return '#999';
     if (count < 10) return '#4CAF50';
     if (count < 50) return '#2196F3';
     return '#FF9800';
-  };
+  }, []);
 
   return (
     <>
@@ -234,7 +235,10 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
       />
     </>
   );
-};
+});
+
+// Add display name for debugging
+AutomationCard.displayName = 'AutomationCard';
 
 const styles = StyleSheet.create({
   card: {

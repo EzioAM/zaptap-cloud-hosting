@@ -1,4 +1,4 @@
-import { AutomationData } from '../types';
+import type { AutomationData } from '../types';
 
 export type RootStackParamList = {
   // Main app flow
@@ -32,7 +32,10 @@ export type RootStackParamList = {
   };
   Templates: undefined;
   LocationTriggers: undefined;
-  Reviews: { automationId: string };
+  Reviews: { 
+    automationId: string;
+    automation?: AutomationData;
+  };
   EditAutomation: { automationId: string };
   
   // Profile & Settings
@@ -54,7 +57,7 @@ export type RootStackParamList = {
   TutorialScreen: undefined;
 };
 
-// You can add more specific navigation types here if needed
+// More specific navigation types
 export type AuthStackParamList = {
   SignIn: undefined;
   SignUp: undefined;
@@ -75,5 +78,23 @@ export type AutomationStackParamList = {
   };
   Templates: undefined;
   LocationTriggers: undefined;
-  Reviews: { automationId: string };
+  Reviews: { 
+    automationId: string;
+    automation?: AutomationData;
+  };
+};
+
+// Type-safe navigation helpers
+export type NavigationParams<T extends keyof RootStackParamList> = RootStackParamList[T];
+
+// Utility types for route validation
+export type RequiredParams<T> = T extends undefined ? never : T;
+export type OptionalParams<T> = T extends undefined ? T : T | undefined;
+
+// Navigation props types for screens
+export type ScreenProps<T extends keyof RootStackParamList> = {
+  navigation: any; // Import specific navigation type when needed
+  route: {
+    params: RootStackParamList[T];
+  };
 };

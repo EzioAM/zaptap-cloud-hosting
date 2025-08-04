@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { supabase, ensureValidSession, testConnection, supabaseWithRetry } from '../../services/supabase/client';
+import { supabase, ensureValidSession } from '../../services/supabase/client';
 import authSlice from '../../store/slices/authSlice';
-import { AppDispatch, RootState } from '../../store';
+import { AppDispatch, RootState, resetApiState } from '../../store';
 import { automationApi } from '../../store/api/automationApi';
 import { analyticsApi } from '../../store/api/analyticsApi';
 
@@ -39,8 +39,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
           dispatch(authSlice.actions.signOutSuccess());
           
           // Clear API caches on sign out
-          dispatch(automationApi.util.resetApiState());
-          dispatch(analyticsApi.util.resetApiState());
+          resetApiState();
           
           // Reset refresh attempt flag
           tokenRefreshAttempted.current = false;
@@ -52,8 +51,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
           }));
           
           // Clear any API errors that might have been caused by expired tokens
-          dispatch(automationApi.util.resetApiState());
-          dispatch(analyticsApi.util.resetApiState());
+          resetApiState();
         } else if (event === 'USER_UPDATED' && session) {
           handleSignIn(session).catch(error => {
             console.warn('Profile update failed:', error);
@@ -195,8 +193,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
         dispatch(authSlice.actions.signOutSuccess());
         
         // Clear any stale API data
-        dispatch(automationApi.util.resetApiState());
-        dispatch(analyticsApi.util.resetApiState());
+        resetApiState();
       }
     } catch (error: any) {
       console.error('❌ Failed to check session:', error?.message || error);
@@ -204,8 +201,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
       dispatch(authSlice.actions.signOutSuccess());
       
       // Clear any stale API data
-      dispatch(automationApi.util.resetApiState());
-      dispatch(analyticsApi.util.resetApiState());
+      resetApiState();
     }
   };
 

@@ -1,0 +1,1599 @@
+{
+  "oldThemeImport": [
+    {
+      "file": "components/atoms/Badge/Badge.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/atoms/Button/Button.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/atoms/Card/Card.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/atoms/Card/CardFooter.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/atoms/Card/CardHeader.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/atoms/IconButton/IconButton.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/atoms/Shimmer/Shimmer.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/feedback/Toast.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/loading/SkeletonLoading.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/molecules/EmptyState/EmptyState.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/organisms/DashboardWidgets/FeaturedAutomationWidget.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/organisms/DashboardWidgets/QuickActionsWidget.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/organisms/DashboardWidgets/QuickStatsWidget.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/organisms/DashboardWidgets/RecentActivityWidget.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/organisms/StepEditor/StepCard.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/organisms/StepEditor/StepPalette.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/organisms/StepEditor/VisualStepEditor.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/states/EmptyState.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "components/states/ErrorState.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "navigation/ModernBottomTabNavigator.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "screens/AnalyticsScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "screens/ExecutionHistoryScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "screens/automation/AutomationBuilderScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "screens/modern/BuildScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "screens/modern/HomeScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernCommentsScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernHomeScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../contexts/ThemeContext"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernReviewsScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "import { useTheme } from '../../contexts/ThemeContext"
+      ]
+    }
+  ],
+  "hardcodedColors": [
+    {
+      "file": "assets/icons/AppIconDesign.tsx",
+      "matches": 18,
+      "examples": [
+        "#6366F1",
+        "#8B5CF6",
+        "#EC4899"
+      ]
+    },
+    {
+      "file": "components/ErrorBoundary.tsx",
+      "matches": 15,
+      "examples": [
+        "#ff5252",
+        "#fff",
+        "#f5f5f5"
+      ]
+    },
+    {
+      "file": "components/analytics/AnalyticsModal.tsx",
+      "matches": 29,
+      "examples": [
+        "#666",
+        "#4caf50",
+        "#f44336"
+      ]
+    },
+    {
+      "file": "components/atoms/Button/Button.example.tsx",
+      "matches": 1,
+      "examples": [
+        "#f5f5f5"
+      ]
+    },
+    {
+      "file": "components/atoms/Shimmer/Shimmer.tsx",
+      "matches": 6,
+      "examples": [
+        "#2a2a2a",
+        "#3a3a3a",
+        "#2a2a2a"
+      ]
+    },
+    {
+      "file": "components/automation/AutomationCard.tsx",
+      "matches": 10,
+      "examples": [
+        "#999",
+        "#4CAF50",
+        "#2196F3"
+      ]
+    },
+    {
+      "file": "components/automation/DraggableStepItem.tsx",
+      "matches": 16,
+      "examples": [
+        "#6200ee",
+        "#999",
+        "#999"
+      ]
+    },
+    {
+      "file": "components/automation/ModernStepConfigRenderer.tsx",
+      "matches": 11,
+      "examples": [
+        "#4CAF50",
+        "#2196F3",
+        "#FF9800"
+      ]
+    },
+    {
+      "file": "components/automation/StepConfigForms.tsx",
+      "matches": 6,
+      "examples": [
+        "#fff",
+        "#1a1a1a",
+        "#1a1a1a"
+      ]
+    },
+    {
+      "file": "components/automation/StepConfigModal.tsx",
+      "matches": 1,
+      "examples": [
+        "#000"
+      ]
+    },
+    {
+      "file": "components/comments/CommentsModal.tsx",
+      "matches": 20,
+      "examples": [
+        "#ff9800",
+        "#f44336",
+        "#666"
+      ]
+    },
+    {
+      "file": "components/common/AppIcon.tsx",
+      "matches": 1,
+      "examples": [
+        "#000"
+      ]
+    },
+    {
+      "file": "components/common/EmptyState.tsx",
+      "matches": 3,
+      "examples": [
+        "#E0E0E0",
+        "#333",
+        "#666"
+      ]
+    },
+    {
+      "file": "components/common/FallbackIcon.tsx",
+      "matches": 1,
+      "examples": [
+        "#000"
+      ]
+    },
+    {
+      "file": "components/common/LoadingSkeleton.tsx",
+      "matches": 3,
+      "examples": [
+        "#E0E0E0",
+        "#fff",
+        "#000"
+      ]
+    },
+    {
+      "file": "components/common/VersionInfo.tsx",
+      "matches": 17,
+      "examples": [
+        "#ff6b6b",
+        "#4ecdc4",
+        "#95a5a6"
+      ]
+    },
+    {
+      "file": "components/common/ZapTapLogo.tsx",
+      "matches": 7,
+      "examples": [
+        "#6200ee",
+        "#6200ee",
+        "#6200ee"
+      ]
+    },
+    {
+      "file": "components/debug/AutomationTestComponent.tsx",
+      "matches": 15,
+      "examples": [
+        "#4CAF50",
+        "#F44336",
+        "#f8f9fa"
+      ]
+    },
+    {
+      "file": "components/debug/RemoteDebugger.tsx",
+      "matches": 15,
+      "examples": [
+        "#f44336",
+        "#ff9800",
+        "#2196f3"
+      ]
+    },
+    {
+      "file": "components/debug/SharingSystemTest.tsx",
+      "matches": 11,
+      "examples": [
+        "#666",
+        "#2196F3",
+        "#4CAF50"
+      ]
+    },
+    {
+      "file": "components/debug/SupabaseTestComponent.tsx",
+      "matches": 10,
+      "examples": [
+        "#4CAF50",
+        "#F44336",
+        "#FF9800"
+      ]
+    },
+    {
+      "file": "components/demo/VariableDemo.tsx",
+      "matches": 2,
+      "examples": [
+        "#333",
+        "#666"
+      ]
+    },
+    {
+      "file": "components/developer/ChangeHistoryView.tsx",
+      "matches": 23,
+      "examples": [
+        "#4CAF50",
+        "#FF5252",
+        "#4CAF50"
+      ]
+    },
+    {
+      "file": "components/developer/DatabaseInspector.tsx",
+      "matches": 6,
+      "examples": [
+        "#f5f5f5",
+        "#666",
+        "#6200ee"
+      ]
+    },
+    {
+      "file": "components/developer/NetworkMonitor.tsx",
+      "matches": 12,
+      "examples": [
+        "#f44336",
+        "#666",
+        "#4caf50"
+      ]
+    },
+    {
+      "file": "components/developer/PerformanceMonitor.tsx",
+      "matches": 15,
+      "examples": [
+        "#f44336",
+        "#4caf50",
+        "#ffffff"
+      ]
+    },
+    {
+      "file": "components/developer/StorageInspector.tsx",
+      "matches": 9,
+      "examples": [
+        "#f44336",
+        "#f5f5f5",
+        "#666"
+      ]
+    },
+    {
+      "file": "components/developer/TestRunner.tsx",
+      "matches": 21,
+      "examples": [
+        "#4caf50",
+        "#f44336",
+        "#2196f3"
+      ]
+    },
+    {
+      "file": "components/developer/UIRedesignTool.tsx",
+      "matches": 40,
+      "examples": [
+        "#6200EE",
+        "#FFFFFF",
+        "#F5F5F5"
+      ]
+    },
+    {
+      "file": "components/feedback/Toast.tsx",
+      "matches": 8,
+      "examples": [
+        "#4CAF50",
+        "#FFFFFF",
+        "#F44336"
+      ]
+    },
+    {
+      "file": "components/filtering/AutomationFilters.tsx",
+      "matches": 23,
+      "examples": [
+        "#333",
+        "#6200ee",
+        "#6200ee"
+      ]
+    },
+    {
+      "file": "components/import-export/ImportExportModal.tsx",
+      "matches": 36,
+      "examples": [
+        "#6200ee",
+        "#6200ee",
+        "#6200ee"
+      ]
+    },
+    {
+      "file": "components/molecules/EmptyState/EmptyState.tsx",
+      "matches": 4,
+      "examples": [
+        "#FFFFFF",
+        "#FFFFFF",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "file": "components/nfc/NFCScanner.tsx",
+      "matches": 13,
+      "examples": [
+        "#999",
+        "#6200ee",
+        "#ccc"
+      ]
+    },
+    {
+      "file": "components/nfc/NFCWriter.tsx",
+      "matches": 20,
+      "examples": [
+        "#999",
+        "#6200ee",
+        "#ff6b00"
+      ]
+    },
+    {
+      "file": "components/nfc/SafeNFCScanner.tsx",
+      "matches": 9,
+      "examples": [
+        "#ccc",
+        "#6200ee",
+        "#f44336"
+      ]
+    },
+    {
+      "file": "components/organisms/DashboardWidgets/FeaturedAutomationWidget.tsx",
+      "matches": 6,
+      "examples": [
+        "#34D399",
+        "#FF6B9D",
+        "#F59E0B"
+      ]
+    },
+    {
+      "file": "components/organisms/DashboardWidgets/QuickActionsWidget.tsx",
+      "matches": 4,
+      "examples": [
+        "#FF6B9D",
+        "#34D399",
+        "#F59E0B"
+      ]
+    },
+    {
+      "file": "components/organisms/StepEditor/StepCard.tsx",
+      "matches": 27,
+      "examples": [
+        "#6366F1",
+        "#10B981",
+        "#3B82F6"
+      ]
+    },
+    {
+      "file": "components/organisms/StepEditor/StepPalette.tsx",
+      "matches": 2,
+      "examples": [
+        "#FFFFFF",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "file": "components/qr/QRGenerator.tsx",
+      "matches": 7,
+      "examples": [
+        "#ffffff",
+        "#000000",
+        "#666"
+      ]
+    },
+    {
+      "file": "components/qr/QRScanner.tsx",
+      "matches": 10,
+      "examples": [
+        "#999",
+        "#6200ee",
+        "#000"
+      ]
+    },
+    {
+      "file": "components/research/AICollaborationView.tsx",
+      "matches": 18,
+      "examples": [
+        "#FF6B35",
+        "#00A67E",
+        "#FF6B35"
+      ]
+    },
+    {
+      "file": "components/research/AIConfigurationHelper.tsx",
+      "matches": 10,
+      "examples": [
+        "#4CAF50",
+        "#FF9800",
+        "#2196F3"
+      ]
+    },
+    {
+      "file": "components/research/ResearchDashboard.tsx",
+      "matches": 6,
+      "examples": [
+        "#f5f5f5",
+        "#666",
+        "#666"
+      ]
+    },
+    {
+      "file": "components/research/ResearchDashboardEnhanced.tsx",
+      "matches": 21,
+      "examples": [
+        "#FF9800",
+        "#4CAF50",
+        "#F44336"
+      ]
+    },
+    {
+      "file": "components/reviews/RatingInput.tsx",
+      "matches": 18,
+      "examples": [
+        "#FFD700",
+        "#ccc",
+        "#FFD700"
+      ]
+    },
+    {
+      "file": "components/reviews/ReviewDisplay.tsx",
+      "matches": 19,
+      "examples": [
+        "#FFD700",
+        "#ddd",
+        "#FFD700"
+      ]
+    },
+    {
+      "file": "components/reviews/StarRating.tsx",
+      "matches": 4,
+      "examples": [
+        "#FFD700",
+        "#ddd",
+        "#333"
+      ]
+    },
+    {
+      "file": "components/sharing/ShareAutomationModal.tsx",
+      "matches": 66,
+      "examples": [
+        "#6200ee",
+        "#999",
+        "#6200ee"
+      ]
+    },
+    {
+      "file": "components/states/EmptyState.tsx",
+      "matches": 1,
+      "examples": [
+        "#FFFFFF"
+      ]
+    },
+    {
+      "file": "components/states/ErrorState.tsx",
+      "matches": 2,
+      "examples": [
+        "#FFFFFF",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "file": "components/triggers/LocationTriggerConfig.tsx",
+      "matches": 13,
+      "examples": [
+        "#6200ee",
+        "#000",
+        "#eee"
+      ]
+    },
+    {
+      "file": "components/triggers/TriggerManager.tsx",
+      "matches": 25,
+      "examples": [
+        "#6200ee",
+        "#999",
+        "#ccc"
+      ]
+    },
+    {
+      "file": "components/versions/VersionHistoryModal.tsx",
+      "matches": 22,
+      "examples": [
+        "#666",
+        "#ff9800",
+        "#4caf50"
+      ]
+    },
+    {
+      "file": "contexts/ThemeContext.tsx",
+      "matches": 36,
+      "examples": [
+        "#6750A4",
+        "#7F67BE",
+        "#625B71"
+      ]
+    },
+    {
+      "file": "data/sampleAutomations.ts",
+      "matches": 6,
+      "examples": [
+        "#FFA726",
+        "#F44336",
+        "#2196F3"
+      ]
+    },
+    {
+      "file": "navigation/BottomTabNavigator.tsx",
+      "matches": 6,
+      "examples": [
+        "#6200ee",
+        "#666",
+        "#fff"
+      ]
+    },
+    {
+      "file": "navigation/MainNavigator.tsx",
+      "matches": 2,
+      "examples": [
+        "#6200ee",
+        "#fff"
+      ]
+    },
+    {
+      "file": "screens/AnalyticsScreen.tsx",
+      "matches": 3,
+      "examples": [
+        "#666",
+        "#666",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "file": "screens/HomeScreen.tsx",
+      "matches": 36,
+      "examples": [
+        "#6200ee",
+        "#6200ee",
+        "#6200ee"
+      ]
+    },
+    {
+      "file": "screens/ProfileScreen.tsx",
+      "matches": 14,
+      "examples": [
+        "#ff5252",
+        "#f5f5f5",
+        "#666"
+      ]
+    },
+    {
+      "file": "screens/SettingsScreen.tsx",
+      "matches": 26,
+      "examples": [
+        "#767577",
+        "#81b0ff",
+        "#6200ee"
+      ]
+    },
+    {
+      "file": "screens/SplashScreen.tsx",
+      "matches": 13,
+      "examples": [
+        "#111827",
+        "#6366F1",
+        "#8B5CF6"
+      ]
+    },
+    {
+      "file": "screens/auth/ResetPasswordScreen.tsx",
+      "matches": 2,
+      "examples": [
+        "#f5f5f5",
+        "#666"
+      ]
+    },
+    {
+      "file": "screens/auth/SignInScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "#f5f5f5"
+      ]
+    },
+    {
+      "file": "screens/auth/SignUpScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "#f5f5f5"
+      ]
+    },
+    {
+      "file": "screens/automation/AutomationBuilderScreen.tsx",
+      "matches": 14,
+      "examples": [
+        "#6200ee",
+        "#666",
+        "#f5f5f5"
+      ]
+    },
+    {
+      "file": "screens/automation/AutomationDetailsScreen.tsx",
+      "matches": 11,
+      "examples": [
+        "#666",
+        "#666",
+        "#666"
+      ]
+    },
+    {
+      "file": "screens/automation/GalleryScreen.tsx",
+      "matches": 45,
+      "examples": [
+        "#6200ee",
+        "#03dac6",
+        "#ff6b00"
+      ]
+    },
+    {
+      "file": "screens/automation/LocationTriggersScreen.tsx",
+      "matches": 20,
+      "examples": [
+        "#FF9800",
+        "#6200ee",
+        "#6200ee"
+      ]
+    },
+    {
+      "file": "screens/automation/MyAutomationsScreen.tsx",
+      "matches": 26,
+      "examples": [
+        "#f44336",
+        "#f5f5f5",
+        "#fff"
+      ]
+    },
+    {
+      "file": "screens/automation/ReviewsScreen.tsx",
+      "matches": 2,
+      "examples": [
+        "#f5f5f5",
+        "#666"
+      ]
+    },
+    {
+      "file": "screens/automation/TemplatesScreen.tsx",
+      "matches": 35,
+      "examples": [
+        "#4CAF50",
+        "#FF9800",
+        "#F44336"
+      ]
+    },
+    {
+      "file": "screens/developer/DeveloperMenuScreen.tsx",
+      "matches": 16,
+      "examples": [
+        "#4caf50",
+        "#ff9800",
+        "#2196f3"
+      ]
+    },
+    {
+      "file": "screens/modern/BuildScreen.tsx",
+      "matches": 23,
+      "examples": [
+        "#2196F3",
+        "#4CAF50",
+        "#FF9800"
+      ]
+    },
+    {
+      "file": "screens/modern/HomeScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "#FFFFFF"
+      ]
+    },
+    {
+      "file": "screens/modern/LibraryScreen.tsx",
+      "matches": 19,
+      "examples": [
+        "#FF6B6B",
+        "#4ECDC4",
+        "#95E1D3"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernCommentsScreen.tsx",
+      "matches": 5,
+      "examples": [
+        "#FFFFFF",
+        "#FFFFFF",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernHomeScreen.tsx",
+      "matches": 8,
+      "examples": [
+        "#FF6B6B",
+        "#4ECDC4",
+        "#95E1D3"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernProfileScreen.tsx",
+      "matches": 2,
+      "examples": [
+        "#FFFFFF",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernReviewsScreen.tsx",
+      "matches": 7,
+      "examples": [
+        "#FFFFFF",
+        "#FFFFFF",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "file": "screens/onboarding/TutorialScreen.tsx",
+      "matches": 11,
+      "examples": [
+        "#6200ee",
+        "#f39c12",
+        "#fff"
+      ]
+    },
+    {
+      "file": "screens/onboarding/WelcomeScreen.tsx",
+      "matches": 13,
+      "examples": [
+        "#fff",
+        "#6200ee",
+        "#6200ee"
+      ]
+    },
+    {
+      "file": "services/developer/CodeImplementationService.ts",
+      "matches": 16,
+      "examples": [
+        "#BB86FC",
+        "#3700B3",
+        "#03DAC6"
+      ]
+    },
+    {
+      "file": "services/developer/MockCodeImplementationService.ts",
+      "matches": 1,
+      "examples": [
+        "#666"
+      ]
+    },
+    {
+      "file": "services/developer/ScreenAnalysisService.ts",
+      "matches": 2,
+      "examples": [
+        "#6200ee",
+        "#03dac6"
+      ]
+    },
+    {
+      "file": "services/developer/UIRedesignPromptService.ts",
+      "matches": 12,
+      "examples": [
+        "#6200EE",
+        "#FFFFFF",
+        "#F5F5F5"
+      ]
+    },
+    {
+      "file": "services/filtering/AutomationFilterService.ts",
+      "matches": 11,
+      "examples": [
+        "#6200ee",
+        "#03dac6",
+        "#ff6b00"
+      ]
+    },
+    {
+      "file": "services/linking/SmartLinkService.ts",
+      "matches": 19,
+      "examples": [
+        "#667eea",
+        "#764ba2",
+        "#6200ee"
+      ]
+    },
+    {
+      "file": "services/research/AIResearchService.ts",
+      "matches": 12,
+      "examples": [
+        "#6200EE",
+        "#FFFFFF",
+        "#F5F5F5"
+      ]
+    },
+    {
+      "file": "services/templates/AutomationTemplates.ts",
+      "matches": 25,
+      "examples": [
+        "#FF9800",
+        "#F44336",
+        "#2196F3"
+      ]
+    },
+    {
+      "file": "theme/colors.ts",
+      "matches": 18,
+      "examples": [
+        "#FFFFFF",
+        "#FFFFFF",
+        "#FFFFFF"
+      ]
+    },
+    {
+      "file": "theme/shadows.ts",
+      "matches": 1,
+      "examples": [
+        "#000"
+      ]
+    },
+    {
+      "file": "theme/tokens.ts",
+      "matches": 57,
+      "examples": [
+        "#EEF2FF",
+        "#E0E7FF",
+        "#C7D2FE"
+      ]
+    }
+  ],
+  "rgbaColors": [
+    {
+      "file": "components/atoms/Shimmer/Shimmer.tsx",
+      "matches": 1,
+      "examples": [
+        "rgba(0, 0, 0, 0.1)"
+      ]
+    },
+    {
+      "file": "components/automation/StepConfigModal.tsx",
+      "matches": 1,
+      "examples": [
+        "rgba(0, 0, 0, 0.5)"
+      ]
+    },
+    {
+      "file": "components/common/VersionInfo.tsx",
+      "matches": 1,
+      "examples": [
+        "rgba(255, 255, 255, 0.8)"
+      ]
+    },
+    {
+      "file": "components/developer/PerformanceMonitor.tsx",
+      "matches": 2,
+      "examples": [
+        "rgba(98, 0, 238, ${opacity})",
+        "rgba(0, 0, 0, ${opacity})"
+      ]
+    },
+    {
+      "file": "components/developer/UIRedesignTool.tsx",
+      "matches": 2,
+      "examples": [
+        "rgba(0,0,0,0.9)",
+        "rgba(255,255,255,0.8)"
+      ]
+    },
+    {
+      "file": "components/nfc/NFCScanner.tsx",
+      "matches": 1,
+      "examples": [
+        "rgba(98, 0, 238, 0.1)"
+      ]
+    },
+    {
+      "file": "components/nfc/NFCWriter.tsx",
+      "matches": 1,
+      "examples": [
+        "rgba(255, 107, 0, 0.1)"
+      ]
+    },
+    {
+      "file": "components/organisms/DashboardWidgets/FeaturedAutomationWidget.tsx",
+      "matches": 8,
+      "examples": [
+        "rgba(255, 255, 255, 0.8)",
+        "rgba(255, 255, 255, 0.9)",
+        "rgba(255, 255, 255, 0.9)"
+      ]
+    },
+    {
+      "file": "components/organisms/StepEditor/StepPalette.tsx",
+      "matches": 1,
+      "examples": [
+        "rgba(0, 0, 0, 0.5)"
+      ]
+    },
+    {
+      "file": "components/qr/QRGenerator.tsx",
+      "matches": 1,
+      "examples": [
+        "rgba(0,0,0,0.5)"
+      ]
+    },
+    {
+      "file": "components/qr/QRScanner.tsx",
+      "matches": 3,
+      "examples": [
+        "rgba(0,0,0,0.5)",
+        "rgba(255, 255, 255, 0.95)",
+        "rgba(255, 255, 255, 0.95)"
+      ]
+    },
+    {
+      "file": "components/triggers/LocationTriggerConfig.tsx",
+      "matches": 1,
+      "examples": [
+        "rgba(0,0,0,0.5)"
+      ]
+    },
+    {
+      "file": "components/versions/VersionHistoryModal.tsx",
+      "matches": 1,
+      "examples": [
+        "rgba(255, 255, 255, 0.8)"
+      ]
+    },
+    {
+      "file": "contexts/ThemeContext.tsx",
+      "matches": 2,
+      "examples": [
+        "rgba(0, 0, 0, 0.1)",
+        "rgba(0, 0, 0, 0.3)"
+      ]
+    },
+    {
+      "file": "screens/modern/BuildScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "rgba(0, 0, 0, 0.5)"
+      ]
+    },
+    {
+      "file": "screens/modern/HomeScreen.tsx",
+      "matches": 2,
+      "examples": [
+        "rgba(255, 255, 255, 0.1)",
+        "rgba(255, 255, 255, 0.9)"
+      ]
+    },
+    {
+      "file": "services/developer/CodeImplementationService.ts",
+      "matches": 1,
+      "examples": [
+        "rgba(0,0,0,0.7)"
+      ]
+    },
+    {
+      "file": "services/linking/SmartLinkService.ts",
+      "matches": 2,
+      "examples": [
+        "rgba(0,0,0,0.1)",
+        "rgba(0,0,0,0.15)"
+      ]
+    },
+    {
+      "file": "theme/colors.ts",
+      "matches": 12,
+      "examples": [
+        "rgba(0, 0, 0, 0.04)",
+        "rgba(0, 0, 0, 0.08)",
+        "rgba(0, 0, 0, 0.12)"
+      ]
+    },
+    {
+      "file": "utils/ThemeUtils.ts",
+      "matches": 1,
+      "examples": [
+        "rgba(${r}, ${g}, ${b}, ${alpha})"
+      ]
+    }
+  ],
+  "oldColorAccess": [
+    {
+      "file": "components/atoms/Shimmer/Shimmer.tsx",
+      "matches": 2,
+      "examples": [
+        "theme.colors.surface",
+        "theme.colors.surface"
+      ]
+    },
+    {
+      "file": "components/automation/StepConfigForms.tsx",
+      "matches": 6,
+      "examples": [
+        "theme.colors.primary",
+        "theme.colors.primary",
+        "theme.colors.primary"
+      ]
+    },
+    {
+      "file": "components/automation/StepConfigModal.tsx",
+      "matches": 6,
+      "examples": [
+        "theme.colors.primary",
+        "theme.colors.surface",
+        "theme.colors.surface"
+      ]
+    },
+    {
+      "file": "components/developer/DeveloperSection.tsx",
+      "matches": 10,
+      "examples": [
+        "theme.colors.primary",
+        "theme.colors.text",
+        "theme.colors.surface"
+      ]
+    },
+    {
+      "file": "components/feedback/Toast.tsx",
+      "matches": 1,
+      "examples": [
+        "theme.colors.primary"
+      ]
+    },
+    {
+      "file": "components/loading/SkeletonLoading.tsx",
+      "matches": 5,
+      "examples": [
+        "theme.colors.surface",
+        "theme.colors.surface",
+        "theme.colors.surface"
+      ]
+    },
+    {
+      "file": "components/states/EmptyState.tsx",
+      "matches": 13,
+      "examples": [
+        "theme.colors.text",
+        "theme.colors.primary",
+        "theme.colors.text"
+      ]
+    },
+    {
+      "file": "components/states/ErrorState.tsx",
+      "matches": 4,
+      "examples": [
+        "theme.colors.text",
+        "theme.colors.text",
+        "theme.colors.text"
+      ]
+    },
+    {
+      "file": "components/ui/ThemedButton.tsx",
+      "matches": 1,
+      "examples": [
+        "theme.colors.text"
+      ]
+    },
+    {
+      "file": "screens/modern/BuildScreen.tsx",
+      "matches": 73,
+      "examples": [
+        "theme.colors.surface",
+        "theme.colors.text",
+        "theme.colors.text"
+      ]
+    },
+    {
+      "file": "screens/modern/DiscoverScreen.tsx",
+      "matches": 45,
+      "examples": [
+        "theme.colors.text",
+        "theme.colors.text",
+        "theme.colors.text"
+      ]
+    },
+    {
+      "file": "screens/modern/LibraryScreen.tsx",
+      "matches": 53,
+      "examples": [
+        "theme.colors.surface",
+        "theme.colors.text",
+        "theme.colors.surface"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernCommentsScreen.tsx",
+      "matches": 36,
+      "examples": [
+        "theme.colors.surface",
+        "theme.colors.primary",
+        "theme.colors.text"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernHomeScreen.tsx",
+      "matches": 34,
+      "examples": [
+        "theme.colors.background",
+        "theme.colors.primary",
+        "theme.colors.text"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernProfileScreen.tsx",
+      "matches": 40,
+      "examples": [
+        "theme.colors.text",
+        "theme.colors.surface",
+        "theme.colors.primary"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernReviewsScreen.tsx",
+      "matches": 36,
+      "examples": [
+        "theme.colors.surface",
+        "theme.colors.primary",
+        "theme.colors.text"
+      ]
+    }
+  ],
+  "missingAccessibility": [
+    {
+      "file": "components/ErrorBoundary.tsx",
+      "matches": 2,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/atoms/IconButton/IconButton.tsx",
+      "matches": 1,
+      "examples": [
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/automation/StepConfigForms.tsx",
+      "matches": 1,
+      "examples": [
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/common/VersionInfo.tsx",
+      "matches": 3,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/debug/AutomationTestComponent.tsx",
+      "matches": 2,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/debug/RemoteDebugger.tsx",
+      "matches": 1,
+      "examples": [
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/developer/DeveloperSection.tsx",
+      "matches": 1,
+      "examples": [
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/feedback/Toast.tsx",
+      "matches": 2,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/filtering/AutomationFilters.tsx",
+      "matches": 2,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/import-export/ImportExportModal.tsx",
+      "matches": 4,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/organisms/StepEditor/StepPalette.tsx",
+      "matches": 7,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/reviews/RatingInput.tsx",
+      "matches": 1,
+      "examples": [
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/sharing/ShareAutomationModal.tsx",
+      "matches": 11,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/states/EmptyState.tsx",
+      "matches": 1,
+      "examples": [
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "components/states/ErrorState.tsx",
+      "matches": 1,
+      "examples": [
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "screens/AnalyticsScreen.tsx",
+      "matches": 2,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "screens/ExecutionHistoryScreen.tsx",
+      "matches": 3,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "screens/automation/AutomationBuilderScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "screens/modern/BuildScreen.tsx",
+      "matches": 13,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "screens/modern/DiscoverScreen.tsx",
+      "matches": 7,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "screens/modern/LibraryScreen.tsx",
+      "matches": 11,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernCommentsScreen.tsx",
+      "matches": 9,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernHomeScreen.tsx",
+      "matches": 3,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernProfileScreen.tsx",
+      "matches": 4,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernReviewsScreen.tsx",
+      "matches": 8,
+      "examples": [
+        "<TouchableOpacity",
+        "<TouchableOpacity",
+        "<TouchableOpacity"
+      ]
+    }
+  ],
+  "createStylesAny": [
+    {
+      "file": "components/developer/DeveloperSection.tsx",
+      "matches": 1,
+      "examples": [
+        "createStyles = (theme: any"
+      ]
+    },
+    {
+      "file": "components/feedback/Toast.tsx",
+      "matches": 1,
+      "examples": [
+        "createStyles = (theme: any"
+      ]
+    },
+    {
+      "file": "components/loading/SkeletonLoading.tsx",
+      "matches": 1,
+      "examples": [
+        "createStyles = (theme: any"
+      ]
+    },
+    {
+      "file": "components/states/EmptyState.tsx",
+      "matches": 1,
+      "examples": [
+        "createStyles = (theme: any"
+      ]
+    },
+    {
+      "file": "components/states/ErrorState.tsx",
+      "matches": 1,
+      "examples": [
+        "createStyles = (theme: any"
+      ]
+    },
+    {
+      "file": "screens/modern/BuildScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "createStyles = (theme: any"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernCommentsScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "createStyles = (theme: any"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernHomeScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "createStyles = (theme: any"
+      ]
+    },
+    {
+      "file": "screens/modern/ModernReviewsScreen.tsx",
+      "matches": 1,
+      "examples": [
+        "createStyles = (theme: any"
+      ]
+    }
+  ],
+  "summary": {
+    "totalFiles": 197,
+    "filesNeedingMigration": 111,
+    "criticalIssues": 99
+  }
+}
