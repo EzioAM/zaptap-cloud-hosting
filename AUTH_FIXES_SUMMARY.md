@@ -12,22 +12,28 @@
 - Loading state properly transitions to error state after timeout
 - Added retry functionality with timeout reset
 
-### 3. **Navigation Configuration**
+### 3. **Initial Data Fetch Issue (NEW FIX)**
+- **Problem**: DiscoverScreen was stuck on "Discovering amazing automations..." until app switcher was triggered
+- **Cause**: `refetchOnMountOrArgChange: false` prevented initial data fetch on component mount
+- **Solution**: Changed to `refetchOnMountOrArgChange: true` for both public and trending queries
+- **Result**: Data now loads immediately when the DiscoverScreen is opened
+
+### 4. **Navigation Configuration**
 - Verified SignIn and SignUp screens are properly registered in `MainNavigator.tsx`
 - Navigation types are correctly defined in `types.ts`
 - No navigation issues found - screens are properly accessible
 
-### 4. **Environment Configuration**
+### 5. **Environment Configuration**
 - Verified `.env` file has correct Supabase credentials
 - Verified `app.config.js` properly loads environment variables
 - Supabase client is correctly configured with retry logic
 
-### 5. **Connection Context**
+### 6. **Connection Context**
 - Connection monitoring is properly implemented
 - Network state changes trigger connection checks
 - Auth state changes update connection status
 
-### 6. **Authentication Flow**
+### 7. **Authentication Flow**
 - AuthInitializer properly handles session restoration
 - Session refresh logic is implemented
 - Sign out properly clears local state
@@ -73,7 +79,8 @@ node scripts/test-auth-flow.mjs
 
 ## Common Issues & Solutions
 
-- **"Discovering amazing automations..." stuck**: Now times out after 5 seconds with retry option
+- **"Discovering amazing automations..." stuck**: Fixed by enabling `refetchOnMountOrArgChange: true` - data now loads on initial mount
+- **App switcher refresh workaround**: No longer needed - the screen loads data immediately
 - **Sign in button not working**: Navigation is properly configured, should work now
 - **No data showing**: Check database connection and run verify-database script
 - **Auth errors**: Run test-auth-flow script to diagnose authentication issues

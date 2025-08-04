@@ -66,13 +66,14 @@ const DiscoverScreen = () => {
   const styles = createStyles(theme);
   
   const { data: publicAutomations = [], isLoading, error, refetch, isFetching } = useGetPublicAutomationsQuery(undefined, {
-    // Enable caching and background refetch
-    refetchOnMountOrArgChange: false,
+    // Enable fetching on mount and background refetch
+    refetchOnMountOrArgChange: true,
     refetchOnReconnect: true,
   });
   const { data: trendingData = [], error: trendingError } = useGetTrendingAutomationsQuery({ limit: 6 }, {
     // Cache trending data for 5 minutes
     pollingInterval: 300000,
+    refetchOnMountOrArgChange: true,
   });
   const [likeAutomation] = useLikeAutomationMutation();
   const [unlikeAutomation] = useUnlikeAutomationMutation();
