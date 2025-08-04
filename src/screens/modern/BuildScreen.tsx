@@ -152,7 +152,7 @@ const BuildScreen = () => {
 
     if (!user) {
       Alert.alert('Authentication Required', 'Please log in to save automations');
-      navigation.navigate('Profile' as never);
+      navigation.navigate('SignIn' as never);
       return;
     }
 

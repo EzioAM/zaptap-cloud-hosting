@@ -12,6 +12,8 @@ import ModernCommentsScreen from '../screens/modern/ModernCommentsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { TutorialScreen } from '../screens/onboarding/TutorialScreen';
+import SignInScreen from '../screens/auth/SignInScreen';
+import SignUpScreen from '../screens/auth/SignUpScreen';
 import { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -106,6 +108,16 @@ export const MainNavigator = () => {
         name="TutorialScreen"
         component={TutorialScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="SignIn"
+        component={SignInScreen}
+        options={{ title: 'Sign In' }}
+      />
+      <Stack.Screen
+        name="SignUp"
+        component={SignUpScreen}
+        options={{ title: 'Sign Up' }}
       />
     </Stack.Navigator>
   );

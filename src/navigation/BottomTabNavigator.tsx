@@ -8,7 +8,7 @@ import MyAutomationsScreen from '../screens/automation/MyAutomationsScreen';
 import GalleryScreen from '../screens/automation/GalleryScreen';
 import TemplatesScreen from '../screens/automation/TemplatesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import { SignInScreen } from '../screens/auth/SignInScreen';
+import SignInScreen from '../screens/auth/SignInScreen';
 
 const Tab = createBottomTabNavigator();
 
