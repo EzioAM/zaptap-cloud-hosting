@@ -28,6 +28,10 @@
     "redesign:home": "node scripts/ui-redesign-automation.js HomeScreen",
     "redesign:profile": "node scripts/ui-redesign-automation.js ProfileScreen",
     "redesign:settings": "node scripts/ui-redesign-automation.js SettingsScreen",
+    "test:auth": "node scripts/test-auth-and-discover.js",
+    "apply:auth-fix": "node scripts/apply-auth-fix.js",
+    "fix:auth": "npm run apply:auth-fix && npm run test:auth",
+    "quick-fix": "node scripts/quick-fix.js",
     "implement:redesign": "node scripts/implement-redesign.js",
     "supabase:setup": "node scripts/setup-supabase-roles.js setup",
     "supabase:verify": "node scripts/setup-supabase-roles.js verify",
@@ -44,7 +48,9 @@
     "deploy:test": "node scripts/deploy-with-ai-features.js test",
     "setup:sharing": "node scripts/setup-sharing-database.js",
     "migrate:sharing": "node scripts/apply-sharing-migration.js",
-    "fix:comments": "node scripts/fix-comments-system.js"
+    "fix:comments": "node scripts/fix-comments-system.js",
+    "diagnose:linking": "node scripts/diagnose-app-linking.js",
+    "fix:linking": "node scripts/fix-app-linking.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.1.2",

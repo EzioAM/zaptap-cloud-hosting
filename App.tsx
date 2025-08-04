@@ -9,22 +9,25 @@ import { RemoteDebugger } from './src/components/debug/RemoteDebugger';
 import { AuthInitializer } from './src/components/auth/AuthInitializer';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { ConnectionProvider } from './src/contexts/ConnectionContext';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 export default function App() {
   return (
-    <ReduxProvider store={store}>
-      <PersistGate loading={<ActivityIndicator />} persistor={persistor}>
-        <PaperProvider>
-          <ThemeProvider>
-            <ConnectionProvider>
-              <AuthInitializer>
-                <AppNavigator />
-                <RemoteDebugger />
-              </AuthInitializer>
-            </ConnectionProvider>
-          </ThemeProvider>
-        </PaperProvider>
-      </PersistGate>
-    </ReduxProvider>
+    <ErrorBoundary>
+      <ReduxProvider store={store}>
+        <PersistGate loading={<ActivityIndicator />} persistor={persistor}>
+          <PaperProvider>
+            <ThemeProvider>
+              <ConnectionProvider>
+                <AuthInitializer>
+                  <AppNavigator />
+                  <RemoteDebugger />
+                </AuthInitializer>
+              </ConnectionProvider>
+            </ThemeProvider>
+          </PaperProvider>
+        </PersistGate>
+      </ReduxProvider>
+    </ErrorBoundary>
   );
 }

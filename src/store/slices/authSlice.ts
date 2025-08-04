@@ -102,8 +102,14 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 
   // Real Supabase sign out
   export const signOut = createAsyncThunk('auth/signOut', async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Even if sign out fails on the server, clear local session
+      throw error;
+    }
   });
 
   // Forgot password
@@ -187,11 +193,25 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
           state.error = action.error.message || 'Sign up failed';
         })
         // Sign Out
+        .addCase(signOut.pending, (state) => {
+          state.isLoading = true;
+        })
         .addCase(signOut.fulfilled, (state) => {
           state.user = null;
           state.isAuthenticated = false;
           state.accessToken = null;
           state.refreshToken = null;
+          state.isLoading = false;
+          state.error = null;
+        })
+        .addCase(signOut.rejected, (state, action) => {
+          // Even on error, clear the local state
+          state.user = null;
+          state.isAuthenticated = false;
+          state.accessToken = null;
+          state.refreshToken = null;
+          state.isLoading = false;
+          state.error = action.error.message || 'Sign out failed';
         })
         // Reset Password
         .addCase(resetPassword.pending, (state) => {
@@ -209,4 +229,5 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
   });
 
   export const { clearError, setTokens, setUser, restoreSession, signOutSuccess } = authSlice.actions;
+  export { signIn, signUp, signOut, resetPassword };
   export default authSlice;

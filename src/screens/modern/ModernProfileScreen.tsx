@@ -15,8 +15,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../store';
-import { logout } from '../../store/slices/authSlice';
+import { RootState, AppDispatch } from '../../store';
+import { signOut } from '../../store/slices/authSlice';
 import { useGetMyAutomationsQuery, useGetPublicAutomationsQuery } from '../../store/api/automationApi';
 import { useUserRole } from '../../hooks/useUserRole';
 import { DeveloperSection } from '../../components/developer/DeveloperSection';
@@ -24,7 +24,7 @@ import { DeveloperSection } from '../../components/developer/DeveloperSection';
 const ModernProfileScreen = () => {
   const { theme, themeMode, setThemeMode } = useTheme();
   const navigation = useNavigation();
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const { isDeveloper } = useUserRole();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
@@ -117,7 +117,7 @@ const ModernProfileScreen = () => {
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: () => dispatch(logout()),
+          onPress: () => dispatch(signOut()),
         },
       ],
     );

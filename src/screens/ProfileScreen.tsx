@@ -12,13 +12,12 @@ import { Avatar, Card, Divider, List } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
-import { RootState } from '../store';
-import authSlice from '../store/slices/authSlice';
-import { supabase } from '../services/supabase/client';
+import { RootState, AppDispatch } from '../store';
+import { signOut } from '../store/slices/authSlice';
 import { APP_VERSION } from '../constants/version';
 
 export default function ProfileScreen() {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const [loading, setLoading] = React.useState(false);
@@ -35,8 +34,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             setLoading(true);
             try {
-              await supabase.auth.signOut();
-              dispatch(authSlice.actions.clearAuth());
+              await dispatch(signOut()).unwrap();
             } catch (error) {
               console.error('Sign out error:', error);
               Alert.alert('Error', 'Failed to sign out. Please try again.');
