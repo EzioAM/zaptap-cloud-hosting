@@ -4,8 +4,28 @@ import { useTheme as usePaperTheme } from 'react-native-paper';
 
 export const ThemeTestComponent = () => {
   const [themeStatus, setThemeStatus] = useState('🔍 Testing theme...');
-  const [unifiedThemeStatus, setUnifiedThemeStatus] = useState('');
   const paperTheme = usePaperTheme();
+  
+  // Test Unified Theme at component level (hooks must be called at top level)
+  let unifiedThemeStatus = '🔍 Testing UnifiedTheme...';
+  let unifiedTheme = null;
+  
+  try {
+    // Try to use the hook - this will work if we're inside the provider
+    const { useUnifiedTheme } = require('../../contexts/ThemeCompatibilityShim');
+    const themeHookResult = useUnifiedTheme();
+    
+    if (themeHookResult && themeHookResult.theme) {
+      unifiedThemeStatus = '✅ UnifiedTheme Working (Compatibility Mode)';
+      unifiedTheme = themeHookResult.theme;
+      console.log('✅ Unified theme loaded (compat):', themeHookResult);
+    } else {
+      unifiedThemeStatus = '⚠️ UnifiedTheme returned null';
+    }
+  } catch (error: any) {
+    unifiedThemeStatus = '❌ UnifiedTheme Not Available';
+    console.log('⚠️ UnifiedTheme not available, using Paper theme fallback');
+  }
   
   // Test Paper theme
   React.useEffect(() => {
@@ -16,25 +36,6 @@ export const ThemeTestComponent = () => {
       setThemeStatus('❌ Paper Theme Error');
     }
   }, [paperTheme]);
-  
-  // Test UnifiedTheme carefully
-  const testUnifiedTheme = () => {
-    try {
-      // Try to import and use UnifiedTheme
-      const { useUnifiedTheme } = require('../../contexts/UnifiedThemeProvider');
-      const theme = useUnifiedTheme();
-      
-      if (theme) {
-        setUnifiedThemeStatus('✅ UnifiedTheme Working');
-        console.log('✅ Unified theme loaded:', theme);
-      } else {
-        setUnifiedThemeStatus('⚠️ UnifiedTheme returned null');
-      }
-    } catch (error: any) {
-      setUnifiedThemeStatus(`❌ UnifiedTheme Error: ${error.message}`);
-      console.error('❌ Unified theme error:', error);
-    }
-  };
 
   return (
     <ScrollView>
@@ -66,9 +67,14 @@ export const ThemeTestComponent = () => {
         
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Unified Theme Provider</Text>
-          <Button title="Test UnifiedTheme" onPress={testUnifiedTheme} />
-          {unifiedThemeStatus !== '' && (
-            <Text style={[styles.status, { marginTop: 10 }]}>{unifiedThemeStatus}</Text>
+          <Text style={styles.status}>{unifiedThemeStatus}</Text>
+          
+          {unifiedTheme && (
+            <View style={styles.details}>
+              <Text style={styles.label}>Theme Mode: {unifiedTheme.mode || 'N/A'}</Text>
+              <Text style={styles.label}>Has Colors: {unifiedTheme.colors ? 'Yes' : 'No'}</Text>
+              <Text style={styles.label}>Has Typography: {unifiedTheme.typography ? 'Yes' : 'No'}</Text>
+            </View>
           )}
         </View>
         

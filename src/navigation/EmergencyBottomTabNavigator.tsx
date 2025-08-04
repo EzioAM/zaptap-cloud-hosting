@@ -1,15 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native';
 import { ReduxTestComponent } from '../components/test/ReduxTestComponent';
 import { SupabaseTestComponent } from '../components/test/SupabaseTestComponent';
 import { ThemeTestComponent } from '../components/test/ThemeTestComponent';
 import { ScreenLoaderTest } from '../components/test/ScreenLoaderTest';
+import { ThemeFallbackWrapper } from '../components/common/ThemeFallbackWrapper';
 
 console.log('🚨 EmergencyBottomTabNavigator loading...');
 
 const Tab = createBottomTabNavigator();
+
+// Try to load the real HomeScreen
+let ModernHomeScreenSafe: any = null;
+try {
+  ModernHomeScreenSafe = require('../screens/modern/ModernHomeScreenSafe').default;
+  console.log('✅ ModernHomeScreenSafe loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load ModernHomeScreenSafe:', error);
+}
 
 // Emergency screens
 const EmergencyScreen = ({ title }: { title: string }) => (
@@ -20,26 +30,60 @@ const EmergencyScreen = ({ title }: { title: string }) => (
   </View>
 );
 
-// Enhanced Home Screen with System Tests
-const HomeScreen = () => (
-  <ScrollView style={styles.scrollView}>
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>🚨 System Recovery Dashboard</Text>
-      <Text style={styles.headerSubtitle}>Testing core systems...</Text>
-    </View>
-    
-    <ReduxTestComponent />
-    <SupabaseTestComponent />
-    <ThemeTestComponent />
-    <ScreenLoaderTest />
-    
-    <View style={styles.footer}>
-      <Text style={styles.footerText}>
-        Check console logs for detailed debugging information
-      </Text>
-    </View>
-  </ScrollView>
-);
+// Test Dashboard Screen (can toggle to real HomeScreen)
+const TestDashboard = () => {
+  const [showRealHome, setShowRealHome] = useState(false);
+  
+  if (showRealHome && ModernHomeScreenSafe) {
+    return (
+      <ThemeFallbackWrapper 
+        fallback={
+          <View style={styles.screen}>
+            <Text style={styles.title}>❌ HomeScreen Error</Text>
+            <Text style={styles.subtitle}>Falling back to test dashboard</Text>
+          </View>
+        }
+      >
+        <ModernHomeScreenSafe />
+      </ThemeFallbackWrapper>
+    );
+  }
+  
+  return (
+    <ScrollView style={styles.scrollView}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>🚨 System Recovery Dashboard</Text>
+        <Text style={styles.headerSubtitle}>Testing core systems...</Text>
+        
+        {ModernHomeScreenSafe && (
+          <View style={styles.toggleContainer}>
+            <Text style={styles.toggleLabel}>Show Real HomeScreen:</Text>
+            <Switch 
+              value={showRealHome} 
+              onValueChange={setShowRealHome}
+              trackColor={{ false: "#767577", true: "#81b0ff" }}
+              thumbColor={showRealHome ? "#f5dd4b" : "#f4f3f4"}
+            />
+          </View>
+        )}
+      </View>
+      
+      <ReduxTestComponent />
+      <SupabaseTestComponent />
+      <ThemeTestComponent />
+      <ScreenLoaderTest />
+      
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          Check console logs for detailed debugging information
+        </Text>
+      </View>
+    </ScrollView>
+  );
+};
+
+// Use TestDashboard as HomeScreen
+const HomeScreen = TestDashboard;
 const BuildScreen = () => <EmergencyScreen title="Build" />;
 const DiscoverScreen = () => <EmergencyScreen title="Discover" />;
 const LibraryScreen = () => <EmergencyScreen title="Library" />;
@@ -101,7 +145,7 @@ export const ModernBottomTabNavigator = () => {
         component={HomeScreen}
         options={{ 
           title: 'Home',
-          headerTitle: 'Emergency Home'
+          headerTitle: 'ZapTap Recovery'
         }} 
       />
       <Tab.Screen 
@@ -191,5 +235,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 10,
+    borderRadius: 8,
+  },
+  toggleLabel: {
+    fontSize: 16,
+    color: 'white',
+    marginRight: 10,
+    fontWeight: '600',
   },
 });
