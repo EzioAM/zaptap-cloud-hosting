@@ -52,10 +52,15 @@ const ReviewDisplay: React.FC<ReviewDisplayProps> = ({
   const renderRatingBreakdown = () => {
     const { rating_breakdown, total_reviews } = ratingStats;
     
+    // Handle case where rating_breakdown might be undefined
+    if (!rating_breakdown) {
+      return null;
+    }
+    
     return (
       <View style={styles.breakdownContainer}>
         {[5, 4, 3, 2, 1].map(star => {
-          const count = rating_breakdown[star as keyof typeof rating_breakdown];
+          const count = rating_breakdown[star as keyof typeof rating_breakdown] || 0;
           const percentage = total_reviews > 0 ? (count / total_reviews) * 100 : 0;
           
           return (

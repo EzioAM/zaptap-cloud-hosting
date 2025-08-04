@@ -206,7 +206,7 @@ const ModernHomeScreen = () => {
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Recent Activity
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('MyAutomations' as never)}>
+            <TouchableOpacity onPress={() => navigation.navigate('LibraryTab')}>
               <Text style={[styles.seeAllText, { color: theme.colors.primary }]}>
                 See All
               </Text>
@@ -309,7 +309,14 @@ const ModernHomeScreen = () => {
                   { backgroundColor: theme.colors.surface },
                 ]}
                 activeOpacity={0.7}
-                onPress={() => navigation.navigate('Gallery' as never)}
+                accessibilityRole="button"
+                accessibilityLabel={`Browse ${category.name} automations`}
+                accessibilityHint={`Navigate to discover ${category.name} category automations`}
+                onPress={() => {
+                  // Navigate to discover tab and set category filter
+                  navigation.navigate('DiscoverTab');
+                  // TODO: Pass category filter to discover screen
+                }}
               >
                 <View
                   style={[

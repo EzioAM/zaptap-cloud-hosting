@@ -8,7 +8,7 @@ export type RootStackParamList = {
   // Modern Tab screens
   HomeTab: undefined;
   BuildTab: undefined;
-  DiscoverTab: undefined;
+  DiscoverTab: { category?: string } | undefined;
   LibraryTab: undefined;
   ProfileTab: undefined;
   

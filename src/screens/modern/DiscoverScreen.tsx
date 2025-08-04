@@ -357,6 +357,9 @@ const DiscoverScreen = () => {
         <View style={styles.trendingMeta}>
           <TouchableOpacity 
             style={styles.stat}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={item.hasLiked ? 'Unlike automation' : 'Like automation'}
             onPress={async () => {
               if (item.hasLiked) {
                 await unlikeAutomation(item.id);
@@ -477,6 +480,9 @@ const DiscoverScreen = () => {
         <View style={styles.statsContainer}>
           <TouchableOpacity 
             style={styles.stat}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={item.hasLiked ? 'Unlike automation' : 'Like automation'}
             onPress={async () => {
               if (item.hasLiked) {
                 await unlikeAutomation(item.id);
@@ -529,24 +535,27 @@ const DiscoverScreen = () => {
 
   // Loading timeout effect
   React.useEffect(() => {
-    if (isLoading && !refreshing) {
+    if (isLoading && !refreshing && publicAutomations.length === 0) {
       const timeout = setTimeout(() => {
         setLoadingTimedOut(true);
-      }, 5000); // 5 second timeout
+      }, 3000); // 3 second timeout for better UX
       return () => clearTimeout(timeout);
     } else {
       setLoadingTimedOut(false);
     }
-  }, [isLoading, refreshing]);
+  }, [isLoading, refreshing, publicAutomations.length]);
 
-  // Handle loading state - show loading only briefly
-  if (isLoading && !refreshing && publicAutomations.length === 0 && !loadingTimedOut) {
+  // Handle initial loading state - show loading only briefly when we have no data
+  if (isLoading && !refreshing && publicAutomations.length === 0 && !loadingTimedOut && !error) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={[styles.emptyText, { color: theme.colors.textSecondary, marginTop: theme.spacing.md }]}>
             Discovering amazing automations...
+          </Text>
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary, marginTop: theme.spacing.sm, fontSize: 12 }]}>
+            This may take a moment
           </Text>
         </View>
       </SafeAreaView>
@@ -619,13 +628,28 @@ const DiscoverScreen = () => {
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
             Discover
           </Text>
-          <TouchableOpacity style={styles.filterButton}>
-            <MaterialCommunityIcons
-              name="filter-variant"
-              size={24}
-              color={theme.colors.text}
-            />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            {(isLoading || isFetching) && !refreshing && (
+              <ActivityIndicator 
+                size="small" 
+                color={theme.colors.primary} 
+                style={{ marginRight: theme.spacing.sm }}
+              />
+            )}
+            <TouchableOpacity 
+              style={styles.filterButton}
+              onPress={() => {
+                // Could implement filter modal here
+                console.log('Filter button pressed');
+              }}
+            >
+              <MaterialCommunityIcons
+                name="filter-variant"
+                size={24}
+                color={theme.colors.text}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -788,6 +812,10 @@ const createStyles = (theme: any) =>
     headerTitle: {
       fontSize: theme.typography.h1.fontSize,
       fontWeight: theme.typography.h1.fontWeight,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
     },
     filterButton: {
       width: 44,

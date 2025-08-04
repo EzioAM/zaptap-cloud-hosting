@@ -1,22 +1,36 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { supabase } from '../../services/supabase/client';
+import Constants from 'expo-constants';
 
-// Custom base query for Supabase - NON-BLOCKING
+const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdma2RjbHpnZGxjdmhmaXVqa3d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0OTI2NTcsImV4cCI6MjA2OTA2ODY1N30.lJpGLp14e_9ku8n3WN8i61jYPohfx7htTEmTrnje-uE';
+
+// Enhanced base query with token refresh handling
 const supabaseBaseQuery = fetchBaseQuery({
   baseUrl: '/',
-  prepareHeaders: async (headers, { getState }) => {
+  prepareHeaders: async (headers, { getState, dispatch }) => {
     try {
       // Get session from Redux state first (faster)
       const state = getState() as any;
-      if (state.auth?.accessToken) {
-        headers.set('authorization', `Bearer ${state.auth.accessToken}`);
-        return headers;
+      let accessToken = state.auth?.accessToken;
+      
+      // If no token in Redux, try to get from Supabase
+      if (!accessToken) {
+        const { data: { session } } = await supabase.auth.getSession();
+        accessToken = session?.access_token;
+        
+        // Update Redux if we found a session
+        if (session?.access_token && session?.refresh_token) {
+          const { updateTokens } = await import('../slices/authSlice');
+          dispatch(updateTokens({
+            accessToken: session.access_token,
+            refreshToken: session.refresh_token,
+          }));
+        }
       }
       
-      // Fallback to Supabase auth if Redux state is empty
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        headers.set('authorization', `Bearer ${session.access_token}`);
+      if (accessToken) {
+        headers.set('authorization', `Bearer ${accessToken}`);
+        headers.set('apikey', supabaseAnonKey);
       }
     } catch (error) {
       console.warn('Failed to get auth token for API request:', error);
@@ -25,6 +39,47 @@ const supabaseBaseQuery = fetchBaseQuery({
     return headers;
   },
 });
+
+// Enhanced base query with retry logic for auth errors
+const enhancedBaseQuery = async (args: any, api: any, extraOptions: any) => {
+  let result = await supabaseBaseQuery(args, api, extraOptions);
+  
+  // Handle 401 errors by attempting token refresh
+  if (result.error && (result.error as any).status === 401) {
+    console.log('🔄 Analytics API request unauthorized, attempting token refresh...');
+    
+    try {
+      const { data: refreshResult, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError || !refreshResult.session) {
+        console.error('❌ Token refresh failed:', refreshError);
+        // Sign out user if refresh fails
+        const { signOut } = await import('../slices/authSlice');
+        api.dispatch(signOut());
+        return result;
+      }
+      
+      // Update tokens in Redux
+      const { updateTokens } = await import('../slices/authSlice');
+      api.dispatch(updateTokens({
+        accessToken: refreshResult.session.access_token,
+        refreshToken: refreshResult.session.refresh_token,
+      }));
+      
+      console.log('✅ Token refreshed, retrying analytics API request');
+      
+      // Retry the original request with new token
+      result = await supabaseBaseQuery(args, api, extraOptions);
+    } catch (refreshError) {
+      console.error('❌ Token refresh failed:', refreshError);
+      // Sign out user if refresh fails
+      const { signOut } = await import('../slices/authSlice');
+      api.dispatch(signOut());
+    }
+  }
+  
+  return result;
+};
 
 export type TimeRange = '24h' | '7d' | '30d' | 'all';
 
@@ -52,7 +107,7 @@ interface ExecutionStats {
 
 export const analyticsApi = createApi({
   reducerPath: 'analyticsApi',
-  baseQuery: supabaseBaseQuery,
+  baseQuery: enhancedBaseQuery,
   tagTypes: ['Analytics'],
   endpoints: (builder) => ({
     getAnalytics: builder.query<AnalyticsData, { timeRange: TimeRange }>({

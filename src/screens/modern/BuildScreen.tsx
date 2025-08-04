@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,8 @@ import DraggableFlatList, {
 } from 'react-native-draggable-flatlist';
 import { useCreateAutomationMutation } from '../../store/api/automationApi';
 import { Alert } from 'react-native';
+import { useAutomationForm } from '../../hooks/useAutomationForm';
+import { useOptimizedComponents } from '../../hooks/useOptimizedComponents';
 
 interface AutomationStep {
   id: string;
@@ -74,13 +76,86 @@ const BuildScreen = () => {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const { user } = useSelector((state: RootState) => state.auth);
-  const [automationName, setAutomationName] = useState('');
-  const [steps, setSteps] = useState<AutomationStep[]>([]);
   const [isAddStepModalVisible, setIsAddStepModalVisible] = useState(false);
   const [editingStep, setEditingStep] = useState<AutomationStep | null>(null);
   const [createAutomation, { isLoading }] = useCreateAutomationMutation();
 
+  // Use the form hook for better state management
+  const {
+    formData,
+    errors: formErrors,
+    isValid,
+    isDirty,
+    updateField,
+    addStep: formAddStep,
+    updateStep: formUpdateStep,
+    removeStep: formRemoveStep,
+    reorderSteps: formReorderSteps,
+    handleSubmit: formHandleSubmit,
+  } = useAutomationForm({
+    onSubmit: async (data) => {
+      const result = await createAutomation(data).unwrap();
+      console.log('Automation created:', result);
+      
+      Alert.alert(
+        'Success',
+        'Automation created successfully!',
+        [
+          {
+            text: 'View Details',
+            onPress: () => navigation.navigate('AutomationDetails', { automationId: result.id }),
+          },
+          {
+            text: 'Advanced Edit',
+            onPress: () => navigation.navigate('AutomationBuilder', { automationId: result.id }),
+          },
+          {
+            text: 'OK',
+            style: 'cancel',
+          },
+        ],
+      );
+    },
+  });
+
+  // Use optimization hook for better performance
+  const { stepStats, stepRenderData } = useOptimizedComponents({
+    steps: formData.steps,
+    onStepUpdate: formUpdateStep,
+    onStepRemove: formRemoveStep,
+    onStepToggle: (index) => {
+      const step = formData.steps[index];
+      if (step) {
+        formUpdateStep(index, { enabled: !step.enabled });
+      }
+    },
+  });
+
   const styles = createStyles(theme);
+
+  // Cleanup effect for modal state
+  useEffect(() => {
+    return () => {
+      setIsAddStepModalVisible(false);
+      setEditingStep(null);
+      setFormErrors({});
+    };
+  }, []);
+
+  // Helper function to update step configuration
+  const updateStepConfig = useCallback((configUpdate: Partial<any>) => {
+    if (!editingStep) return;
+    
+    const updatedConfig = { ...editingStep.config, ...configUpdate };
+    const updatedSteps = steps.map(step =>
+      step.id === editingStep.id
+        ? { ...step, config: updatedConfig }
+        : step
+    );
+    
+    setSteps(updatedSteps);
+    setEditingStep({ ...editingStep, config: updatedConfig });
+  }, [editingStep, steps]);
 
   const getStepCategories = () => {
     const categories = new Map<string, typeof stepTypes>();
@@ -99,21 +174,36 @@ const BuildScreen = () => {
     }));
   };
 
-  const addStep = (stepType: typeof stepTypes[0]) => {
-    const newStep: AutomationStep = {
-      id: Date.now().toString(),
-      type: stepType.type,
-      title: stepType.title,
-      icon: stepType.icon,
-      color: stepType.color,
-    };
-    setSteps([...steps, newStep]);
+  const addStep = useCallback((stepType: typeof stepTypes[0]) => {
+    formAddStep(stepType.type as any, {});
     setIsAddStepModalVisible(false);
-  };
+  }, [formAddStep]);
 
-  const handleTestRun = () => {
-    if (!automationName || steps.length === 0) {
-      Alert.alert('Error', 'Please add at least one step to test');
+  const validateForm = useCallback(() => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!automationName.trim()) {
+      errors.name = 'Automation name is required';
+    }
+    
+    if (steps.length === 0) {
+      errors.steps = 'At least one step is required';
+    }
+    
+    // Validate step configurations
+    steps.forEach((step, index) => {
+      if (!step.config || Object.keys(step.config).length === 0) {
+        errors[`step_${index}`] = `Step ${index + 1} needs configuration`;
+      }
+    });
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [automationName, steps]);
+
+  const handleTestRun = useCallback(() => {
+    if (!validateForm()) {
+      Alert.alert('Validation Error', 'Please fix the errors before testing');
       return;
     }
 
@@ -141,12 +231,17 @@ const BuildScreen = () => {
     };
 
     // Navigate to test screen
-    navigation.navigate('AutomationTest' as never, { automation: testAutomation } as never);
-  };
+    try {
+      navigation.navigate('AutomationTest' as never, { automation: testAutomation } as never);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Error', 'Failed to start test');
+    }
+  }, [automationName, steps, user, navigation, validateForm]);
 
-  const handleSave = async () => {
-    if (!automationName || steps.length === 0) {
-      Alert.alert('Error', 'Please enter a name and add at least one step');
+  const handleSave = useCallback(async () => {
+    if (!validateForm()) {
+      Alert.alert('Validation Error', 'Please fix the errors before saving');
       return;
     }
 
@@ -204,30 +299,43 @@ const BuildScreen = () => {
       // Reset form
       setAutomationName('');
       setSteps([]);
+      setFormErrors({});
     } catch (error: any) {
       console.error('Failed to create automation:', error);
       const errorMessage = error?.message || error?.error || 'Failed to create automation';
       Alert.alert('Error', errorMessage);
     }
-  };
+  }, [automationName, steps, user, navigation, createAutomation, validateForm]);
 
-  const removeStep = (stepId: string) => {
-    setSteps(steps.filter(step => step.id !== stepId));
-  };
+  const removeStep = useCallback((stepId: string) => {
+    setSteps(prevSteps => prevSteps.filter(step => step.id !== stepId));
+    // Clear any errors for this step
+    setFormErrors(prevErrors => {
+      const newErrors = { ...prevErrors };
+      Object.keys(newErrors).forEach(key => {
+        if (key.includes(stepId)) {
+          delete newErrors[key];
+        }
+      });
+      return newErrors;
+    });
+  }, []);
 
-  const duplicateStep = (step: AutomationStep) => {
+  const duplicateStep = useCallback((step: AutomationStep) => {
     const newStep: AutomationStep = {
       ...step,
       id: Date.now().toString(),
       config: { ...step.config },
     };
-    const stepIndex = steps.findIndex(s => s.id === step.id);
-    const newSteps = [...steps];
-    newSteps.splice(stepIndex + 1, 0, newStep);
-    setSteps(newSteps);
-  };
+    setSteps(prevSteps => {
+      const stepIndex = prevSteps.findIndex(s => s.id === step.id);
+      const newSteps = [...prevSteps];
+      newSteps.splice(stepIndex + 1, 0, newStep);
+      return newSteps;
+    });
+  }, []);
 
-  const renderStep = ({ item, drag, isActive }: RenderItemParams<AutomationStep>) => {
+  const renderStep = useCallback(({ item, drag, isActive }: RenderItemParams<AutomationStep>) => {
     return (
       <ScaleDecorator>
         <TouchableOpacity
@@ -292,9 +400,9 @@ const BuildScreen = () => {
         </TouchableOpacity>
       </ScaleDecorator>
     );
-  };
+  }, [theme, duplicateStep, removeStep, setEditingStep]);
 
-  const renderStepType = ({ item }: { item: typeof stepTypes[0] }) => (
+  const renderStepType = useCallback(({ item }: { item: typeof stepTypes[0] }) => (
     <TouchableOpacity
       style={[styles.stepTypeCard, { backgroundColor: theme.colors.surface }]}
       onPress={() => addStep(item)}
@@ -316,7 +424,7 @@ const BuildScreen = () => {
         {item.title}
       </Text>
     </TouchableOpacity>
-  );
+  ), [theme, addStep]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -345,10 +453,10 @@ const BuildScreen = () => {
           <TouchableOpacity
             style={[
               styles.saveButton,
-              { opacity: automationName && steps.length > 0 ? 1 : 0.5 },
+              { opacity: isValid ? 1 : 0.5 },
             ]}
-            disabled={!automationName || steps.length === 0 || isLoading}
-            onPress={handleSave}
+            disabled={!isValid || isLoading}
+            onPress={formHandleSubmit}
           >
             <Text style={[styles.saveButtonText, { color: theme.colors.primary }]}>
               Save
@@ -376,8 +484,8 @@ const BuildScreen = () => {
               ]}
               placeholder="Enter automation name"
               placeholderTextColor={theme.colors.textSecondary}
-              value={automationName}
-              onChangeText={setAutomationName}
+              value={formData.title}
+              onChangeText={(text) => updateField('title', text)}
             />
           </View>
 
@@ -386,7 +494,7 @@ const BuildScreen = () => {
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Steps
             </Text>
-            {steps.length === 0 ? (
+            {formData.steps.length === 0 ? (
               <View style={[styles.emptyState, { backgroundColor: theme.colors.surface }]}>
                 <MaterialCommunityIcons
                   name="robot-outline"
@@ -402,10 +510,21 @@ const BuildScreen = () => {
               </View>
             ) : (
               <DraggableFlatList
-                data={steps}
+                data={stepRenderData}
                 renderItem={renderStep}
                 keyExtractor={(item) => item.id}
-                onDragEnd={({ data }) => setSteps(data)}
+                onDragEnd={({ data }) => {
+                  const reorderedSteps = data.map(item => ({
+                    id: item.id,
+                    type: item.type,
+                    title: item.title,
+                    icon: item.icon,
+                    color: item.color,
+                    config: item.config,
+                    enabled: item.enabled,
+                  }));
+                  updateField('steps', reorderedSteps);
+                }}
                 scrollEnabled={false}
               />
             )}
@@ -437,7 +556,7 @@ const BuildScreen = () => {
           </TouchableOpacity>
 
           {/* Test Run Button */}
-          {steps.length > 0 && (
+          {formData.steps.length > 0 && (
             <TouchableOpacity
               style={[styles.testButton, { borderColor: theme.colors.primary }]}
               activeOpacity={0.7}
@@ -555,15 +674,7 @@ const BuildScreen = () => {
                     placeholder="+1234567890"
                     placeholderTextColor={theme.colors.textSecondary}
                     value={editingStep.config?.phoneNumber || ''}
-                    onChangeText={(text) => {
-                      const updatedSteps = steps.map(step =>
-                        step.id === editingStep.id
-                          ? { ...step, config: { ...step.config, phoneNumber: text } }
-                          : step
-                      );
-                      setSteps(updatedSteps);
-                      setEditingStep({ ...editingStep, config: { ...editingStep.config, phoneNumber: text } });
-                    }}
+                    onChangeText={(text) => updateStepConfig({ phoneNumber: text })}
                   />
                   <Text style={[styles.configLabel, { color: theme.colors.text }]}>
                     Message
@@ -578,15 +689,7 @@ const BuildScreen = () => {
                     value={editingStep.config?.message || ''}
                     multiline
                     numberOfLines={4}
-                    onChangeText={(text) => {
-                      const updatedSteps = steps.map(step =>
-                        step.id === editingStep.id
-                          ? { ...step, config: { ...step.config, message: text } }
-                          : step
-                      );
-                      setSteps(updatedSteps);
-                      setEditingStep({ ...editingStep, config: { ...editingStep.config, message: text } });
-                    }}
+                    onChangeText={(text) => updateStepConfig({ message: text })}
                   />
                 </>
               )}
@@ -605,15 +708,7 @@ const BuildScreen = () => {
                     placeholderTextColor={theme.colors.textSecondary}
                     keyboardType="email-address"
                     value={editingStep.config?.to || ''}
-                    onChangeText={(text) => {
-                      const updatedSteps = steps.map(step =>
-                        step.id === editingStep.id
-                          ? { ...step, config: { ...step.config, to: text } }
-                          : step
-                      );
-                      setSteps(updatedSteps);
-                      setEditingStep({ ...editingStep, config: { ...editingStep.config, to: text } });
-                    }}
+                    onChangeText={(text) => updateStepConfig({ to: text })}
                   />
                   <Text style={[styles.configLabel, { color: theme.colors.text }]}>
                     Subject
@@ -626,15 +721,7 @@ const BuildScreen = () => {
                     placeholder="Email subject"
                     placeholderTextColor={theme.colors.textSecondary}
                     value={editingStep.config?.subject || ''}
-                    onChangeText={(text) => {
-                      const updatedSteps = steps.map(step =>
-                        step.id === editingStep.id
-                          ? { ...step, config: { ...step.config, subject: text } }
-                          : step
-                      );
-                      setSteps(updatedSteps);
-                      setEditingStep({ ...editingStep, config: { ...editingStep.config, subject: text } });
-                    }}
+                    onChangeText={(text) => updateStepConfig({ subject: text })}
                   />
                 </>
               )}
@@ -652,15 +739,7 @@ const BuildScreen = () => {
                     placeholder="https://example.com/webhook"
                     placeholderTextColor={theme.colors.textSecondary}
                     value={editingStep.config?.url || ''}
-                    onChangeText={(text) => {
-                      const updatedSteps = steps.map(step =>
-                        step.id === editingStep.id
-                          ? { ...step, config: { ...step.config, url: text } }
-                          : step
-                      );
-                      setSteps(updatedSteps);
-                      setEditingStep({ ...editingStep, config: { ...editingStep.config, url: text } });
-                    }}
+                    onChangeText={(text) => updateStepConfig({ url: text })}
                   />
                 </>
               )}
@@ -681,13 +760,7 @@ const BuildScreen = () => {
                     value={editingStep.config?.delay?.toString() || editingStep.config?.duration?.toString() || ''}
                     onChangeText={(text) => {
                       const delay = parseInt(text) * 1000 || 0; // Convert to milliseconds
-                      const updatedSteps = steps.map(step =>
-                        step.id === editingStep.id
-                          ? { ...step, config: { ...step.config, delay } }
-                          : step
-                      );
-                      setSteps(updatedSteps);
-                      setEditingStep({ ...editingStep, config: { ...editingStep.config, delay } });
+                      updateStepConfig({ delay });
                     }}
                   />
                 </>

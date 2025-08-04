@@ -237,6 +237,9 @@ const LibraryScreen = () => {
     <TouchableOpacity
       style={[styles.automationCard, { backgroundColor: theme.colors.surface }]}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`Automation: ${item.title}`}
+      accessibilityHint={`${item.description}. ${item.steps} steps, ${item.totalRuns} total runs. Tap to view details.`}
       onPress={() => navigation.navigate('AutomationDetails', { automationId: item.id })}
     >
       <View style={styles.automationHeader}>
@@ -320,6 +323,9 @@ const LibraryScreen = () => {
       <View style={styles.automationActions}>
         <TouchableOpacity
           style={styles.actionButton}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={item.isActive ? 'Pause automation' : 'Resume automation'}
           onPress={() => handleToggleActive(item)}
         >
           <MaterialCommunityIcons
@@ -330,7 +336,10 @@ const LibraryScreen = () => {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => navigation.navigate('EditAutomation' as never, { automationId: item.id } as never)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Edit automation"
+          onPress={() => navigation.navigate('EditAutomation', { automationId: item.id })}
         >
           <MaterialCommunityIcons
             name="pencil"
@@ -340,6 +349,9 @@ const LibraryScreen = () => {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Share automation"
           onPress={() => handleShare(item)}
         >
           <MaterialCommunityIcons
@@ -350,6 +362,9 @@ const LibraryScreen = () => {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Delete automation"
           onPress={() => handleDelete(item)}
         >
           <MaterialCommunityIcons
@@ -393,7 +408,7 @@ const LibraryScreen = () => {
       ) : (
         <TouchableOpacity
           style={[styles.createButton, { backgroundColor: theme.colors.primary }]}
-          onPress={() => navigation.navigate('BuildTab' as never)}
+          onPress={() => navigation.navigate('BuildTab')}
         >
           <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
           <Text style={styles.createButtonText}>Create Automation</Text>
@@ -440,7 +455,7 @@ const LibraryScreen = () => {
           </Text>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
-            onPress={() => navigation.navigate('SignIn' as never)}
+            onPress={() => navigation.navigate('SignIn')}
           >
             <Text style={styles.actionButtonText}>Sign In</Text>
           </TouchableOpacity>
@@ -791,8 +806,8 @@ const createStyles = (theme: any) =>
       borderTopColor: theme.colors.divider,
     },
     actionButton: {
-      width: 36,
-      height: 36,
+      width: 40,
+      height: 40,
       borderRadius: theme.borderRadius.round,
       justifyContent: 'center',
       alignItems: 'center',

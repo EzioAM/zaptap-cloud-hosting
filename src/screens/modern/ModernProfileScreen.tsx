@@ -8,6 +8,8 @@ import {
   Image,
   Switch,
   Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -63,12 +65,38 @@ const ModernProfileScreen = () => {
   };
   
   // Fetch user's automations to calculate stats
-  const { data: myAutomations = [], isLoading: isLoadingMy } = useGetMyAutomationsQuery();
-  const { data: publicAutomations = [], isLoading: isLoadingPublic } = useGetPublicAutomationsQuery();
+  const { 
+    data: myAutomations = [], 
+    isLoading: isLoadingMy, 
+    refetch: refetchMyAutomations 
+  } = useGetMyAutomationsQuery();
+  const { 
+    data: publicAutomations = [], 
+    isLoading: isLoadingPublic, 
+    refetch: refetchPublicAutomations 
+  } = useGetPublicAutomationsQuery();
+
+  // Add refresh functionality
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        refetchMyAutomations(),
+        refetchPublicAutomations()
+      ]);
+    } catch (error) {
+      console.error('Failed to refresh profile data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
   
   // Calculate real stats from user's data
-  const userPublicAutomations = publicAutomations.filter(
-    automation => automation.created_by === user?.id
+  const userPublicAutomations = React.useMemo(() => 
+    publicAutomations.filter(automation => automation.created_by === user?.id),
+    [publicAutomations, user?.id]
   );
   
   // Calculate rank based on activity
@@ -99,14 +127,14 @@ const ModernProfileScreen = () => {
     return sum + Math.max(5, daysOld * 2); // Estimate 2 votes per day
   }, 0);
 
-  const contributionStats = {
+  const contributionStats = React.useMemo(() => ({
     automationsCreated: myAutomations.length,
     automationsShared: userPublicAutomations.length,
     totalDownloads: totalEstimatedDownloads,
     helpfulVotes: totalEstimatedVotes,
     rank: getRank(myAutomations.length, userPublicAutomations.length),
     joinDate: formatJoinDate(user?.created_at),
-  };
+  }), [myAutomations.length, userPublicAutomations.length, totalEstimatedDownloads, totalEstimatedVotes, user?.created_at]);
 
   const handleSignOut = () => {
     Alert.alert(
@@ -250,7 +278,17 @@ const ModernProfileScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+          />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
@@ -295,9 +333,14 @@ const ModernProfileScreen = () => {
 
         {/* Contribution Stats */}
         <View style={styles.statsSection}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Contribution Stats
-          </Text>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              Contribution Stats
+            </Text>
+            {(isLoadingMy || isLoadingPublic) && (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            )}
+          </View>
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
               <MaterialCommunityIcons
@@ -495,10 +538,15 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing.lg,
       marginBottom: theme.spacing.xl,
     },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: theme.spacing.md,
+    },
     sectionTitle: {
       fontSize: theme.typography.h3.fontSize,
       fontWeight: theme.typography.h3.fontWeight,
-      marginBottom: theme.spacing.md,
     },
     statsGrid: {
       flexDirection: 'row',

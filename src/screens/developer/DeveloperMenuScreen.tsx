@@ -79,7 +79,7 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
     {
       id: 'database',
       title: 'Database Inspector',
-      description: 'View and manage database tables and data',
+      description: 'Browse tables, query data, and monitor database operations',
       icon: 'database',
       component: DatabaseInspector,
       color: '#4caf50',
@@ -119,7 +119,7 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
     {
       id: 'research',
       title: 'AI Research Assistant',
-      description: 'Get insights for app improvements',
+      description: 'Get AI-powered insights and feedback on app improvements',
       icon: 'brain',
       component: ResearchDashboardEnhanced,
       color: '#e91e63',
@@ -127,15 +127,15 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
     {
       id: 'redesign',
       title: 'UI/UX Redesign Tool',
-      description: 'AI-powered interface redesign with mockups',
+      description: 'Generate interface mockups and design suggestions using AI',
       icon: 'palette',
       component: UIRedesignTool,
       color: '#ff5722',
     },
     {
       id: 'history',
-      title: 'Change History',
-      description: 'Track and undo AI-generated changes',
+      title: 'Change History & Rollback',
+      description: 'Review, track, and revert AI-generated code modifications',
       icon: 'history',
       component: ChangeHistoryView,
       color: '#607d8b',
@@ -254,9 +254,9 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
           <Card.Title title="Quick Actions" />
           <Card.Content>
             <List.Item
-              title="Clear Cache"
-              description="Clear app cache and temporary files"
-              left={(props) => <List.Icon {...props} icon="trash-can" />}
+              title="Clear App Cache"
+              description="Remove cached data and temporary files (keeps user login)"
+              left={(props) => <List.Icon {...props} icon="trash-can" color="#ff9800" />}
               onPress={async () => {
                 Alert.alert(
                   'Clear Cache',
@@ -287,9 +287,9 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
             />
             <Divider style={styles.toolDivider} />
             <List.Item
-              title="Reset to Defaults"
-              description="Reset app settings to default values"
-              left={(props) => <List.Icon {...props} icon="restore" />}
+              title="Reset App Settings"
+              description="Restore all preferences to factory defaults (keeps user data)"
+              left={(props) => <List.Icon {...props} icon="restore" color="#f44336" />}
               onPress={() => {
                 Alert.alert(
                   'Reset Settings',
@@ -317,9 +317,9 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
             />
             <Divider style={styles.toolDivider} />
             <List.Item
-              title="Export Logs"
-              description="Export debug logs for troubleshooting"
-              left={(props) => <List.Icon {...props} icon="export" />}
+              title="Export Debug Data"
+              description="Generate diagnostic report for technical support"
+              left={(props) => <List.Icon {...props} icon="export" color="#4caf50" />}
               onPress={async () => {
                 try {
                   const debugBundle = await DeveloperService.exportDebugBundle();

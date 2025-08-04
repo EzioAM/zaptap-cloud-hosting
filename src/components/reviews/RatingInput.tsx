@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -38,6 +38,12 @@ const RatingInput: React.FC<RatingInputProps> = ({
 }) => {
   const [rating, setRating] = useState(initialRating);
   const [review, setReview] = useState(initialReview);
+
+  // Update state when props change (for editing existing reviews)
+  useEffect(() => {
+    setRating(initialRating);
+    setReview(initialReview);
+  }, [initialRating, initialReview]);
   const [hoverRating, setHoverRating] = useState(0);
 
   const handleSubmit = async () => {
@@ -45,7 +51,12 @@ const RatingInput: React.FC<RatingInputProps> = ({
       return; // Don't submit without a rating
     }
     
-    await onSubmit(rating, review.trim() || undefined);
+    try {
+      await onSubmit(rating, review.trim() || undefined);
+    } catch (error) {
+      console.error('Failed to submit review:', error);
+      // Error handling is delegated to parent component
+    }
   };
 
   const handleStarPress = (starRating: number) => {

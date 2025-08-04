@@ -101,16 +101,101 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
   );
 
   // Real Supabase sign out
-  export const signOut = createAsyncThunk('auth/signOut', async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-    } catch (error) {
-      console.error('Sign out error:', error);
-      // Even if sign out fails on the server, clear local session
-      throw error;
+  export const signOut = createAsyncThunk(
+    'auth/signOut',
+    async (_, { dispatch, rejectWithValue }) => {
+      try {
+        console.log('🔄 Starting sign out process...');
+        
+        // Sign out from Supabase
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.error('⚠️ Supabase sign out error:', error);
+          // Continue with local cleanup even if server sign out fails
+        }
+        
+        // Clear any cached API data by dispatching reset actions
+        // This ensures API caches are cleared on sign out
+        try {
+          // Import APIs dynamically to avoid circular dependencies
+          const { automationApi } = await import('../api/automationApi');
+          const { analyticsApi } = await import('../api/analyticsApi');
+          
+          dispatch(automationApi.util.resetApiState());
+          dispatch(analyticsApi.util.resetApiState());
+          
+          console.log('✅ API caches cleared');
+        } catch (apiError) {
+          console.warn('⚠️ Failed to clear API caches:', apiError);
+        }
+        
+        // Clear all persisted data
+        try {
+          const { clearPersistedData } = await import('../index');
+          await clearPersistedData();
+          console.log('✅ Persisted data cleared');
+        } catch (storageError) {
+          console.warn('⚠️ Failed to clear persisted data:', storageError);
+        }
+        
+        console.log('✅ Sign out completed successfully');
+        return true;
+      } catch (error: any) {
+        console.error('❌ Sign out process failed:', error);
+        // Even if everything fails, we should clear local state
+        // Don't reject - this ensures reducers still clear local state
+        return true;
+      }
     }
-  });
+  );
+
+  // Refresh user profile data
+  export const refreshProfile = createAsyncThunk(
+    'auth/refreshProfile',
+    async (_, { getState, rejectWithValue }) => {
+      try {
+        const state = getState() as any;
+        const currentUser = state.auth.user;
+        
+        if (!currentUser) {
+          throw new Error('No authenticated user found');
+        }
+        
+        console.log('🔄 Refreshing profile for user:', currentUser.email);
+        
+        // Fetch latest profile data from database
+        const { data: profile, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+        
+        if (error) {
+          // Handle auth errors by attempting token refresh
+          if (error.message?.includes('JWT') || error.code === 'PGRST301') {
+            const { data: refreshResult } = await supabase.auth.refreshSession();
+            if (refreshResult.session) {
+              // Retry with refreshed token
+              const { data: retryProfile, error: retryError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', currentUser.id)
+                .single();
+              
+              if (retryError) throw retryError;
+              return retryProfile;
+            }
+          }
+          throw error;
+        }
+        
+        return profile;
+      } catch (error: any) {
+        console.error('❌ Profile refresh failed:', error);
+        return rejectWithValue(error.message || 'Failed to refresh profile');
+      }
+    }
+  );
 
   // Forgot password
   export const resetPassword = createAsyncThunk(
@@ -119,7 +204,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
       // For mobile apps, we need to handle password reset differently
       // The redirect URL should be your app's deep link
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'zaptap://reset-password',
+        redirectTo: 'shortcuts-like://reset-password',
       });
       
       if (error) throw error;
@@ -149,6 +234,18 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
         state.isAuthenticated = true;
         state.isLoading = false;
         state.error = null;
+        console.log('📝 Session restored for user:', action.payload.user.email);
+      },
+      updateTokens: (state, action: PayloadAction<{ accessToken: string; refreshToken: string }>) => {
+        state.accessToken = action.payload.accessToken;
+        state.refreshToken = action.payload.refreshToken;
+        console.log('🔄 Tokens updated successfully');
+      },
+      updateProfile: (state, action: PayloadAction<Partial<User>>) => {
+        if (state.user) {
+          state.user = { ...state.user, ...action.payload };
+          console.log('👤 Profile updated:', action.payload);
+        }
       },
       signOutSuccess: (state) => {
         state.user = null;
@@ -213,6 +310,26 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
           state.isLoading = false;
           state.error = action.error.message || 'Sign out failed';
         })
+        // Refresh Profile
+        .addCase(refreshProfile.pending, (state) => {
+          state.isLoading = true;
+          state.error = null;
+        })
+        .addCase(refreshProfile.fulfilled, (state, action) => {
+          state.isLoading = false;
+          if (state.user && action.payload) {
+            state.user = {
+              ...state.user,
+              ...action.payload,
+            };
+            console.log('✅ Profile refreshed successfully');
+          }
+        })
+        .addCase(refreshProfile.rejected, (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string || 'Failed to refresh profile';
+          console.error('❌ Profile refresh failed:', state.error);
+        })
         // Reset Password
         .addCase(resetPassword.pending, (state) => {
           state.isLoading = true;
@@ -228,6 +345,6 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
     },
   });
 
-  export const { clearError, setTokens, setUser, restoreSession, signOutSuccess } = authSlice.actions;
-  export { signIn, signUp, signOut, resetPassword };
+  export const { clearError, setTokens, setUser, restoreSession, signOutSuccess, updateTokens, updateProfile } = authSlice.actions;
+  export { signIn, signUp, signOut, refreshProfile, resetPassword };
   export default authSlice;

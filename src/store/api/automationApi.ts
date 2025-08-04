@@ -1,23 +1,37 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
   import { supabase } from '../../services/supabase/client';
   import { AutomationData, UserStats, AutomationExecution } from '../../types';
+  import Constants from 'expo-constants';
+  
+  const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdma2RjbHpnZGxjdmhmaXVqa3d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0OTI2NTcsImV4cCI6MjA2OTA2ODY1N30.lJpGLp14e_9ku8n3WN8i61jYPohfx7htTEmTrnje-uE';
 
-  // Custom base query for Supabase - NON-BLOCKING
+  // Enhanced base query with token refresh handling
   const supabaseBaseQuery = fetchBaseQuery({
     baseUrl: '/',
-    prepareHeaders: async (headers, { getState }) => {
+    prepareHeaders: async (headers, { getState, dispatch }) => {
       try {
         // Get session from Redux state first (faster)
         const state = getState() as any;
-        if (state.auth?.accessToken) {
-          headers.set('authorization', `Bearer ${state.auth.accessToken}`);
-          return headers;
+        let accessToken = state.auth?.accessToken;
+        
+        // If no token in Redux, try to get from Supabase
+        if (!accessToken) {
+          const { data: { session } } = await supabase.auth.getSession();
+          accessToken = session?.access_token;
+          
+          // Update Redux if we found a session
+          if (session?.access_token && session?.refresh_token) {
+            const { updateTokens } = await import('../slices/authSlice');
+            dispatch(updateTokens({
+              accessToken: session.access_token,
+              refreshToken: session.refresh_token,
+            }));
+          }
         }
         
-        // Fallback to Supabase auth if Redux state is empty
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          headers.set('authorization', `Bearer ${session.access_token}`);
+        if (accessToken) {
+          headers.set('authorization', `Bearer ${accessToken}`);
+          headers.set('apikey', supabaseAnonKey);
         }
       } catch (error) {
         console.warn('Failed to get auth token for API request:', error);
@@ -27,9 +41,50 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
     },
   });
 
+  // Enhanced base query with retry logic for auth errors
+  const enhancedBaseQuery = async (args: any, api: any, extraOptions: any) => {
+    let result = await supabaseBaseQuery(args, api, extraOptions);
+    
+    // Handle 401 errors by attempting token refresh
+    if (result.error && (result.error as any).status === 401) {
+      console.log('🔄 API request unauthorized, attempting token refresh...');
+      
+      try {
+        const { data: refreshResult, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshResult.session) {
+          console.error('❌ Token refresh failed:', refreshError);
+          // Sign out user if refresh fails
+          const { signOut } = await import('../slices/authSlice');
+          api.dispatch(signOut());
+          return result;
+        }
+        
+        // Update tokens in Redux
+        const { updateTokens } = await import('../slices/authSlice');
+        api.dispatch(updateTokens({
+          accessToken: refreshResult.session.access_token,
+          refreshToken: refreshResult.session.refresh_token,
+        }));
+        
+        console.log('✅ Token refreshed, retrying API request');
+        
+        // Retry the original request with new token
+        result = await supabaseBaseQuery(args, api, extraOptions);
+      } catch (refreshError) {
+        console.error('❌ Token refresh failed:', refreshError);
+        // Sign out user if refresh fails
+        const { signOut } = await import('../slices/authSlice');
+        api.dispatch(signOut());
+      }
+    }
+    
+    return result;
+  };
+
   export const automationApi = createApi({
     reducerPath: 'automationApi',
-    baseQuery: supabaseBaseQuery,
+    baseQuery: enhancedBaseQuery,
     tagTypes: ['Automation'],
     endpoints: (builder) => ({
       // Get user's automations
@@ -588,6 +643,81 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
           }
         },
       }),
+
+      // Submit a review
+      submitReview: builder.mutation<any, { automationId: string; rating: number; comment?: string }>({
+        queryFn: async ({ automationId, rating, comment }) => {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Not authenticated');
+
+            const { data, error } = await supabase
+              .from('automation_reviews')
+              .upsert({
+                automation_id: automationId,
+                user_id: user.id,
+                rating,
+                comment: comment || null,
+              })
+              .select()
+              .single();
+
+            if (error) throw error;
+
+            return { data };
+          } catch (error: any) {
+            return { error: error.message };
+          }
+        },
+        invalidatesTags: ['Automation'],
+      }),
+
+      // Get reviews for an automation
+      getAutomationReviews: builder.query<any[], string>({
+        queryFn: async (automationId) => {
+          try {
+            const { data, error } = await supabase
+              .from('automation_reviews')
+              .select(`
+                *,
+                users!inner(name, email)
+              `)
+              .eq('automation_id', automationId)
+              .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            return { data: data || [] };
+          } catch (error: any) {
+            return { error: error.message };
+          }
+        },
+        providesTags: ['Automation'],
+      }),
+
+      // Get all reviews
+      getAllReviews: builder.query<any[], void>({
+        queryFn: async () => {
+          try {
+            const { data, error } = await supabase
+              .from('automation_reviews')
+              .select(`
+                *,
+                users!inner(name, email, avatar_url),
+                automations!inner(title)
+              `)
+              .order('created_at', { ascending: false })
+              .limit(100);
+
+            if (error) throw error;
+
+            return { data: data || [] };
+          } catch (error: any) {
+            return { error: error.message };
+          }
+        },
+        providesTags: ['Automation'],
+      }),
     }),
   });
 
@@ -610,4 +740,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
     useTrackAutomationViewMutation,
     useGetExecutionHistoryQuery,
     useClearHistoryMutation,
+    useSubmitReviewMutation,
+    useGetAutomationReviewsQuery,
+    useGetAllReviewsQuery,
   } = automationApi;

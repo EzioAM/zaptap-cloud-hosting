@@ -16,7 +16,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { useConnection } from '../../contexts/ConnectionContext';
 import { StarRating } from '../../components/reviews/StarRating';
-import { supabase } from '../../services/supabase/client';
+import { useGetAllReviewsQuery } from '../../store/api/automationApi';
 
 interface Review {
   id: string;
@@ -38,114 +38,46 @@ const ModernReviewsScreen = () => {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const { connectionState, checkConnection } = useConnection();
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [filterRating, setFilterRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'recent' | 'helpful' | 'rating'>('recent');
   const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme);
 
-  React.useEffect(() => {
-    loadReviews();
-  }, []);
+  // Use RTK Query for reviews
+  const { 
+    data: reviewsData = [], 
+    isLoading, 
+    error,
+    refetch 
+  } = useGetAllReviewsQuery();
 
-  const loadReviews = async () => {
-    if (!connectionState.isConnected) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      // Load all reviews for all automations
-      const { data, error } = await supabase
-        .from('reviews')
-        .select(`
-          *,
-          users:user_id (
-            name,
-            avatar_url
-          ),
-          automations:automation_id (
-            title
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Map the data to our Review interface
-      const mappedReviews: Review[] = (data || []).map(review => ({
-        id: review.id,
-        user_id: review.user_id,
-        user_name: review.users?.name || 'Anonymous',
-        user_avatar: review.users?.avatar_url,
-        rating: review.rating,
-        title: review.title || '',
-        comment: review.comment,
-        helpful_count: review.helpful_count || 0,
-        created_at: review.created_at,
-        updated_at: review.updated_at,
-        automation_id: review.automation_id,
-        automation_title: review.automations?.title || 'Unknown Automation',
-        user_has_voted: false, // Will be updated separately
-      }));
-
-      setReviews(mappedReviews);
-    } catch (error) {
-      console.error('Error loading reviews:', error);
-      Alert.alert('Error', 'Failed to load reviews');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Transform API data to Review interface
+  const reviews: Review[] = reviewsData.map(review => ({
+    id: review.id,
+    user_id: review.user_id,
+    user_name: review.users?.name || 'Anonymous',
+    user_avatar: review.users?.avatar_url,
+    rating: review.rating,
+    title: review.comment || '', // Use comment as title
+    comment: review.comment || '',
+    helpful_count: review.helpful_count || 0,
+    created_at: review.created_at,
+    updated_at: review.updated_at,
+    automation_id: review.automation_id,
+    automation_title: review.automations?.title || 'Unknown Automation',
+    user_has_voted: false, // Will be updated separately
+  }));
 
   const onRefresh = async () => {
-    setRefreshing(true);
     await checkConnection();
-    
-    if (connectionState.isConnected) {
-      await loadReviews();
-    }
-    
-    setRefreshing(false);
+    refetch();
   };
 
   const handleVoteHelpful = async (reviewId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        Alert.alert('Sign In Required', 'Please sign in to vote on reviews');
-        return;
-      }
-
-      // Toggle vote
-      const review = reviews.find(r => r.id === reviewId);
-      if (review?.user_has_voted) {
-        // Remove vote
-        await supabase
-          .from('review_votes')
-          .delete()
-          .match({ review_id: reviewId, user_id: user.id });
-      } else {
-        // Add vote
-        await supabase
-          .from('review_votes')
-          .insert({ review_id: reviewId, user_id: user.id });
-      }
-
-      // Update local state
-      setReviews(prev => prev.map(r => 
-        r.id === reviewId 
-          ? { 
-              ...r, 
-              helpful_count: r.user_has_voted ? r.helpful_count - 1 : r.helpful_count + 1,
-              user_has_voted: !r.user_has_voted 
-            }
-          : r
-      ));
+      Alert.alert('Feature Coming Soon', 'Review voting will be available in the next update!');
+      // TODO: Implement review voting functionality
     } catch (error) {
       console.error('Error voting on review:', error);
     }
@@ -241,7 +173,7 @@ const ModernReviewsScreen = () => {
     </TouchableOpacity>
   );
 
-  if (isLoading && !refreshing) {
+  if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.loadingContainer}>
@@ -414,7 +346,7 @@ const ModernReviewsScreen = () => {
         keyExtractor={item => item.id}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={isLoading}
             onRefresh={onRefresh}
             tintColor={theme.colors.primary}
           />

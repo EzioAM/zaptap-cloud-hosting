@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
   import {
     View,
     StyleSheet,
@@ -101,6 +101,14 @@ import React, { useState, useEffect } from 'react';
           setShowQRGenerator(true);
         }
       }
+      
+      // Cleanup function to prevent state leaks
+      return () => {
+        if (route?.params?.isTemplate) {
+          // Reset template-specific state when leaving
+          setIsTemplatePreview(false);
+        }
+      };
     }, [route?.params, fetchedAutomation]);
 
     const availableSteps = [
@@ -122,7 +130,7 @@ import React, { useState, useEffect } from 'react';
       { type: 'app' as StepType, label: 'Open App', icon: 'application', description: 'Launch another application' },
     ];
 
-    const addStep = (stepType: StepType) => {
+    const addStep = useCallback((stepType: StepType) => {
       const stepInfo = availableSteps.find(s => s.type === stepType);
       const newStep: AutomationStep = {
         id: `step_${Date.now()}`,
@@ -132,13 +140,14 @@ import React, { useState, useEffect } from 'react';
         config: getDefaultConfig(stepType),
       };
 
-      const newSteps = [...steps, newStep];
-      setSteps(newSteps);
+      setSteps(prevSteps => {
+        const newSteps = [...prevSteps, newStep];
+        // Open configuration for the new step using setTimeout to avoid state conflicts
+        setTimeout(() => openStepConfig(newSteps.length - 1), 100);
+        return newSteps;
+      });
       setShowStepPicker(false);
-      
-      // Open configuration for the new step
-      openStepConfig(newSteps.length - 1);
-    };
+    }, []);
 
     const getDefaultConfig = (stepType: StepType): Record<string, any> => {
       switch (stepType) {
@@ -179,24 +188,36 @@ import React, { useState, useEffect } from 'react';
       }
     };
 
-    const removeStep = (index: number) => {
-      setSteps(steps.filter((_, i) => i !== index));
-    };
+    const removeStep = useCallback((index: number) => {
+      setSteps(prevSteps => prevSteps.filter((_, i) => i !== index));
+      // Clear any open step config if we're removing the currently editing step
+      if (configStepIndex === index) {
+        setShowStepConfig(false);
+        setConfigStepIndex(null);
+        setStepConfig({});
+      }
+    }, [configStepIndex]);
 
-    const toggleStep = (index: number) => {
-      const updatedSteps = [...steps];
-      updatedSteps[index].enabled = !updatedSteps[index].enabled;
-      setSteps(updatedSteps);
-    };
+    const toggleStep = useCallback((index: number) => {
+      setSteps(prevSteps => {
+        const updatedSteps = [...prevSteps];
+        if (updatedSteps[index]) {
+          updatedSteps[index].enabled = !updatedSteps[index].enabled;
+        }
+        return updatedSteps;
+      });
+    }, []);
 
-    const reorderSteps = (fromIndex: number, toIndex: number) => {
+    const reorderSteps = useCallback((fromIndex: number, toIndex: number) => {
       if (fromIndex === toIndex) return;
       
-      const updatedSteps = [...steps];
-      const [movedStep] = updatedSteps.splice(fromIndex, 1);
-      updatedSteps.splice(toIndex, 0, movedStep);
-      setSteps(updatedSteps);
-    };
+      setSteps(prevSteps => {
+        const updatedSteps = [...prevSteps];
+        const [movedStep] = updatedSteps.splice(fromIndex, 1);
+        updatedSteps.splice(toIndex, 0, movedStep);
+        return updatedSteps;
+      });
+    }, []);
 
     const openStepConfig = (index: number) => {
       console.log('Opening step config for index:', index, 'Step:', steps[index]);
@@ -210,22 +231,26 @@ import React, { useState, useEffect } from 'react';
       }
     };
 
-    const saveStepConfig = () => {
+    const saveStepConfig = useCallback(() => {
       if (configStepIndex !== null) {
-        const updatedSteps = [...steps];
-        updatedSteps[configStepIndex].config = { ...stepConfig };
-        setSteps(updatedSteps);
+        setSteps(prevSteps => {
+          const updatedSteps = [...prevSteps];
+          if (updatedSteps[configStepIndex]) {
+            updatedSteps[configStepIndex].config = { ...stepConfig };
+          }
+          return updatedSteps;
+        });
       }
       setShowStepConfig(false);
       setConfigStepIndex(null);
       setStepConfig({});
-    };
+    }, [configStepIndex, stepConfig]);
 
-    const cancelStepConfig = () => {
+    const cancelStepConfig = useCallback(() => {
       setShowStepConfig(false);
       setConfigStepIndex(null);
       setStepConfig({});
-    };
+    }, []);
 
     const executeAutomation = async () => {
       if (steps.length === 0) {
