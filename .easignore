@@ -4,6 +4,8 @@ node_modules/
 .expo-shared/
 build/
 dist/
+/android
+/ios
 ios/build/
 ios/Pods/
 ios/DerivedData/
