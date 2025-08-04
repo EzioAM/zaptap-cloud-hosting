@@ -410,11 +410,24 @@ const createStyles = (theme: any) => {
     round: 999,
   };
   
-  const typography = theme.typography || {
-    body: { fontSize: 16, fontWeight: '400' },
-    h2: { fontSize: 28, fontWeight: '700' },
-    h3: { fontSize: 24, fontWeight: '600' },
-    h4: { fontSize: 20, fontWeight: '600' },
+  // Fix typography structure to match what the styles expect
+  const typography = {
+    body: {
+      fontSize: theme.typography?.body1?.fontSize || 16,
+      fontWeight: '400',
+    },
+    h2: {
+      fontSize: theme.typography?.h2?.fontSize || 28,
+      fontWeight: '700',
+    },
+    h3: {
+      fontSize: theme.typography?.h3?.fontSize || 24,
+      fontWeight: '600',
+    },
+    h4: {
+      fontSize: theme.typography?.h4?.fontSize || 20,
+      fontWeight: '600',
+    },
   };
   
   const spacing = theme.spacing || {
