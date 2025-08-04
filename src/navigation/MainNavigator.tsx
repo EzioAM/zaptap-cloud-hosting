@@ -2,7 +2,8 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ModernBottomTabNavigator } from './ModernBottomTabNavigator';
+// import { ModernBottomTabNavigator } from './ModernBottomTabNavigator';
+import { ModernBottomTabNavigator } from './EmergencyBottomTabNavigator';
 import AutomationBuilderScreen from '../screens/automation/AutomationBuilderScreen';
 import AutomationDetailsScreen from '../screens/automation/AutomationDetailsScreen';
 import LocationTriggersScreen from '../screens/automation/LocationTriggersScreen';
@@ -20,45 +21,24 @@ import { RootStackParamList } from './types';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const MainNavigator = () => {
-  const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(null); // null = loading
-  const [isLoading, setIsLoading] = React.useState(true);
+  console.log('🚨 MainNavigator starting...');
+  
+  const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(true); // Default to true to skip onboarding
+  const [isLoading, setIsLoading] = React.useState(false); // Don't load by default
   
   React.useEffect(() => {
-    // Add timeout protection to prevent infinite loading
-    const timeout = setTimeout(() => {
-      console.warn('⚠️ Onboarding check timed out, proceeding with default');
-      setHasSeenOnboarding(false);
-      setIsLoading(false);
-    }, 5000);
-
-    checkOnboardingStatus().finally(() => {
-      clearTimeout(timeout);
-    });
-
-    return () => clearTimeout(timeout);
+    console.log('🚨 MainNavigator mounted, skipping onboarding check for emergency recovery');
+    // Skip onboarding check entirely for now
+    setHasSeenOnboarding(true);
+    setIsLoading(false);
   }, []);
   
-  const checkOnboardingStatus = async () => {
-    try {
-      console.log('🔍 Checking onboarding status...');
-      const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
-      setHasSeenOnboarding(hasSeenOnboarding === 'true');
-      console.log('✅ Onboarding status checked:', hasSeenOnboarding === 'true');
-    } catch (error) {
-      console.error('❌ Failed to check onboarding status:', error);
-      // Default to false - user will see onboarding
-      setHasSeenOnboarding(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Show loading screen while checking onboarding status
-  if (isLoading || hasSeenOnboarding === null) {
+  // Never show loading screen - go straight to app
+  if (isLoading) {
+    console.log('🚨 MainNavigator in loading state - THIS SHOULD NOT HAPPEN');
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-        <ActivityIndicator size="large" color="#6200ee" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>Initializing...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FF0000' }}>
+        <Text style={{ fontSize: 20, color: '#FFFFFF' }}>STUCK IN LOADING!</Text>
       </View>
     );
   }
