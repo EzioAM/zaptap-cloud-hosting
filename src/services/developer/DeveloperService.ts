@@ -268,9 +268,8 @@ class DeveloperServiceClass {
 
       const tables = [
         'automations',
-        'automation_steps',
         'deployments',
-        'executions',
+        'automation_executions',
         'reviews',
         'profiles',
         'automation_comments',
@@ -495,7 +494,7 @@ class DeveloperServiceClass {
       // Fetch automation
       const { data: automation, error } = await supabase
         .from('automations')
-        .select('*, automation_steps(*)')
+        .select('*')
         .eq('id', automationId)
         .single();
 
@@ -507,17 +506,18 @@ class DeveloperServiceClass {
       if (!automation) throw new Error('Automation not found');
 
       logs.push(`Loaded automation: ${automation.title}`);
-      logs.push(`Steps to execute: ${automation.automation_steps?.length || 0}`);
+      logs.push(`Steps to execute: ${automation.steps?.length || 0}`);
 
       // Simulate each step
-      for (const step of automation.automation_steps || []) {
-        logs.push(`\nExecuting step ${step.order}: ${step.action_type}`);
+      for (let i = 0; i < (automation.steps || []).length; i++) {
+        const step = automation.steps[i];
+        logs.push(`\nExecuting step ${i + 1}: ${step.type}`);
         logs.push(`Config: ${JSON.stringify(step.config, null, 2)}`);
         
         // Simulate execution delay
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        logs.push(`✓ Step ${step.order} completed`);
+        logs.push(`✓ Step ${i + 1} completed`);
       }
 
       const duration = Date.now() - startTime;

@@ -28,6 +28,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
             
             if (!user) {
               console.log('No authenticated user found');
+              // Return empty data for unauthenticated users
               return { data: [] };
             }
 
@@ -41,14 +42,16 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
             if (error) {
               console.error('Error fetching user automations:', error);
-              throw error;
+              // Return error properly so UI can handle it
+              return { error: { status: 'CUSTOM_ERROR', error: error.message, data: null } };
             }
 
             console.log(`Found ${data?.length || 0} automations for user`);
             return { data: data || [] };
           } catch (error: any) {
             console.error('Failed to fetch user automations:', error);
-            return { error: error.message };
+            // Return error properly so UI can handle it
+            return { error: { status: 'CUSTOM_ERROR', error: error.message || 'Failed to fetch automations', data: null } };
           }
         },
         providesTags: ['Automation'],
@@ -154,14 +157,16 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
             if (error) {
               console.error('Error fetching public automations:', error);
-              throw error;
+              // Return error properly so UI can handle it
+              return { error: { status: 'CUSTOM_ERROR', error: error.message, data: null } };
             }
 
             console.log(`Found ${data?.length || 0} public automations`);
             return { data: data || [] };
           } catch (error: any) {
             console.error('Failed to fetch public automations:', error);
-            return { error: error.message };
+            // Return error properly so UI can handle it
+            return { error: { status: 'CUSTOM_ERROR', error: error.message || 'Failed to fetch automations', data: null } };
           }
         },
         providesTags: ['Automation'],

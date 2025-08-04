@@ -37,38 +37,8 @@ export class OnboardingService {
         return { success: false, error: automationError };
       }
 
-      // Insert steps for each automation
-      const stepsToInsert: any[] = [];
-      
-      insertedAutomations?.forEach(automation => {
-        const originalAutomation = sampleAutomations.find(
-          sample => sample.title === automation.title
-        );
-        
-        if (originalAutomation) {
-          originalAutomation.steps.forEach(step => {
-            stepsToInsert.push({
-              automation_id: automation.id,
-              type: step.type,
-              config: step.config,
-              order_index: step.order_index,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-          });
-        }
-      });
-
-      if (stepsToInsert.length > 0) {
-        const { error: stepsError } = await supabase
-          .from('automation_steps')
-          .insert(stepsToInsert);
-
-        if (stepsError) {
-          console.error('Error creating sample automation steps:', stepsError);
-          return { success: false, error: stepsError };
-        }
-      }
+      // Note: Steps are now stored as JSON in the automations table
+      // No need to insert them separately
 
       return { 
         success: true, 

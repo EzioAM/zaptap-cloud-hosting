@@ -61,6 +61,7 @@ const DiscoverScreen = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
   const styles = createStyles(theme);
   
@@ -525,19 +526,20 @@ const DiscoverScreen = () => {
     </TouchableOpacity>
   );
 
-  // Handle loading state - show loading only briefly
-  if (isLoading && !refreshing && publicAutomations.length === 0) {
-    // Timeout after 3 seconds to prevent infinite loading
-    React.useEffect(() => {
+  // Loading timeout effect
+  React.useEffect(() => {
+    if (isLoading && !refreshing) {
       const timeout = setTimeout(() => {
-        if (isLoading) {
-          // Force stop loading after timeout
-          setRefreshing(false);
-        }
-      }, 3000);
+        setLoadingTimedOut(true);
+      }, 5000); // 5 second timeout
       return () => clearTimeout(timeout);
-    }, [isLoading]);
-    
+    } else {
+      setLoadingTimedOut(false);
+    }
+  }, [isLoading, refreshing]);
+
+  // Handle loading state - show loading only briefly
+  if (isLoading && !refreshing && publicAutomations.length === 0 && !loadingTimedOut) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -550,10 +552,10 @@ const DiscoverScreen = () => {
     );
   }
 
-  // Handle error state
-  if (error || trendingError) {
-    console.warn('Failed to load automations:', error || trendingError);
-    // Continue rendering with empty data instead of blocking the UI
+  // Handle error state or timeout
+  const hasError = error || trendingError || loadingTimedOut;
+  if (hasError) {
+    console.warn('Failed to load automations:', error || trendingError || 'Loading timeout');
   }
 
   // Show connection error banner if not connected
@@ -730,12 +732,15 @@ const DiscoverScreen = () => {
                   ? 'Please check your internet connection and try again.' 
                   : error 
                   ? 'Unable to load automations. Please try again later.' 
+                  : loadingTimedOut
+                  ? 'Loading is taking longer than expected. Please check your connection.'
                   : 'Be the first to create and share an automation!'}
               </Text>
-              {(error || !connectionState.isConnected) && (
+              {(error || !connectionState.isConnected || loadingTimedOut) && (
                 <TouchableOpacity
                   style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
                   onPress={async () => {
+                    setLoadingTimedOut(false);
                     await checkConnection();
                     if (connectionState.isConnected) {
                       refetch();
