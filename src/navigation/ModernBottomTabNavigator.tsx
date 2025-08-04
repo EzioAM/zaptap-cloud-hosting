@@ -2,7 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
-import { useTheme } from '../contexts/ThemeContext';
+import { useUnifiedTheme } from '../contexts/UnifiedThemeProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import screens
@@ -15,11 +15,12 @@ import ModernProfileScreen from '../screens/modern/ModernProfileScreen';
 const Tab = createBottomTabNavigator();
 
 export const ModernBottomTabNavigator = () => {
-  const { theme } = useTheme();
+  const { theme } = useUnifiedTheme();
   const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
+      initialRouteName="HomeTab"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -56,27 +57,43 @@ export const ModernBottomTabNavigator = () => {
             </View>
           );
         },
-        tabBarActiveTintColor: theme.colors.tabBarActive,
-        tabBarInactiveTintColor: theme.colors.tabBarInactive,
+        tabBarActiveTintColor: theme.colors.brand?.primary || '#6200ee',
+        tabBarInactiveTintColor: theme.colors.text?.tertiary || '#9E9E9E',
         tabBarStyle: {
-          backgroundColor: theme.colors.tabBarBackground,
+          backgroundColor: theme.colors.surface?.primary || '#FFFFFF',
           borderTopWidth: 0,
-          height: Platform.OS === 'ios' ? 85 + insets.bottom : 65,
+          height: Platform.OS === 'ios' ? 85 + insets.bottom : 70,
           paddingBottom: Platform.OS === 'ios' ? insets.bottom : 10,
           paddingTop: 10,
-          elevation: 0,
-          shadowColor: theme.colors.cardShadow,
+          paddingHorizontal: 8,
+          elevation: 8,
+          shadowColor: theme.colors.overlay?.light || '#000000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+          // Ensure proper touch handling
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 5,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
           marginTop: 4,
         },
+        tabBarHideOnKeyboard: true,
         headerShown: false,
+        // Improve performance
+        lazy: false,
+        unmountOnBlur: false,
       })}
+      sceneContainerStyle={{
+        backgroundColor: theme.colors.background?.primary || '#FFFFFF',
+      }}
     >
       <Tab.Screen
         name="HomeTab"
@@ -132,11 +149,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: 60,
-    height: 32,
+    height: 40,
+    // Ensure proper touch area
+    minHeight: 44,
+    minWidth: 44,
   },
   activeIndicator: {
     position: 'absolute',
-    bottom: -4,
+    bottom: -6,
     width: 20,
     height: 3,
     borderRadius: 2,

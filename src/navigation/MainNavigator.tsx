@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { View, Text, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ModernBottomTabNavigator } from './ModernBottomTabNavigator';
 import AutomationBuilderScreen from '../screens/automation/AutomationBuilderScreen';
@@ -19,10 +20,10 @@ import { RootStackParamList } from './types';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const MainNavigator = () => {
-  const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean>(false); // Default false
+  const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(null); // null = loading
+  const [isLoading, setIsLoading] = React.useState(true);
   
   React.useEffect(() => {
-    // Check onboarding status asynchronously - don't block rendering
     checkOnboardingStatus();
   }, []);
   
@@ -32,11 +33,22 @@ export const MainNavigator = () => {
       setHasSeenOnboarding(hasSeenOnboarding === 'true');
     } catch (error) {
       console.error('Failed to check onboarding status:', error);
-      // Keep default false - user will see onboarding
+      // Default to false - user will see onboarding
+      setHasSeenOnboarding(false);
+    } finally {
+      setIsLoading(false);
     }
   };
   
-  // Always render - onboarding check is non-blocking
+  // Show loading screen while checking onboarding status
+  if (isLoading || hasSeenOnboarding === null) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
+        <ActivityIndicator size="large" color="#6200ee" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>Initializing...</Text>
+      </View>
+    );
+  }
   
   return (
     <Stack.Navigator
