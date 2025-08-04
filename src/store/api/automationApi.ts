@@ -2,13 +2,26 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
   import { supabase } from '../../services/supabase/client';
   import { AutomationData, UserStats, AutomationExecution } from '../../types';
 
-  // Custom base query for Supabase
+  // Custom base query for Supabase - NON-BLOCKING
   const supabaseBaseQuery = fetchBaseQuery({
     baseUrl: '/',
     prepareHeaders: async (headers, { getState }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        headers.set('authorization', `Bearer ${session.access_token}`);
+      try {
+        // Get session from Redux state first (faster)
+        const state = getState() as any;
+        if (state.auth?.accessToken) {
+          headers.set('authorization', `Bearer ${state.auth.accessToken}`);
+          return headers;
+        }
+        
+        // Fallback to Supabase auth if Redux state is empty
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          headers.set('authorization', `Bearer ${session.access_token}`);
+        }
+      } catch (error) {
+        console.warn('Failed to get auth token for API request:', error);
+        // Continue without auth - API will handle unauthorized requests
       }
       return headers;
     },

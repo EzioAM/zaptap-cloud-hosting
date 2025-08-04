@@ -78,45 +78,84 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Check connection on mount and when app comes to foreground
   useEffect(() => {
-    checkConnection();
+    // MUCH longer delay to prevent blocking app startup completely
+    const initialCheckTimer = setTimeout(() => {
+      checkConnection().catch(error => {
+        console.warn('Initial connection check failed, app will continue offline:', error);
+      });
+    }, 3000); // 3 second delay to let app fully initialize
 
     // Listen for app state changes
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
-        checkConnection();
+        // Add delay to prevent blocking app resume
+        setTimeout(() => {
+          checkConnection().catch(error => {
+            console.warn('Connection check on app resume failed:', error);
+          });
+        }, 500);
       }
     });
 
-    // Listen for network state changes
+    // Listen for network state changes with error handling
     const unsubscribe = NetInfo.addEventListener((state) => {
-      if (state.isConnected && !connectionState.isConnected) {
-        checkConnection();
-      } else if (!state.isConnected) {
-        setConnectionState(prev => ({
-          ...prev,
-          isConnected: false,
-          error: 'No internet connection',
-          details: 'network_offline',
-        }));
+      try {
+        if (state.isConnected && !connectionState.isConnected) {
+          // Delay connection check after network reconnects
+          setTimeout(() => {
+            checkConnection().catch(error => {
+              console.warn('Network reconnect check failed:', error);
+            });
+          }, 1000);
+        } else if (!state.isConnected) {
+          setConnectionState(prev => ({
+            ...prev,
+            isConnected: false,
+            error: 'No internet connection',
+            details: 'network_offline',
+          }));
+        }
+      } catch (error) {
+        console.warn('Network state change handler error:', error);
       }
     });
 
-    // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        checkConnection();
-      } else if (event === 'SIGNED_OUT') {
-        setConnectionState(prev => ({
-          ...prev,
-          isAuthenticated: false,
-        }));
-      }
-    });
+    // Listen for auth state changes with error handling
+    let authListener: any;
+    try {
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        try {
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            // Delay connection check to prevent blocking auth flow
+            setTimeout(() => {
+              checkConnection().catch(error => {
+                console.warn('Auth state change connection check failed:', error);
+              });
+            }, 1000);
+          } else if (event === 'SIGNED_OUT') {
+            setConnectionState(prev => ({
+              ...prev,
+              isAuthenticated: false,
+            }));
+          }
+        } catch (error) {
+          console.warn('Auth state change handler error:', error);
+        }
+      });
+      authListener = data;
+    } catch (error) {
+      console.warn('Failed to set up auth listener:', error);
+    }
 
     return () => {
-      subscription.remove();
-      unsubscribe();
-      authListener?.subscription?.unsubscribe();
+      clearTimeout(initialCheckTimer);
+      try {
+        subscription.remove();
+        unsubscribe();
+        authListener?.subscription?.unsubscribe();
+      } catch (error) {
+        console.warn('Cleanup error in ConnectionProvider:', error);
+      }
     };
   }, [checkConnection]);
 

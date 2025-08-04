@@ -19,9 +19,10 @@ import { RootStackParamList } from './types';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const MainNavigator = () => {
-  const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(null);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean>(false); // Default false
   
   React.useEffect(() => {
+    // Check onboarding status asynchronously - don't block rendering
     checkOnboardingStatus();
   }, []);
   
@@ -31,13 +32,11 @@ export const MainNavigator = () => {
       setHasSeenOnboarding(hasSeenOnboarding === 'true');
     } catch (error) {
       console.error('Failed to check onboarding status:', error);
-      setHasSeenOnboarding(false);
+      // Keep default false - user will see onboarding
     }
   };
   
-  if (hasSeenOnboarding === null) {
-    return null;
-  }
+  // Always render - onboarding check is non-blocking
   
   return (
     <Stack.Navigator

@@ -23,12 +23,35 @@ import { configureStore } from '@reduxjs/toolkit';
 
   export const store = configureStore({
     reducer: persistedReducer,
-    middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware({
+    middleware: (getDefaultMiddleware) => {
+      const defaultMiddleware = getDefaultMiddleware({
         serializableCheck: {
-          ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+          ignoredActions: [
+            'persist/PERSIST', 
+            'persist/REHYDRATE',
+            'persist/PAUSE',
+            'persist/PURGE',
+            'persist/REGISTER'
+          ],
+          // Ignore paths that might contain non-serializable values
+          ignoredActionPaths: ['meta.arg', 'payload.timestamp'],
+          ignoredPaths: ['items.dates'],
         },
-      }).concat(automationApi.middleware, analyticsApi.middleware),
+        immutableCheck: {
+          warnAfter: 128,
+          ignoredPaths: ['items.dates'],
+        },
+      });
+      
+      // Add API middleware safely
+      try {
+        return defaultMiddleware.concat(automationApi.middleware, analyticsApi.middleware);
+      } catch (error) {
+        console.error('❌ API middleware configuration failed:', error);
+        // Return default middleware only if API middleware fails
+        return defaultMiddleware;
+      }
+    },
   });
 
   export const persistor = persistStore(store);

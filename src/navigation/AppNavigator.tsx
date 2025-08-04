@@ -15,16 +15,16 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export const AppNavigator = () => {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean>(false); // Default to false
   
   useEffect(() => {
-    // Check if user has seen onboarding
-    checkOnboardingStatus();
-    
     // Initialize linking service when navigation is ready
     if (navigationRef.current) {
       linkingService.initialize(navigationRef.current);
     }
+    
+    // Check onboarding status asynchronously - don't block rendering
+    checkOnboardingStatus();
   }, []);
   
   const checkOnboardingStatus = async () => {
@@ -33,14 +33,11 @@ export const AppNavigator = () => {
       setHasSeenOnboarding(hasSeenOnboarding === 'true');
     } catch (error) {
       console.error('Failed to check onboarding status:', error);
-      setHasSeenOnboarding(false);
+      // Keep default false - user will see onboarding
     }
   };
   
-  // Don't render until we know onboarding status
-  if (hasSeenOnboarding === null) {
-    return null; // Or a loading screen
-  }
+  // Always render - don't block on AsyncStorage
   
   return (
     <NavigationContainer ref={navigationRef}>

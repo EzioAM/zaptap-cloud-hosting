@@ -13,84 +13,50 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
     if (hasInitialized.current) return;
     hasInitialized.current = true;
 
-    // Check for existing session on app startup
-    checkSession();
+    // NON-BLOCKING: Check for existing session with delay to prevent startup blocking
+    const initTimer = setTimeout(() => {
+      checkSession().catch(error => {
+        console.warn('Session check failed during startup, continuing without auth:', error);
+      });
+    }, 100); // Small delay to let UI render first
 
     // Listen for auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
       
-      if (event === 'SIGNED_IN' && session) {
-        // Fetch user profile with retry logic
-        await handleSignIn(session);
-      } else if (event === 'SIGNED_OUT') {
-        // Clear Redux state when user signs out
-        dispatch(authSlice.actions.signOutSuccess());
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        // Update tokens when refreshed
-        dispatch(authSlice.actions.setTokens({
-          accessToken: session.access_token,
-          refreshToken: session.refresh_token,
-        }));
-      } else if (event === 'USER_UPDATED' && session) {
-        // Handle user updates
-        await handleSignIn(session);
+      try {
+        if (event === 'SIGNED_IN' && session) {
+          // Non-blocking profile fetch
+          handleSignIn(session).catch(error => {
+            console.warn('Profile fetch failed after sign in:', error);
+          });
+        } else if (event === 'SIGNED_OUT') {
+          dispatch(authSlice.actions.signOutSuccess());
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          dispatch(authSlice.actions.setTokens({
+            accessToken: session.access_token,
+            refreshToken: session.refresh_token,
+          }));
+        } else if (event === 'USER_UPDATED' && session) {
+          handleSignIn(session).catch(error => {
+            console.warn('Profile update failed:', error);
+          });
+        }
+      } catch (error) {
+        console.error('Auth state change handler error:', error);
       }
     });
 
-    // Set up periodic connection check
-    const connectionCheckInterval = setInterval(async () => {
-      const connectionStatus = await testConnection();
-      if (!connectionStatus.connected) {
-        console.warn('⚠️ Connection lost, will retry on next check');
-      }
-    }, 30000); // Check every 30 seconds
-
     return () => {
+      clearTimeout(initTimer);
       authListener?.subscription?.unsubscribe();
-      clearInterval(connectionCheckInterval);
     };
   }, [dispatch]);
 
   const handleSignIn = async (session: any) => {
     try {
-      // Get user profile data with retry
-      const profile = await supabaseWithRetry.withRetry(async () => {
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-          throw error;
-        }
-        return data;
-      });
-
-      // Prepare user data
-      const userData = {
-        id: session.user.id,
-        email: session.user.email!,
-        name: profile?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-        avatar_url: profile?.avatar_url || session.user.user_metadata?.avatar_url,
-        role: profile?.role || session.user.user_metadata?.role || 'user',
-        created_at: profile?.created_at || session.user.created_at
-      };
-
-      // Update Redux state
-      dispatch(authSlice.actions.restoreSession({
-        user: userData,
-        accessToken: session.access_token,
-        refreshToken: session.refresh_token,
-      }));
-
-      console.log('✅ User session updated successfully');
-    } catch (error) {
-      console.error('❌ Failed to fetch user profile:', error);
-      
-      // Still update auth state with basic info
-      const userData = {
+      // Immediately update Redux with basic session info - don't wait for profile
+      const basicUserData = {
         id: session.user.id,
         email: session.user.email!,
         name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
@@ -100,7 +66,55 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
       };
 
       dispatch(authSlice.actions.restoreSession({
-        user: userData,
+        user: basicUserData,
+        accessToken: session.access_token,
+        refreshToken: session.refresh_token,
+      }));
+
+      console.log('✅ User session updated successfully (basic)');
+
+      // Background profile fetch - don't block UI
+      try {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile) {
+          const enhancedUserData = {
+            ...basicUserData,
+            name: profile.name || basicUserData.name,
+            avatar_url: profile.avatar_url || basicUserData.avatar_url,
+            role: profile.role || basicUserData.role,
+            created_at: profile.created_at || basicUserData.created_at
+          };
+
+          dispatch(authSlice.actions.restoreSession({
+            user: enhancedUserData,
+            accessToken: session.access_token,
+            refreshToken: session.refresh_token,
+          }));
+          
+          console.log('✅ Profile data loaded and updated');
+        }
+      } catch (profileError) {
+        console.warn('⚠️ Failed to fetch profile, using basic data:', profileError);
+      }
+    } catch (error) {
+      console.error('❌ Failed to handle sign in:', error);
+      // Even if everything fails, try basic session restore
+      const fallbackUserData = {
+        id: session.user.id,
+        email: session.user.email!,
+        name: session.user.email?.split('@')[0] || 'User',
+        avatar_url: null,
+        role: 'user',
+        created_at: session.user.created_at
+      };
+
+      dispatch(authSlice.actions.restoreSession({
+        user: fallbackUserData,
         accessToken: session.access_token,
         refreshToken: session.refresh_token,
       }));
@@ -111,28 +125,29 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       console.log('🔍 Checking for existing session...');
       
-      // Test connection first
-      const connectionStatus = await testConnection();
-      if (!connectionStatus.connected) {
-        console.warn('⚠️ No connection to Supabase, will retry when online');
+      // NON-BLOCKING: Get session directly from local storage first
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.warn('⚠️ Session check error:', sessionError);
+        dispatch(authSlice.actions.signOutSuccess());
         return;
       }
-
-      // Ensure we have a valid session
-      const session = await ensureValidSession();
       
       if (session) {
         console.log('✅ Found existing session for:', session.user.email);
-        await handleSignIn(session);
+        // NON-BLOCKING: Handle sign in without waiting for profile fetch
+        handleSignIn(session).catch(error => {
+          console.warn('Profile fetch failed, continuing with basic auth:', error);
+        });
         console.log('✅ Session restored successfully');
       } else {
         console.log('ℹ️ No existing session found');
-        // Clear any stale auth state
         dispatch(authSlice.actions.signOutSuccess());
       }
     } catch (error) {
       console.error('❌ Failed to check session:', error);
-      // Clear auth state on error
+      // Don't block startup - clear auth state and continue
       dispatch(authSlice.actions.signOutSuccess());
     }
   };
