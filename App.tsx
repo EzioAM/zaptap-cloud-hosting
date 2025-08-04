@@ -1,26 +1,23 @@
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as ReduxProvider } from 'react-redux';
-import { Provider as PaperProvider } from 'react-native-paper';
+import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
 
 import { store } from './src/store';
 import { AppNavigator } from './src/navigation/AppNavigator';
-import { UnifiedThemeProvider } from './src/contexts/UnifiedThemeProvider';
+// Using compatibility shim to fix theme-related crashes
+import { ThemeCompatibilityProvider } from './src/contexts/ThemeCompatibilityShim';
 
-// Clean Paper theme configuration
+// Using Material Design 3 light theme as a stable fallback
 const paperTheme = {
+  ...MD3LightTheme,
   colors: {
+    ...MD3LightTheme.colors,
     primary: '#6200ee',
+    secondary: '#03dac6',
     background: '#ffffff',
     surface: '#ffffff',
-    accent: '#03dac6',
     error: '#B00020',
-    text: '#000000',
-    onSurface: '#000000',
-    disabled: 'rgba(0, 0, 0, 0.26)',
-    placeholder: 'rgba(0, 0, 0, 0.54)',
-    backdrop: 'rgba(0, 0, 0, 0.5)',
-    notification: '#ff4444',
   },
 };
 
@@ -29,9 +26,9 @@ export default function App() {
     <SafeAreaProvider>
       <ReduxProvider store={store}>
         <PaperProvider theme={paperTheme}>
-          <UnifiedThemeProvider>
+          <ThemeCompatibilityProvider>
             <AppNavigator />
-          </UnifiedThemeProvider>
+          </ThemeCompatibilityProvider>
         </PaperProvider>
       </ReduxProvider>
     </SafeAreaProvider>
