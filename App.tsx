@@ -11,6 +11,7 @@ import { store } from './src/store';
 import { AppNavigator } from './src/navigation/AppNavigator';
 // Using compatibility shim to fix theme-related crashes
 import { ThemeCompatibilityProvider } from './src/contexts/ThemeCompatibilityShim';
+import { ConnectionProvider } from './src/contexts/ConnectionContext';
 
 console.log('🚨 All imports loaded successfully');
 
@@ -78,7 +79,10 @@ export default function App() {
               {console.log('🚨 PaperProvider rendered')}
               <ThemeCompatibilityProvider>
                 {console.log('🚨 ThemeProvider rendered')}
-                <AppNavigator />
+                <ConnectionProvider>
+                  {console.log('🚨 ConnectionProvider rendered')}
+                  <AppNavigator />
+                </ConnectionProvider>
               </ThemeCompatibilityProvider>
             </PaperProvider>
           </ReduxProvider>

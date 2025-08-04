@@ -3,8 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-// Temporarily comment out to avoid crashes
-// import { linkingService } from '../services/linking/LinkingService';
+import { linkingService } from '../services/linking/LinkingService';
 import { RootStackParamList } from './types';
 import { MainNavigator } from './MainNavigator';
 
@@ -33,8 +32,8 @@ export const AppNavigator = () => {
   const onReady = useCallback(() => {
     console.log('🚨 Navigation ready');
     if (navigationRef.current) {
-      // Temporarily disable linking service
-      // linkingService.initialize(navigationRef.current);
+      // Re-enable linking service
+      linkingService.initialize(navigationRef.current);
     }
   }, []);
   

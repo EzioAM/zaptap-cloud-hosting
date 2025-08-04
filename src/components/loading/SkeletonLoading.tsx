@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useSafeTheme } from '../common/ThemeFallbackWrapper';
 
 interface SkeletonItemProps {
   width?: number | string;
@@ -15,7 +15,7 @@ const SkeletonItem: React.FC<SkeletonItemProps> = ({
   borderRadius = 4,
   marginBottom = 0,
 }) => {
-  const { theme } = useTheme();
+  const theme = useSafeTheme();
   const opacity = React.useRef(new Animated.Value(0.3)).current;
 
   React.useEffect(() => {
@@ -46,7 +46,7 @@ const SkeletonItem: React.FC<SkeletonItemProps> = ({
           height,
           borderRadius,
           marginBottom,
-          backgroundColor: theme.colors.surfaceVariant,
+          backgroundColor: theme.colors?.surfaceVariant || '#e0e0e0',
           opacity,
         },
       ]}
@@ -61,11 +61,11 @@ interface AutomationCardSkeletonProps {
 export const AutomationCardSkeleton: React.FC<AutomationCardSkeletonProps> = ({
   showTrending = false,
 }) => {
-  const { theme } = useTheme();
+  const theme = useSafeTheme();
   const styles = createStyles(theme);
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+    <View style={[styles.card, { backgroundColor: theme.colors?.surface || '#ffffff' }]}>
       {showTrending && (
         <View style={styles.trendingBadge}>
           <SkeletonItem width={60} height={20} borderRadius={10} />
@@ -95,11 +95,11 @@ export const AutomationCardSkeleton: React.FC<AutomationCardSkeletonProps> = ({
 interface TrendingCardSkeletonProps {}
 
 export const TrendingCardSkeleton: React.FC<TrendingCardSkeletonProps> = () => {
-  const { theme } = useTheme();
+  const theme = useSafeTheme();
   const styles = createStyles(theme);
 
   return (
-    <View style={[styles.trendingCard, { backgroundColor: theme.colors.surface }]}>
+    <View style={[styles.trendingCard, { backgroundColor: theme.colors?.surface || '#ffffff' }]}>
       <SkeletonItem width={32} height={32} borderRadius={16} />
       <SkeletonItem width={48} height={48} borderRadius={12} />
       <View style={styles.trendingInfo}>
@@ -118,18 +118,18 @@ export const TrendingCardSkeleton: React.FC<TrendingCardSkeletonProps> = () => {
 interface CategoryChipSkeletonProps {}
 
 export const CategoryChipSkeleton: React.FC<CategoryChipSkeletonProps> = () => {
-  const { theme } = useTheme();
+  const theme = useSafeTheme();
 
   return (
     <View style={[
       {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.sm,
-        borderRadius: theme.borderRadius.round,
-        marginRight: theme.spacing.sm,
-        backgroundColor: theme.colors.surface,
+        paddingHorizontal: theme.spacing?.md || 12,
+        paddingVertical: theme.spacing?.sm || 8,
+        borderRadius: theme.borderRadius?.round || 24,
+        marginRight: theme.spacing?.sm || 8,
+        backgroundColor: theme.colors?.surface || '#ffffff',
       }
     ]}>
       <SkeletonItem width={18} height={18} borderRadius={9} />
@@ -142,7 +142,7 @@ export const CategoryChipSkeleton: React.FC<CategoryChipSkeletonProps> = () => {
 interface DiscoverScreenSkeletonProps {}
 
 export const DiscoverScreenSkeleton: React.FC<DiscoverScreenSkeletonProps> = () => {
-  const { theme } = useTheme();
+  const theme = useSafeTheme();
   const styles = createStyles(theme);
 
   return (
@@ -190,39 +190,65 @@ export const DiscoverScreenSkeleton: React.FC<DiscoverScreenSkeletonProps> = () 
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  // Safe defaults for theme properties
+  const spacing = {
+    xs: 4,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    xxl: 32,
+    ...theme?.spacing
+  };
+  
+  const borderRadius = {
+    sm: 4,
+    md: 8,
+    lg: 12,
+    xl: 16,
+    round: 24,
+    ...theme?.borderRadius
+  };
+  
+  const colors = {
+    background: '#f5f5f5',
+    cardShadow: '#000',
+    ...theme?.colors
+  };
+
+  return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: colors.background,
     },
     skeletonHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.md,
-      paddingBottom: theme.spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
     },
     searchContainer: {
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.md,
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.md,
     },
     categoriesContainer: {
-      marginBottom: theme.spacing.lg,
+      marginBottom: spacing.lg,
     },
     categoriesList: {
       flexDirection: 'row',
-      paddingHorizontal: theme.spacing.lg,
+      paddingHorizontal: spacing.lg,
     },
     section: {
-      marginBottom: theme.spacing.xl,
-      paddingHorizontal: theme.spacing.lg,
+      marginBottom: spacing.xl,
+      paddingHorizontal: spacing.lg,
     },
     card: {
-      padding: theme.spacing.lg,
-      borderRadius: theme.borderRadius.xl,
-      shadowColor: theme.colors.cardShadow,
+      padding: spacing.lg,
+      borderRadius: borderRadius.xl,
+      shadowColor: colors.cardShadow,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
       shadowRadius: 8,
@@ -230,17 +256,17 @@ const createStyles = (theme: any) =>
     },
     trendingBadge: {
       position: 'absolute',
-      top: theme.spacing.md,
-      right: theme.spacing.md,
+      top: spacing.md,
+      right: spacing.md,
       zIndex: 1,
     },
     header: {
       flexDirection: 'row',
-      marginBottom: theme.spacing.md,
+      marginBottom: spacing.md,
     },
     info: {
       flex: 1,
-      marginLeft: theme.spacing.md,
+      marginLeft: spacing.md,
     },
     meta: {
       flexDirection: 'row',
@@ -250,19 +276,19 @@ const createStyles = (theme: any) =>
     author: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing.xs,
+      gap: spacing.xs,
     },
     stats: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing.md,
+      gap: spacing.md,
     },
     trendingCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: theme.spacing.lg,
-      borderRadius: theme.borderRadius.xl,
-      gap: theme.spacing.md,
+      padding: spacing.lg,
+      borderRadius: borderRadius.xl,
+      gap: spacing.md,
     },
     trendingInfo: {
       flex: 1,
@@ -270,12 +296,13 @@ const createStyles = (theme: any) =>
     trendingStats: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing.md,
+      gap: spacing.md,
     },
     trendingCardWrapper: {
-      marginBottom: theme.spacing.md,
+      marginBottom: spacing.md,
     },
     cardWrapper: {
-      marginBottom: theme.spacing.sm,
+      marginBottom: spacing.sm,
     },
   });
+};

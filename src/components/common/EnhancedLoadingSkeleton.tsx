@@ -8,7 +8,7 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useSafeTheme } from '../common/ThemeFallbackWrapper';
 
 interface EnhancedLoadingSkeletonProps {
   variant?: 'card' | 'list' | 'profile' | 'automation' | 'stats';
@@ -29,7 +29,7 @@ const EnhancedLoadingSkeleton: React.FC<EnhancedLoadingSkeletonProps> = ({
   borderRadius = 8,
   showAnimation = true,
 }) => {
-  const { theme } = useTheme();
+  const theme = useSafeTheme();
   const shimmerTranslateX = useSharedValue(-screenWidth);
 
   React.useEffect(() => {
