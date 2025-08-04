@@ -503,6 +503,63 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
         invalidatesTags: ['Automation'],
       }),
 
+      // Get execution history
+      getExecutionHistory: builder.query<AutomationExecution[], { limit?: number }>({
+        queryFn: async ({ limit = 50 }) => {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+              console.log('No authenticated user found');
+              return { data: [] };
+            }
+
+            const { data, error } = await supabase
+              .from('automation_executions')
+              .select(`
+                *,
+                automation:automations(id, name, title)
+              `)
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(limit);
+
+            if (error) {
+              console.error('Error fetching execution history:', error);
+              throw error;
+            }
+
+            return { data: data || [] };
+          } catch (error: any) {
+            console.error('Failed to fetch execution history:', error);
+            return { error: error.message };
+          }
+        },
+        providesTags: ['Automation'],
+      }),
+
+      // Clear execution history
+      clearHistory: builder.mutation<void, void>({
+        queryFn: async () => {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Not authenticated');
+
+            const { error } = await supabase
+              .from('automation_executions')
+              .delete()
+              .eq('user_id', user.id);
+
+            if (error) throw error;
+
+            return { data: undefined };
+          } catch (error: any) {
+            return { error: error.message };
+          }
+        },
+        invalidatesTags: ['Automation'],
+      }),
+
       // Track automation view
       trackAutomationView: builder.mutation<void, string>({
         queryFn: async (automationId) => {
@@ -538,4 +595,6 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
     useUnlikeAutomationMutation,
     useTrackAutomationDownloadMutation,
     useTrackAutomationViewMutation,
+    useGetExecutionHistoryQuery,
+    useClearHistoryMutation,
   } = automationApi;

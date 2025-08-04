@@ -4,17 +4,19 @@ import { configureStore } from '@reduxjs/toolkit';
   import { combineReducers } from '@reduxjs/toolkit';
   import authSlice from './slices/authSlice';
   import { automationApi } from './api/automationApi';
+  import { analyticsApi } from './api/analyticsApi';
 
   const rootReducer = combineReducers({
     auth: authSlice.reducer,
     [automationApi.reducerPath]: automationApi.reducer,
+    [analyticsApi.reducerPath]: analyticsApi.reducer,
   });
 
   const persistConfig = {
     key: 'root',
     storage: AsyncStorage,
     whitelist: ['auth'], // Only persist auth data
-    blacklist: [automationApi.reducerPath], // Don't persist API cache
+    blacklist: [automationApi.reducerPath, analyticsApi.reducerPath], // Don't persist API cache
   };
 
   const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -26,7 +28,7 @@ import { configureStore } from '@reduxjs/toolkit';
         serializableCheck: {
           ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
         },
-      }).concat(automationApi.middleware),
+      }).concat(automationApi.middleware, analyticsApi.middleware),
   });
 
   export const persistor = persistStore(store);

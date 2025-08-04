@@ -3,10 +3,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { HomeScreen } from '../screens/HomeScreen';
+import { HomeScreen } from '../screens/modern/HomeScreen';
 import MyAutomationsScreen from '../screens/automation/MyAutomationsScreen';
 import GalleryScreen from '../screens/automation/GalleryScreen';
-import TemplatesScreen from '../screens/automation/TemplatesScreen';
+import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SignInScreen from '../screens/auth/SignInScreen';
 
@@ -76,13 +76,13 @@ export const BottomTabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="TemplatesTab"
-        component={TemplatesScreen}
+        name="AnalyticsTab"
+        component={isAuthenticated ? AnalyticsScreen : SignInScreen}
         options={{
-          title: 'Templates',
-          tabBarLabel: 'Templates',
+          title: 'Analytics',
+          tabBarLabel: 'Analytics',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="file-document-multiple" color={color} size={size} />
+            <MaterialCommunityIcons name="chart-line" color={color} size={size} />
           ),
         }}
       />
