@@ -1,81 +1,49 @@
-import React, { useState } from 'react';
-import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 
-// List of screens to test
-const screensToTest = [
-  { name: 'ModernHomeScreen', path: '../../screens/modern/ModernHomeScreen' },
-  { name: 'BuildScreen', path: '../../screens/modern/BuildScreen' },
-  { name: 'DiscoverScreen', path: '../../screens/modern/DiscoverScreen' },
-  { name: 'LibraryScreen', path: '../../screens/modern/LibraryScreen' },
-  { name: 'ModernProfileScreen', path: '../../screens/modern/ModernProfileScreen' },
+// List of screens we need to restore
+const screensToRestore = [
+  { name: 'ModernHomeScreen', path: 'screens/modern/ModernHomeScreen', priority: 'High' },
+  { name: 'BuildScreen', path: 'screens/modern/BuildScreen', priority: 'High' },
+  { name: 'DiscoverScreen', path: 'screens/modern/DiscoverScreen', priority: 'Medium' },
+  { name: 'LibraryScreen', path: 'screens/modern/LibraryScreen', priority: 'Medium' },
+  { name: 'ModernProfileScreen', path: 'screens/modern/ModernProfileScreen', priority: 'Low' },
 ];
 
 export const ScreenLoaderTest = () => {
-  const [results, setResults] = useState<{ [key: string]: string }>({});
-  
-  const testScreen = async (screenName: string, screenPath: string) => {
-    setResults(prev => ({ ...prev, [screenName]: '🔍 Testing...' }));
-    
-    try {
-      console.log(`🔍 Testing ${screenName}...`);
-      
-      // Try to load the screen module
-      const screenModule = require(screenPath);
-      
-      if (screenModule.default || screenModule[screenName]) {
-        setResults(prev => ({ ...prev, [screenName]: '✅ Module loaded' }));
-        console.log(`✅ ${screenName} module loaded successfully`);
-        
-        // Try to check if it's a valid React component
-        const ScreenComponent = screenModule.default || screenModule[screenName];
-        if (typeof ScreenComponent === 'function' || ScreenComponent?.$$typeof) {
-          setResults(prev => ({ ...prev, [screenName]: '✅ Valid component' }));
-        } else {
-          setResults(prev => ({ ...prev, [screenName]: '⚠️ Not a component' }));
-        }
-      } else {
-        setResults(prev => ({ ...prev, [screenName]: '❌ No default export' }));
-      }
-    } catch (error: any) {
-      const errorMsg = error.message || 'Unknown error';
-      setResults(prev => ({ ...prev, [screenName]: `❌ ${errorMsg}` }));
-      console.error(`❌ ${screenName} error:`, error);
-    }
-  };
-  
-  const testAllScreens = () => {
-    screensToTest.forEach(screen => {
-      testScreen(screen.name, screen.path);
-    });
-  };
   
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Screen Loader Test</Text>
+      <Text style={styles.title}>Screen Restoration Plan</Text>
       <Text style={styles.subtitle}>
-        Test if screens can be loaded without crashing
+        Screens to restore after fixing core systems
       </Text>
       
-      <Button title="Test All Screens" onPress={testAllScreens} />
-      
       <ScrollView style={styles.results}>
-        {screensToTest.map(screen => (
+        {screensToRestore.map(screen => (
           <View key={screen.name} style={styles.resultRow}>
-            <Text style={styles.screenName}>{screen.name}:</Text>
-            <Text style={styles.resultText}>
-              {results[screen.name] || '⏳ Not tested'}
-            </Text>
+            <Text style={styles.screenName}>{screen.name}</Text>
+            <View style={styles.priorityBadge}>
+              <Text style={[
+                styles.priorityText,
+                screen.priority === 'High' && styles.highPriority,
+                screen.priority === 'Medium' && styles.mediumPriority,
+                screen.priority === 'Low' && styles.lowPriority
+              ]}>
+                {screen.priority}
+              </Text>
+            </View>
           </View>
         ))}
       </ScrollView>
       
       <View style={styles.info}>
         <Text style={styles.infoText}>
-          Common issues:
-          {'\n'}• useUnifiedTheme not found
-          {'\n'}• Missing imports
-          {'\n'}• Circular dependencies
-          {'\n'}• Syntax errors in screens
+          Known issues to fix:
+          {'\n'}• UnifiedThemeProvider crashes
+          {'\n'}• useUnifiedTheme hook missing
+          {'\n'}• Components need theme fallbacks
+          {'\n'}• Navigation needs error boundaries
         </Text>
       </View>
     </View>
@@ -134,5 +102,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     lineHeight: 18,
+  },
+  priorityBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#f0f0f0',
+  },
+  priorityText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  highPriority: {
+    color: '#ff4444',
+  },
+  mediumPriority: {
+    color: '#ff8800',
+  },
+  lowPriority: {
+    color: '#4CAF50',
   },
 });
