@@ -54,22 +54,30 @@ export class ErrorRecoveryManager {
         const result = await operation();
         
         if (attempt > 1) {
-          EventLogger.info(
-            'ErrorRecovery',
-            `Operation succeeded after retry`,
-            { operationName, attempt, category }
-          );
+          try {
+            EventLogger.info(
+              'ErrorRecovery',
+              `Operation succeeded after retry`,
+              { operationName, attempt, category }
+            );
+          } catch (logError) {
+            console.info(`Operation ${operationName} succeeded after retry (attempt ${attempt})`);
+          }
         }
         
         return result;
       } catch (error) {
         const isLastAttempt = attempt === attempts;
         
-        EventLogger.warn(
-          'ErrorRecovery',
-          `Operation failed on attempt ${attempt}`,
-          { operationName, attempt, maxAttempts: attempts, error: error.message }
-        );
+        try {
+          EventLogger.warn(
+            'ErrorRecovery',
+            `Operation failed on attempt ${attempt}`,
+            { operationName, attempt, maxAttempts: attempts, error: error.message }
+          );
+        } catch (logError) {
+          console.warn(`Operation ${operationName} failed on attempt ${attempt}: ${error.message}`);
+        }
 
         if (isLastAttempt) {
           // Try recovery strategies before giving up
@@ -84,41 +92,57 @@ export class ErrorRecoveryManager {
               // Retry one more time after successful recovery
               try {
                 const result = await operation();
-                EventLogger.info(
-                  'ErrorRecovery',
-                  'Operation succeeded after recovery',
-                  { operationName, category }
-                );
+                try {
+                  EventLogger.info(
+                    'ErrorRecovery',
+                    'Operation succeeded after recovery',
+                    { operationName, category }
+                  );
+                } catch (logError) {
+                  console.info(`Operation ${operationName} succeeded after recovery`);
+                }
                 return result;
               } catch (retryError) {
-                EventLogger.error(
-                  'ErrorRecovery',
-                  'Operation failed even after recovery',
-                  retryError as Error,
-                  { operationName, category }
-                );
+                try {
+                  EventLogger.error(
+                    'ErrorRecovery',
+                    'Operation failed even after recovery',
+                    retryError as Error,
+                    { operationName, category }
+                  );
+                } catch (logError) {
+                  console.error(`Operation ${operationName} failed even after recovery:`, retryError);
+                }
               }
             }
           }
           
           // Final failure
-          EventLogger.error(
-            'ErrorRecovery',
-            `Operation failed after all attempts`,
-            error as Error,
-            { operationName, category, totalAttempts: attempts }
-          );
+          try {
+            EventLogger.error(
+              'ErrorRecovery',
+              `Operation failed after all attempts`,
+              error as Error,
+              { operationName, category, totalAttempts: attempts }
+            );
+          } catch (logError) {
+            console.error(`Operation ${operationName} failed after all ${attempts} attempts:`, error);
+          }
           
           throw error;
         }
 
         // Calculate delay for next attempt
         const delay = this.calculateDelay(attempt);
-        EventLogger.info(
-          'ErrorRecovery',
-          `Retrying operation in ${delay}ms`,
-          { operationName, attempt, delay }
-        );
+        try {
+          EventLogger.info(
+            'ErrorRecovery',
+            `Retrying operation in ${delay}ms`,
+            { operationName, attempt, delay }
+          );
+        } catch (logError) {
+          console.info(`Retrying operation ${operationName} in ${delay}ms (attempt ${attempt})`);
+        }
         
         await this.sleep(delay);
       }
@@ -134,11 +158,15 @@ export class ErrorRecoveryManager {
     this.recoveryStrategies.push(strategy);
     this.recoveryStrategies.sort((a, b) => b.priority - a.priority);
     
-    EventLogger.info(
-      'ErrorRecovery',
-      'Recovery strategy registered',
-      { strategyName: strategy.name, priority: strategy.priority }
-    );
+    try {
+      EventLogger.info(
+        'ErrorRecovery',
+        'Recovery strategy registered',
+        { strategyName: strategy.name, priority: strategy.priority }
+      );
+    } catch (logError) {
+      console.info(`Recovery strategy registered: ${strategy.name} (priority: ${strategy.priority})`);
+    }
   }
 
   /**
@@ -148,11 +176,15 @@ export class ErrorRecoveryManager {
     const index = this.recoveryStrategies.findIndex(s => s.name === strategyName);
     if (index >= 0) {
       this.recoveryStrategies.splice(index, 1);
-      EventLogger.info(
-        'ErrorRecovery',
-        'Recovery strategy removed',
-        { strategyName }
-      );
+      try {
+        EventLogger.info(
+          'ErrorRecovery',
+          'Recovery strategy removed',
+          { strategyName }
+        );
+      } catch (logError) {
+        console.info(`Recovery strategy removed: ${strategyName}`);
+      }
     }
   }
 
@@ -161,64 +193,92 @@ export class ErrorRecoveryManager {
    */
   updateRetryConfig(config: Partial<RetryConfig>): void {
     this.retryConfig = { ...this.retryConfig, ...config };
-    EventLogger.info(
-      'ErrorRecovery',
-      'Retry configuration updated',
-      { config: this.retryConfig }
-    );
+    try {
+      EventLogger.info(
+        'ErrorRecovery',
+        'Retry configuration updated',
+        { config: this.retryConfig }
+      );
+    } catch (logError) {
+      console.info('Retry configuration updated:', this.retryConfig);
+    }
   }
 
   /**
    * Attempt to recover from an error using registered strategies
    */
   private async attemptRecovery(error: Error, context: any): Promise<boolean> {
-    EventLogger.info(
-      'ErrorRecovery',
-      'Attempting error recovery',
-      { error: error.message, strategies: this.recoveryStrategies.length }
-    );
+    try {
+      EventLogger.info(
+        'ErrorRecovery',
+        'Attempting error recovery',
+        { error: error.message, strategies: this.recoveryStrategies.length }
+      );
+    } catch (logError) {
+      console.info(`Attempting error recovery for: ${error.message} (${this.recoveryStrategies.length} strategies)`);
+    }
 
     for (const strategy of this.recoveryStrategies) {
       if (strategy.canRecover(error)) {
         try {
-          EventLogger.info(
-            'ErrorRecovery',
-            `Trying recovery strategy: ${strategy.name}`,
-            { error: error.message, strategy: strategy.name }
-          );
+          try {
+            EventLogger.info(
+              'ErrorRecovery',
+              `Trying recovery strategy: ${strategy.name}`,
+              { error: error.message, strategy: strategy.name }
+            );
+          } catch (logError) {
+            console.info(`Trying recovery strategy: ${strategy.name} for error: ${error.message}`);
+          }
           
           const recovered = await strategy.recover(error, context);
           
           if (recovered) {
-            EventLogger.info(
-              'ErrorRecovery',
-              `Recovery successful with strategy: ${strategy.name}`,
-              { error: error.message, strategy: strategy.name }
-            );
+            try {
+              EventLogger.info(
+                'ErrorRecovery',
+                `Recovery successful with strategy: ${strategy.name}`,
+                { error: error.message, strategy: strategy.name }
+              );
+            } catch (logError) {
+              console.info(`Recovery successful with strategy: ${strategy.name}`);
+            }
             return true;
           } else {
-            EventLogger.warn(
-              'ErrorRecovery',
-              `Recovery failed with strategy: ${strategy.name}`,
-              { error: error.message, strategy: strategy.name }
-            );
+            try {
+              EventLogger.warn(
+                'ErrorRecovery',
+                `Recovery failed with strategy: ${strategy.name}`,
+                { error: error.message, strategy: strategy.name }
+              );
+            } catch (logError) {
+              console.warn(`Recovery failed with strategy: ${strategy.name}`);
+            }
           }
         } catch (recoveryError) {
-          EventLogger.error(
-            'ErrorRecovery',
-            `Recovery strategy threw error: ${strategy.name}`,
-            recoveryError as Error,
-            { originalError: error.message, strategy: strategy.name }
-          );
+          try {
+            EventLogger.error(
+              'ErrorRecovery',
+              `Recovery strategy threw error: ${strategy.name}`,
+              recoveryError as Error,
+              { originalError: error.message, strategy: strategy.name }
+            );
+          } catch (logError) {
+            console.error(`Recovery strategy ${strategy.name} threw error:`, recoveryError);
+          }
         }
       }
     }
 
-    EventLogger.warn(
-      'ErrorRecovery',
-      'All recovery strategies failed',
-      { error: error.message, strategiesAttempted: this.recoveryStrategies.length }
-    );
+    try {
+      EventLogger.warn(
+        'ErrorRecovery',
+        'All recovery strategies failed',
+        { error: error.message, strategiesAttempted: this.recoveryStrategies.length }
+      );
+    } catch (logError) {
+      console.warn(`All ${this.recoveryStrategies.length} recovery strategies failed for: ${error.message}`);
+    }
     
     return false;
   }
@@ -273,7 +333,11 @@ export class ErrorRecoveryManager {
         // Check if network is available
         const isOnline = navigator?.onLine ?? true;
         if (!isOnline) {
-          EventLogger.warn('ErrorRecovery', 'Device is offline, cannot recover network error');
+          try {
+            EventLogger.warn('ErrorRecovery', 'Device is offline, cannot recover network error');
+          } catch (logError) {
+            console.warn('Device is offline, cannot recover network error');
+          }
           return false;
         }
 
@@ -319,7 +383,11 @@ export class ErrorRecoveryManager {
             localStorage.clear();
           } catch {}
 
-          EventLogger.info('ErrorRecovery', 'Caches cleared for recovery');
+          try {
+            EventLogger.info('ErrorRecovery', 'Caches cleared for recovery');
+          } catch (logError) {
+            console.info('Caches cleared for recovery');
+          }
           return true;
         } catch {
           return false;
@@ -351,7 +419,11 @@ export class ErrorRecoveryManager {
 
           // Clear any large data structures we might be holding
           // This is app-specific and should be customized
-          EventLogger.info('ErrorRecovery', 'Memory recovery attempted');
+          try {
+            EventLogger.info('ErrorRecovery', 'Memory recovery attempted');
+          } catch (logError) {
+            console.info('Memory recovery attempted');
+          }
           
           // Give it a moment to free up memory
           await this.sleep(100);

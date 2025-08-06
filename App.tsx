@@ -318,6 +318,9 @@ export default function App() {
           console.groupEnd();
         }
         
+        // Now that EventLogger is available, properly initialize PerformanceMeasurement
+        PerformanceMeasurement.initialize();
+        
         // Log initialization
         servicesData.EventLogger.info('App', 'App component fully initialized', {
           environment: __DEV__ ? 'development' : 'production',

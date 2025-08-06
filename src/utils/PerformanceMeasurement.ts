@@ -1,12 +1,13 @@
-/**
 import { EventLogger } from './EventLogger';
+
+/**
  * Performance measurement utilities for app launch time optimization
  * Provides tools to measure and verify launch time improvements
  */
 
 export class PerformanceMeasurement {
-  private static appStartTime: number = Date.now();
-  private static measurementPoints: Map<string, number> = new Map();
+  public static appStartTime: number = Date.now();
+  public static measurementPoints: Map<string, number> = new Map();
   private static isInitialized = false;
 
   /**
@@ -21,7 +22,13 @@ export class PerformanceMeasurement {
     this.isInitialized = true;
 
     if (__DEV__) {
-      EventLogger.debug('PerformanceMeasurement', '📊 Performance measurement initialized');
+      // Only try to log if EventLogger is available
+      try {
+        EventLogger.debug('PerformanceMeasurement', '📊 Performance measurement initialized');
+      } catch (error) {
+        // EventLogger might not be ready yet, use console fallback
+        console.debug('📊 Performance measurement initialized');
+      }
     }
   }
 
@@ -98,7 +105,11 @@ export class PerformanceMeasurement {
     
     if (__DEV__) {
       const elapsed = now - this.appStartTime;
-      EventLogger.debug('PerformanceMeasurement', '📊 Performance mark: ${pointName} at ${elapsed}ms');
+      try {
+        EventLogger.debug('PerformanceMeasurement', `📊 Performance mark: ${pointName} at ${elapsed}ms`);
+      } catch (error) {
+        console.debug(`📊 Performance mark: ${pointName} at ${elapsed}ms`);
+      }
     }
   }
 
@@ -114,14 +125,22 @@ export class PerformanceMeasurement {
     const end = this.measurementPoints.get(endPoint);
     
     if (!start || !end) {
-      EventLogger.warn('PerformanceMeasurement', 'Performance measurement failed: missing points ${startPoint} or ${endPoint}');
+      try {
+        EventLogger.warn('PerformanceMeasurement', `Performance measurement failed: missing points ${startPoint} or ${endPoint}`);
+      } catch (error) {
+        console.warn(`Performance measurement failed: missing points ${startPoint} or ${endPoint}`);
+      }
       return null;
     }
 
     const duration = end - start;
     
     if (__DEV__) {
-      EventLogger.debug('PerformanceMeasurement', '📊 Performance measure: ${name} = ${duration}ms');
+      try {
+        EventLogger.debug('PerformanceMeasurement', `📊 Performance measure: ${name} = ${duration}ms`);
+      } catch (error) {
+        console.debug(`📊 Performance measure: ${name} = ${duration}ms`);
+      }
     }
     
     return duration;
@@ -148,7 +167,11 @@ export class PerformanceMeasurement {
     
     if (__DEV__) {
       const status = passed ? '✅' : '❌';
-      EventLogger.debug('PerformanceMeasurement', '${status} Launch time check: ${launchTime}ms (threshold: ${thresholdMs}ms)');
+      try {
+        EventLogger.debug('PerformanceMeasurement', `${status} Launch time check: ${launchTime}ms (threshold: ${thresholdMs}ms)`);
+      } catch (error) {
+        console.debug(`${status} Launch time check: ${launchTime}ms (threshold: ${thresholdMs}ms)`);
+      }
     }
     
     return {
@@ -190,7 +213,11 @@ export class PerformanceMeasurement {
     this.measurementPoints.set('app_start', this.appStartTime);
     
     if (__DEV__) {
-      EventLogger.debug('PerformanceMeasurement', '📊 Performance measurements reset');
+      try {
+        EventLogger.debug('PerformanceMeasurement', '📊 Performance measurements reset');
+      } catch (error) {
+        console.debug('📊 Performance measurements reset');
+      }
     }
   }
 
@@ -215,7 +242,11 @@ export class PerformanceMeasurement {
       const mountTime = endTime - startTime;
       
       if (__DEV__) {
-        EventLogger.debug('PerformanceMeasurement', '📊 Component ${componentName} mounted in ${mountTime}ms');
+        try {
+          EventLogger.debug('PerformanceMeasurement', `📊 Component ${componentName} mounted in ${mountTime}ms`);
+        } catch (error) {
+          console.debug(`📊 Component ${componentName} mounted in ${mountTime}ms`);
+        }
       }
     };
   }
@@ -237,7 +268,11 @@ export class PerformanceMeasurement {
       const duration = endTime - startTime;
       
       if (__DEV__) {
-        EventLogger.debug('PerformanceMeasurement', '📊 Async operation ${operationName} completed in ${duration}ms');
+        try {
+          EventLogger.debug('PerformanceMeasurement', `📊 Async operation ${operationName} completed in ${duration}ms`);
+        } catch (error) {
+          console.debug(`📊 Async operation ${operationName} completed in ${duration}ms`);
+        }
       }
       
       return result;
@@ -247,7 +282,11 @@ export class PerformanceMeasurement {
       const duration = endTime - startTime;
       
       if (__DEV__) {
-        EventLogger.debug('PerformanceMeasurement', '📊 Async operation ${operationName} failed after ${duration}ms');
+        try {
+          EventLogger.debug('PerformanceMeasurement', `📊 Async operation ${operationName} failed after ${duration}ms`);
+        } catch (error) {
+          console.debug(`📊 Async operation ${operationName} failed after ${duration}ms`);
+        }
       }
       
       throw error;
@@ -272,7 +311,11 @@ export class PerformanceMeasurement {
       if (name) {
         this.mark(`timeout_${name}_executed`);
         if (__DEV__ && Math.abs(actualDelay - delay) > 10) {
-          EventLogger.debug('PerformanceMeasurement', '📊 Timeout ${name}: scheduled ${delay}ms, actual ${actualDelay}ms');
+          try {
+            EventLogger.debug('PerformanceMeasurement', `📊 Timeout ${name}: scheduled ${delay}ms, actual ${actualDelay}ms`);
+          } catch (error) {
+            console.debug(`📊 Timeout ${name}: scheduled ${delay}ms, actual ${actualDelay}ms`);
+          }
         }
       }
       callback();
@@ -299,7 +342,11 @@ export class PerformanceMeasurement {
         const renderTime = endTime - startTime;
         
         if (__DEV__) {
-          EventLogger.debug('PerformanceMeasurement', '📊 Render ${componentName}: ${renderTime}ms');
+          try {
+            EventLogger.debug('PerformanceMeasurement', `📊 Render ${componentName}: ${renderTime}ms`);
+          } catch (error) {
+            console.debug(`📊 Render ${componentName}: ${renderTime}ms`);
+          }
         }
         
         return renderTime;
@@ -341,5 +388,6 @@ export function measurePerformance(name?: string) {
   };
 }
 
-// Initialize on import
-PerformanceMeasurement.initialize();
+// Initialize basic measurements without EventLogger on import
+PerformanceMeasurement.appStartTime = Date.now();
+PerformanceMeasurement.measurementPoints.set('app_start', PerformanceMeasurement.appStartTime);
