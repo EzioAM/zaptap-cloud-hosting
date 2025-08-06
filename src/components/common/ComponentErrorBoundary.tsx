@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface Props {
   children: ReactNode;
@@ -47,15 +48,15 @@ export class ComponentErrorBoundary extends Component<Props, State> {
     // Log to analytics/crash reporting service
     try {
       // Add your analytics logging here
-      console.error('Component error details:', {
+      EventLogger.error('ErrorBoundary', 'Component error details:', {
         componentName: this.props.componentName,
         message: error.message,
         stack: error.stack,
         componentStack: errorInfo.componentStack,
         retryCount: this.state.retryCount,
-      });
+      } as Error);
     } catch (analyticsError) {
-      console.error('Failed to log component error:', analyticsError);
+      EventLogger.error('ErrorBoundary', 'Failed to log component error:', analyticsError as Error);
     }
   }
 

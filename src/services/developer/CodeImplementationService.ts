@@ -335,12 +335,12 @@ export class CodeImplementationService {
   private static async createBackups(changes: CodeChange[]): Promise<void> {
     // In a real implementation, this would create actual file backups
     // For now, we'll simulate backup creation
-    console.log('Creating backups for:', changes.map(c => c.filepath));
+    EventLogger.debug('CodeImplementation', 'Creating backups for:', changes.map(c => c.filepath););
   }
 
   private static async applyChange(change: CodeChange): Promise<void> {
     // Simulate applying the change
-    console.log(`Applying change: ${change.description} to ${change.filepath}`);
+    EventLogger.debug('CodeImplementation', 'Applying change: ${change.description} to ${change.filepath}');
     
     // In a real implementation, this would:
     // 1. Read the current file content
@@ -352,7 +352,7 @@ export class CodeImplementationService {
   }
 
   private static async rollbackChanges(changes: CodeChange[]): Promise<void> {
-    console.log('Rolling back changes:', changes.map(c => c.filepath));
+    EventLogger.debug('CodeImplementation', 'Rolling back changes:', changes.map(c => c.filepath););
     // In a real implementation, this would restore from backups
   }
 
@@ -380,6 +380,7 @@ export class CodeImplementationService {
   private static generatePerformanceMonitorComponent(): string {
     return `import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { EventLogger } from '../../utils/EventLogger';
 
 export const PerformanceMonitor: React.FC = () => {
   const [metrics, setMetrics] = useState({
@@ -499,11 +500,11 @@ export const ResearchUtils = {
   // Generated based on: ${recommendations.slice(0, 2).join(', ')}
   
   optimizePerformance: () => {
-    console.log('Performance optimization utilities');
+    EventLogger.debug('CodeImplementation', 'Performance optimization utilities');
   },
   
   enhanceUX: () => {
-    console.log('UX enhancement utilities');
+    EventLogger.debug('CodeImplementation', 'UX enhancement utilities');
   },
   
   // Code examples reference:
@@ -521,12 +522,12 @@ export const ResearchUtils = {
 
     try {
       if (result.buildRequired) {
-        console.log('🔨 Starting EAS build process...');
+        EventLogger.debug('CodeImplementation', '🔨 Starting EAS build process...');
         // In real implementation: await exec('eas build --platform all');
         await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate build
         return { success: true, message: 'EAS build initiated. Check EAS dashboard for progress.' };
       } else if (result.updateRequired) {
-        console.log('📱 Starting EAS update process...');
+        EventLogger.debug('CodeImplementation', '📱 Starting EAS update process...');
         // In real implementation: await exec('eas update --branch preview');
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate update
         return { success: true, message: 'EAS update published successfully!' };

@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/client';
 import { AutomationData } from '../../types';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface FilterOptions {
   category: string | null;
@@ -118,7 +119,7 @@ export class AutomationFilterService {
       };
 
     } catch (error) {
-      console.error('Failed to get filtered automations:', error);
+      EventLogger.error('Automation', 'Failed to get filtered automations:', error as Error);
       throw error;
     }
   }
@@ -188,7 +189,7 @@ export class AutomationFilterService {
       };
 
     } catch (error) {
-      console.error('Failed to get available filters:', error);
+      EventLogger.error('Automation', 'Failed to get available filters:', error as Error);
       throw error;
     }
   }
@@ -212,7 +213,7 @@ export class AutomationFilterService {
 
       return this.processAutomations(data || []);
     } catch (error) {
-      console.error('Failed to get popular automations:', error);
+      EventLogger.error('Automation', 'Failed to get popular automations:', error as Error);
       throw error;
     }
   }
@@ -257,7 +258,7 @@ export class AutomationFilterService {
 
       return this.processAutomations(data || []);
     } catch (error) {
-      console.error('Failed to get recommended automations:', error);
+      EventLogger.error('Automation', 'Failed to get recommended automations:', error as Error);
       throw error;
     }
   }
@@ -305,7 +306,7 @@ export class AutomationFilterService {
 
       return this.processAutomations(data || []);
     } catch (error) {
-      console.error('Failed to search automations:', error);
+      EventLogger.error('Automation', 'Failed to search automations:', error as Error);
       throw error;
     }
   }

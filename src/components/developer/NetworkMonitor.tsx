@@ -19,6 +19,7 @@ import {
   Badge,
 } from 'react-native-paper';
 import { DeveloperService } from '../../services/developer/DeveloperService';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface NetworkLogDisplay {
   id: string;
@@ -125,7 +126,7 @@ export const NetworkMonitor: React.FC = () => {
 
   const copyToClipboard = (data: any, label: string) => {
     const formatted = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-    console.log(`${label}:`, formatted);
+    EventLogger.debug('Network', '${label}:', formatted);
     Alert.alert('Copied', `${label} copied to console`);
   };
 

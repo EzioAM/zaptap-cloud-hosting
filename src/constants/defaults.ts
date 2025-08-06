@@ -1,0 +1,1 @@
+export const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=User&background=8B5CF6&color=fff';

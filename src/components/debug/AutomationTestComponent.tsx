@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { AutomationEngine } from '../../services/automation/AutomationEngine';
 import { AutomationData } from '../../types';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface TestResult {
   name: string;
@@ -41,7 +42,7 @@ export const AutomationTestComponent: React.FC = () => {
 
     for (const test of tests) {
       try {
-        console.log(`🧪 Running test: ${test.name}`);
+        EventLogger.debug('Automation', '🧪 Running test: ${test.name}');
         const result = await engine.execute(test.automation);
         
         results.push({
@@ -54,7 +55,7 @@ export const AutomationTestComponent: React.FC = () => {
         });
         
         console.log(`✅ ${test.name}: ${result.success ? 'PASSED' : 'FAILED'}`);
-        if (result.error) console.log(`   Error: ${result.error}`);
+        if (result.error) EventLogger.debug('Automation', '   Error: ${result.error}');
         
       } catch (error: any) {
         results.push({
@@ -62,7 +63,7 @@ export const AutomationTestComponent: React.FC = () => {
           success: false,
           error: error.message,
         });
-        console.log(`❌ ${test.name}: FAILED - ${error.message}`);
+        EventLogger.debug('Automation', '❌ ${test.name}: FAILED - ${error.message}');
       }
       
       // Update results in real-time

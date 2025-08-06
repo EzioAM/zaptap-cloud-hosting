@@ -2,8 +2,9 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, Button } from 'react-native';
 import { RootStackParamList } from './types';
+import { EventLogger } from '../utils/EventLogger';
 
-console.log('🚨 MainNavigator-Emergency loading...');
+EventLogger.debug('Navigation', '🚨 MainNavigator-Emergency loading...');
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -17,12 +18,12 @@ const EmergencyHomeScreen = ({ navigation }: any) => (
       The app is running in emergency mode.
       Navigation is working but simplified.
     </Text>
-    <Button title="Test Navigation" onPress={() => console.log('Navigation test')} />
+    <Button title="Test Navigation" onPress={() => EventLogger.debug('Navigation', 'Navigation test');} />
   </View>
 );
 
 export const MainNavigator = () => {
-  console.log('🚨 MainNavigator-Emergency rendering...');
+  EventLogger.debug('Navigation', '🚨 MainNavigator-Emergency rendering...');
   
   return (
     <Stack.Navigator

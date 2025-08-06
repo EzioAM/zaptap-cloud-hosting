@@ -29,6 +29,7 @@ import { FullScreenModal } from '../../components/common/FullScreenModal';
 import { AutomationCard } from '../../components/automation/AutomationCard';
 import { EmptyState } from '../../components/common/EmptyState';
 import { SkeletonCard, SkeletonList } from '../../components/common/LoadingSkeleton';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface MyAutomationsScreenProps {
   navigation: any;
@@ -69,7 +70,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
     try {
       await refetch();
     } catch (error) {
-      console.error('Failed to refresh automations:', error);
+      EventLogger.error('Automation', 'Failed to refresh automations:', error as Error);
     } finally {
       setRefreshing(false);
     }
@@ -209,7 +210,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
                 'Your automation is now live in the Gallery!',
                 [
                   { text: 'OK' },
-                  { text: 'View Gallery', onPress: () => navigation.navigate('Gallery') }
+                  { text: 'View Gallery', onPress: () => navigation.navigate('DiscoverTab') }
                 ]
               );
             } catch (error) {
@@ -229,7 +230,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
       
       // Check if this is a public share URL
       if (metadata?.source === 'web' && metadata?.url?.includes('/share/')) {
-        console.log('NFC tag contains public share link, fetching from public_shares');
+        EventLogger.debug('Automation', 'NFC tag contains public share link, fetching from public_shares');
         
         // This is a public share ID, not an automation ID
         const { data: shareData, error: shareError } = await supabase
@@ -240,7 +241,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
           .single();
         
         if (shareError || !shareData) {
-          console.error('Failed to fetch public share:', shareError);
+          EventLogger.error('Automation', 'Failed to fetch public share:', shareError as Error);
           Alert.alert(
             'Share Link Invalid',
             'This shared automation link is invalid or has expired.'
@@ -298,7 +299,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
       }
       
     } catch (error) {
-      console.error('Error loading automation from NFC:', error);
+      EventLogger.error('Automation', 'Error loading automation from NFC:', error as Error);
       Alert.alert('Error', 'Failed to load automation from NFC tag');
     }
   };

@@ -23,6 +23,7 @@ import {
   Divider,
 } from 'react-native-paper';
 import ChangeHistoryService, { ChangeHistoryEntry } from '../../services/developer/ChangeHistoryService';
+import { EventLogger } from '../../utils/EventLogger';
 
 export const ChangeHistoryView: React.FC = () => {
   const [history, setHistory] = useState<ChangeHistoryEntry[]>([]);
@@ -55,7 +56,7 @@ export const ChangeHistoryView: React.FC = () => {
       const data = await service.getHistory();
       setHistory(data);
     } catch (error) {
-      console.error('Failed to load history:', error);
+      EventLogger.error('ChangeHistoryView', 'Failed to load history:', error as Error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -68,7 +69,7 @@ export const ChangeHistoryView: React.FC = () => {
       const statistics = await service.getStatistics();
       setStats(statistics);
     } catch (error) {
-      console.error('Failed to load stats:', error);
+      EventLogger.error('ChangeHistoryView', 'Failed to load stats:', error as Error);
     }
   };
 

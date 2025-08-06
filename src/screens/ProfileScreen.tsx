@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { RootState, AppDispatch } from '../store';
 import { signOut } from '../store/slices/authSlice';
 import { APP_VERSION } from '../constants/version';
+import { EventLogger } from '../utils/EventLogger';
 
 export default function ProfileScreen() {
   const dispatch = useDispatch<AppDispatch>();
@@ -36,7 +37,7 @@ export default function ProfileScreen() {
             try {
               await dispatch(signOut()).unwrap();
             } catch (error) {
-              console.error('Sign out error:', error);
+              EventLogger.error('Profile', 'Sign out error:', error as Error);
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             } finally {
               setLoading(false);

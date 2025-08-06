@@ -1,6 +1,7 @@
 import React from 'react';
 import { PlatformUtils } from '../../utils/PlatformUtils';
 import FallbackIcon from './FallbackIcon';
+import { EventLogger } from '../../utils/EventLogger';
 
 // Conditionally import vector icons
 let VectorIcon: any = null;
@@ -10,7 +11,7 @@ try {
   }
 } catch (error) {
   // Vector icons not available
-  console.log('Vector icons not available, using fallback');
+  EventLogger.debug('SafeIcon', 'Vector icons not available, using fallback');
 }
 
 interface SafeIconProps {

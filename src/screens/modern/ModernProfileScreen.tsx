@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -10,135 +10,329 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  Animated,
+  Platform,
+  Dimensions,
+  InteractionManager,
+  Share,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useUnifiedTheme, useThemedStyles } from '../../contexts/UnifiedThemeProvider';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { signOut } from '../../store/slices/authSlice';
 import { useGetMyAutomationsQuery, useGetPublicAutomationsQuery } from '../../store/api/automationApi';
 import { useUserRole } from '../../hooks/useUserRole';
-import { DeveloperSection } from '../../components/developer/DeveloperSection';
-import { Theme } from '../../theme';
-import { commonStyles, createTextStyle } from '../../utils/ThemeUtils';
+import { useConnection } from '../../contexts/ConnectionContext';
+import * as Haptics from 'expo-haptics';
 
-const ModernProfileScreen = () => {
-  const { theme, themeMode, setThemeMode } = useUnifiedTheme();
+// Components
+import { DeveloperSection } from '../../components/developer/DeveloperSection';
+import { AnimatedStatsGrid } from '../../components/profile/AnimatedStatsGrid';
+import { AchievementSystem } from '../../components/profile/AchievementSystem';
+import { ActivityTimeline } from '../../components/profile/ActivityTimeline';
+import { AnimatedMenuSection } from '../../components/profile/AnimatedMenuItem';
+import { PressableAnimated, FeedbackAnimation } from '../../components/automation/AnimationHelpers';
+import { ErrorState } from '../../components/states/ErrorState';
+import { EmptyState } from '../../components/states/EmptyState';
+
+// Enhanced components
+import { GradientHeader } from '../../components/shared/GradientHeader';
+import { GradientCard } from '../../components/shared/GradientCard';
+import { GradientButton } from '../../components/shared/GradientButton';
+import { EmptyStateIllustration } from '../../components/shared/EmptyStateIllustration';
+
+// Theme imports
+import { gradients, glassEffects, getGlassStyle } from '../../theme/gradients';
+import { typography, fontWeights, textShadows } from '../../theme/typography';
+import { ANIMATION_CONFIG } from '../../constants/animations';
+import { EventLogger } from '../../utils/EventLogger';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Feature flags for progressive enhancement
+const FEATURE_FLAGS = {
+  ENHANCED_ANIMATIONS: Platform.OS !== 'web',
+  HAPTIC_FEEDBACK: Platform.OS !== 'web',
+  BLUR_EFFECTS: Platform.OS !== 'web',
+  GRADIENT_HEADERS: true,
+  STAGGERED_ANIMATIONS: Platform.OS !== 'web',
+  ACHIEVEMENT_SYSTEM: true,
+  ACTIVITY_TIMELINE: true,
+  SHARING: Platform.OS !== 'web',
+  DEVELOPER_MODE: true,
+};
+
+interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  progress: number;
+  gradientKey: keyof typeof gradients;
+}
+
+interface ActivityItem {
+  id: string;
+  type: 'created' | 'shared' | 'earned' | 'review';
+  title: string;
+  timestamp: Date;
+  icon: string;
+}
+
+interface SettingsSection {
+  id: string;
+  title: string;
+  icon: string;
+  gradientKey?: keyof typeof gradients;
+  items: string[];
+}
+
+const ModernProfileScreen: React.FC = memo(() => {
+  const theme = useSafeTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { connectionState } = useConnection();
+  const { isConnected } = connectionState;
   const { isDeveloper } = useUserRole();
-  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
+  
+  // State
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackType, setFeedbackType] = useState<'success' | 'error' | 'warning'>('success');
+  const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'activity'>('overview');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const styles = useThemedStyles(createStyles);
+  // Animation refs
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerOpacity = useRef(new Animated.Value(1)).current;
+  const profileCompletion = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const tabSwitchAnim = useRef(new Animated.Value(0)).current;
 
-  // Load notification settings on mount
+  // API queries
+  const {
+    data: myAutomations = [],
+    isLoading: isLoadingMyAutomations,
+    refetch: refetchMyAutomations,
+    error: myAutomationsError,
+  } = useGetMyAutomationsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+
+  const {
+    data: publicAutomations = [],
+    refetch: refetchPublicAutomations,
+    error: publicAutomationsError,
+  } = useGetPublicAutomationsQuery({}, {
+    skip: !isAuthenticated,
+  });
+
+  // Filter my public automations
+  const myPublicAutomations = useMemo(() => {
+    return publicAutomations.filter(
+      automation => automation.author === user?.email
+    ) || [];
+  }, [publicAutomations, user?.email]);
+
+  // Haptic feedback helper
+  const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' = 'light') => {
+    if (FEATURE_FLAGS.HAPTIC_FEEDBACK) {
+      try {
+        switch (type) {
+          case 'light':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            break;
+          case 'medium':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            break;
+          case 'heavy':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            break;
+        }
+      } catch (error) {
+        // Haptics not supported
+      }
+    }
+  }, []);
+
+  const showFeedbackMessage = useCallback((type: 'success' | 'error' | 'warning', message: string) => {
+    setFeedbackType(type);
+    setFeedbackMessage(message);
+    setShowFeedback(true);
+    setTimeout(() => setShowFeedback(false), 3000);
+  }, []);
+
+  // Load settings on mount
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        // Use the same settings storage as SettingsScreen
         const savedSettings = await AsyncStorage.getItem('app_settings');
         if (savedSettings) {
           const settings = JSON.parse(savedSettings);
           setNotificationsEnabled(settings.notifications ?? true);
+          setDarkMode(settings.darkMode ?? false);
         }
       } catch (error) {
-        console.error('Failed to load notification settings:', error);
+        EventLogger.error('ModernProfile', 'Failed to load settings:', error as Error);
+        showFeedbackMessage('error', 'Failed to load settings');
       }
     };
     loadSettings();
-  }, []);
+  }, [showFeedbackMessage]);
 
-  // Save notification settings when changed
-  const handleNotificationChange = async (value: boolean) => {
-    setNotificationsEnabled(value);
-    try {
-      // Load current settings and update only notifications
-      const savedSettings = await AsyncStorage.getItem('app_settings');
-      const settings = savedSettings ? JSON.parse(savedSettings) : {};
-      settings.notifications = value;
-      await AsyncStorage.setItem('app_settings', JSON.stringify(settings));
-    } catch (error) {
-      console.error('Failed to save notification settings:', error);
+  // Profile completion calculation and animation
+  useEffect(() => {
+    const calculateCompletion = () => {
+      let completedFields = 0;
+      const totalFields = 5;
+      
+      if (user?.email) completedFields++;
+      if (user?.user_metadata?.full_name) completedFields++;
+      if (user?.user_metadata?.avatar_url) completedFields++;
+      if (myAutomations.length > 0) completedFields++;
+      if (myPublicAutomations.length > 0) completedFields++;
+      
+      const completionPercentage = completedFields / totalFields;
+      
+      if (FEATURE_FLAGS.ENHANCED_ANIMATIONS) {
+        Animated.timing(profileCompletion, {
+          toValue: completionPercentage,
+          duration: 1000,
+          useNativeDriver: false,
+        }).start();
+      } else {
+        profileCompletion.setValue(completionPercentage);
+      }
+      
+      return completionPercentage;
+    };
+
+    if (user) {
+      calculateCompletion();
     }
-  };
-  
-  // Fetch user's automations to calculate stats
-  const { 
-    data: myAutomations = [], 
-    isLoading: isLoadingMy, 
-    refetch: refetchMyAutomations 
-  } = useGetMyAutomationsQuery();
-  const { 
-    data: publicAutomations = [], 
-    isLoading: isLoadingPublic, 
-    refetch: refetchPublicAutomations 
-  } = useGetPublicAutomationsQuery();
+  }, [user, myAutomations, myPublicAutomations, profileCompletion]);
 
-  // Add refresh functionality
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
-  
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
+  // Tab switch animation
+  const handleTabSwitch = useCallback((tab: typeof activeTab) => {
+    if (tab === activeTab) return;
+    
+    triggerHaptic('light');
+    
+    if (FEATURE_FLAGS.ENHANCED_ANIMATIONS) {
+      Animated.sequence([
+        Animated.timing(tabSwitchAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(tabSwitchAnim, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    
+    setActiveTab(tab);
+  }, [activeTab, triggerHaptic, tabSwitchAnim]);
+
+  // Scroll animation handler
+  const handleScroll = useCallback(
+    FEATURE_FLAGS.ENHANCED_ANIMATIONS
+      ? Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          {
+            useNativeDriver: false,
+            listener: (event: any) => {
+              const offsetY = event.nativeEvent.contentOffset.y;
+              const opacity = Math.max(0, Math.min(1, 1 - offsetY / 200));
+              headerOpacity.setValue(opacity);
+            },
+          }
+        )
+      : undefined,
+    [scrollY, headerOpacity]
+  );
+
+  // Refresh handler
+  const handleRefresh = useCallback(async () => {
+    if (!isConnected) {
+      showFeedbackMessage('warning', 'No internet connection');
+      return;
+    }
+
     try {
+      setRefreshing(true);
+      triggerHaptic('medium');
+      
       await Promise.all([
         refetchMyAutomations(),
-        refetchPublicAutomations()
+        refetchPublicAutomations(),
       ]);
+      
+      showFeedbackMessage('success', 'Profile refreshed');
     } catch (error) {
-      console.error('Failed to refresh profile data:', error);
+      EventLogger.error('ModernProfile', 'Refresh failed:', error as Error);
+      showFeedbackMessage('error', 'Failed to refresh profile');
+      setError('Failed to refresh profile');
     } finally {
-      setIsRefreshing(false);
+      setRefreshing(false);
     }
-  };
-  
-  // Calculate real stats from user's data
-  const userPublicAutomations = React.useMemo(() => 
-    publicAutomations.filter(automation => automation.created_by === user?.id),
-    [publicAutomations, user?.id]
-  );
-  
-  // Calculate rank based on activity
-  const getRank = (automationCount: number, sharedCount: number) => {
-    if (automationCount >= 50 || sharedCount >= 20) return 'Expert';
-    if (automationCount >= 20 || sharedCount >= 10) return 'Power User';
-    if (automationCount >= 10 || sharedCount >= 5) return 'Contributor';
-    if (automationCount >= 5) return 'Active User';
-    return 'Beginner';
-  };
-  
-  // Format join date
-  const formatJoinDate = (dateString?: string) => {
-    if (!dateString) return 'Recently';
-    const date = new Date(dateString);
-    const options: Intl.DateTimeFormatOptions = { month: 'long', year: 'numeric' };
-    return date.toLocaleDateString('en-US', options);
-  };
-  
-  // Calculate estimated downloads and votes
-  const totalEstimatedDownloads = userPublicAutomations.reduce((sum, automation) => {
-    const daysOld = Math.floor((new Date().getTime() - new Date(automation.created_at).getTime()) / (1000 * 60 * 60 * 24));
-    return sum + Math.max(10, daysOld * 3); // Estimate 3 downloads per day
-  }, 0);
-  
-  const totalEstimatedVotes = userPublicAutomations.reduce((sum, automation) => {
-    const daysOld = Math.floor((new Date().getTime() - new Date(automation.created_at).getTime()) / (1000 * 60 * 60 * 24));
-    return sum + Math.max(5, daysOld * 2); // Estimate 2 votes per day
-  }, 0);
+  }, [isConnected, refetchMyAutomations, refetchPublicAutomations, triggerHaptic, showFeedbackMessage]);
 
-  const contributionStats = React.useMemo(() => ({
-    automationsCreated: myAutomations.length,
-    automationsShared: userPublicAutomations.length,
-    totalDownloads: totalEstimatedDownloads,
-    helpfulVotes: totalEstimatedVotes,
-    rank: getRank(myAutomations.length, userPublicAutomations.length),
-    joinDate: formatJoinDate(user?.created_at),
-  }), [myAutomations.length, userPublicAutomations.length, totalEstimatedDownloads, totalEstimatedVotes, user?.created_at]);
+  // Settings handlers
+  const handleNotificationToggle = useCallback(async (value: boolean) => {
+    try {
+      triggerHaptic('light');
+      setNotificationsEnabled(value);
+      
+      const settings = {
+        notifications: value,
+        darkMode,
+      };
+      
+      await AsyncStorage.setItem('app_settings', JSON.stringify(settings));
+      showFeedbackMessage('success', `Notifications ${value ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      EventLogger.error('ModernProfile', 'Failed to save notification setting:', error as Error);
+      showFeedbackMessage('error', 'Failed to save setting');
+      setNotificationsEnabled(!value); // Revert on error
+    }
+  }, [darkMode, triggerHaptic, showFeedbackMessage]);
 
-  const handleSignOut = () => {
+  const handleDarkModeToggle = useCallback(async (value: boolean) => {
+    try {
+      triggerHaptic('light');
+      setDarkMode(value);
+      
+      const settings = {
+        notifications: notificationsEnabled,
+        darkMode: value,
+      };
+      
+      await AsyncStorage.setItem('app_settings', JSON.stringify(settings));
+      showFeedbackMessage('success', `${value ? 'Dark' : 'Light'} mode enabled`);
+    } catch (error) {
+      EventLogger.error('ModernProfile', 'Failed to save dark mode setting:', error as Error);
+      showFeedbackMessage('error', 'Failed to save setting');
+      setDarkMode(!value); // Revert on error
+    }
+  }, [notificationsEnabled, triggerHaptic, showFeedbackMessage]);
+
+  const handleSignOut = useCallback(() => {
     Alert.alert(
       'Sign Out',
       'Are you sure you want to sign out?',
@@ -147,547 +341,547 @@ const ModernProfileScreen = () => {
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: () => dispatch(signOut()),
+          onPress: async () => {
+            try {
+              triggerHaptic('heavy');
+              await dispatch(signOut()).unwrap();
+              navigation.navigate('Auth' as never);
+              showFeedbackMessage('success', 'Signed out successfully');
+            } catch (error) {
+              EventLogger.error('ModernProfile', 'Sign out error:', error as Error);
+              showFeedbackMessage('error', 'Failed to sign out');
+            }
+          },
         },
-      ],
+      ]
     );
-  };
+  }, [dispatch, navigation, triggerHaptic, showFeedbackMessage]);
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This action cannot be undone. All your data will be permanently deleted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => console.log('Delete account'),
-        },
-      ],
-    );
-  };
+  const handleShareProfile = useCallback(async () => {
+    if (!FEATURE_FLAGS.SHARING) {
+      showFeedbackMessage('warning', 'Sharing not available on this platform');
+      return;
+    }
 
-  const menuItems = [
-    {
-      id: 'edit-profile',
-      title: 'Edit Profile',
-      icon: 'account-edit',
-      onPress: () => navigation.navigate('EditProfile' as never),
-    },
-    {
-      id: 'notifications',
-      title: 'Notifications',
-      icon: 'bell',
-      rightElement: (
-        <Switch
-          value={notificationsEnabled}
-          onValueChange={handleNotificationChange}
-          trackColor={{ 
-            false: theme.colors.surface.secondary, 
-            true: theme.colors.brand.primary 
-          }}
-          thumbColor={notificationsEnabled ? theme.colors.text.inverse : theme.colors.surface.elevated}
-          accessibilityLabel="Toggle notifications"
-          accessibilityHint="Enables or disables push notifications for this app"
-        />
-      ),
-    },
-    {
-      id: 'theme',
-      title: 'Theme',
-      icon: 'theme-light-dark',
-      rightElement: (
-        <View style={styles.themeSelector}>
-          {['light', 'dark', 'system'].map((mode) => (
-            <TouchableOpacity
-              key={mode}
-              style={[
-                styles.themeOption,
-                {
-                  backgroundColor: themeMode === mode
-                    ? theme.colors.primary
-                    : theme.colors.surfaceVariant,
-                },
-              ]}
-              onPress={() => setThemeMode(mode as any)}
-            accessibilityRole="button"
-            accessibilityLabel={`Set theme to ${mode}`}
-            accessibilityState={{ selected: themeMode === mode }}
-            >
-              <Text
-                style={[
-                  styles.themeOptionText,
-                  { color: themeMode === mode ? '#FFFFFF' : theme.colors.text },
-                ]}
-              >
-                {mode.charAt(0).toUpperCase() + mode.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      ),
-    },
-    {
-      id: 'privacy',
-      title: 'Privacy & Security',
-      icon: 'shield-lock',
-      onPress: () => navigation.navigate('Privacy' as never),
-    },
-    {
-      id: 'help',
-      title: 'Help & Support',
-      icon: 'help-circle',
-      onPress: () => navigation.navigate('Help' as never),
-    },
-    {
-      id: 'feedback',
-      title: 'Send Feedback',
-      icon: 'message-draw',
-      onPress: () => navigation.navigate('Feedback' as never),
-    },
-    {
-      id: 'rate',
-      title: 'Rate ZapTap',
-      icon: 'star',
-      onPress: () => console.log('Rate app'),
-    },
-    {
-      id: 'about',
-      title: 'About',
-      icon: 'information',
-      onPress: () => navigation.navigate('About' as never),
-    },
-  ];
+    try {
+      triggerHaptic('light');
+      
+      const shareContent = {
+        title: `${user?.user_metadata?.full_name || user?.email}'s Profile`,
+        message: `Check out my automation profile on ShortcutsLike!`,
+        url: `https://shortcutslike.app/profile/${user?.id}`, // Replace with actual URL
+      };
 
-  if (!isAuthenticated) {
+      await Share.share(shareContent);
+    } catch (error) {
+      EventLogger.error('ModernProfile', 'Error sharing profile:', error as Error);
+      showFeedbackMessage('error', 'Failed to share profile');
+    }
+  }, [user, triggerHaptic, showFeedbackMessage]);
+
+  // Calculate profile stats
+  const profileStats = useMemo(() => {
+    const totalRuns = myAutomations.reduce((sum, automation) => sum + (automation.totalRuns || 0), 0);
+    const totalLikes = myPublicAutomations.reduce((sum, automation) => sum + (automation.likes || 0), 0);
+    const avgRating = myPublicAutomations.length > 0 
+      ? myPublicAutomations.reduce((sum, automation) => sum + (automation.rating || 0), 0) / myPublicAutomations.length
+      : 0;
+
+    return {
+      automations: myAutomations.length,
+      publicAutomations: myPublicAutomations.length,
+      totalRuns,
+      totalLikes,
+      avgRating,
+      completionPercentage: Math.round((profileCompletion as any)._value * 100),
+    };
+  }, [myAutomations, myPublicAutomations, profileCompletion]);
+
+  // Authentication check
+  if (!isAuthenticated || !user) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.signInPrompt}>
-          <MaterialCommunityIcons
-            name="account-circle"
-            size={80}
-            color={theme.colors.textSecondary}
-          />
-          <Text style={[styles.signInTitle, { color: theme.colors.text }]}>
-            Sign in to ZapTap
+      <ErrorState
+        title="Authentication Required"
+        description="Please sign in to access your profile"
+        action={{
+          label: "Sign In",
+          onPress: () => navigation.navigate('Auth' as never),
+        }}
+      />
+    );
+  }
+
+  // Error state
+  if ((myAutomationsError || publicAutomationsError) && !isConnected) {
+    return (
+      <ErrorState
+        title="Connection Error"
+        description="Unable to load profile data. Please check your connection."
+        action={{
+          label: "Retry",
+          onPress: handleRefresh,
+        }}
+      />
+    );
+  }
+
+  // Loading state
+  if (isLoadingMyAutomations && myAutomations.length === 0) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        {FEATURE_FLAGS.GRADIENT_HEADERS ? (
+          <GradientHeader title="Profile" />
+        ) : (
+          <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
+              Profile
+            </Text>
+          </View>
+        )}
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.onSurface }]}>
+            Loading profile...
           </Text>
-          <Text style={[styles.signInDescription, { color: theme.colors.textSecondary }]}>
-            Create an account to save your automations and share with the community
-          </Text>
-          <TouchableOpacity
-            style={[styles.signInButton, { backgroundColor: theme.colors.primary }]}
-            onPress={() => navigation.navigate('SignIn' as never)}
-          >
-            <Text style={styles.signInButtonText}>Sign In</Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
-            colors={[theme.colors.primary]}
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      {/* Header */}
+      {FEATURE_FLAGS.GRADIENT_HEADERS ? (
+        <Animated.View style={{ opacity: headerOpacity }}>
+          <GradientHeader 
+            title="Profile" 
+            rightComponent={
+              FEATURE_FLAGS.SHARING ? (
+                <TouchableOpacity onPress={handleShareProfile}>
+                  <MaterialCommunityIcons name="share" size={24} color="white" />
+                </TouchableOpacity>
+              ) : undefined
+            }
           />
-        }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+        </Animated.View>
+      ) : (
+        <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
             Profile
           </Text>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('Settings' as never)}
-            accessibilityRole="button"
-            accessibilityLabel="Open settings"
-            accessibilityHint="Navigate to app settings screen"
-          >
-            <MaterialCommunityIcons
-              name="cog"
-              size={24}
-              color={theme.colors.text}
+          {FEATURE_FLAGS.SHARING && (
+            <TouchableOpacity onPress={handleShareProfile}>
+              <MaterialCommunityIcons 
+                name="share" 
+                size={24} 
+                color={theme.colors.onSurface} 
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Content */}
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={theme.colors.primary}
             />
-          </TouchableOpacity>
-        </View>
-
-        {/* Profile Info */}
-        <View style={styles.profileSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
-            </Text>
-          </View>
-          <Text style={styles.userName}>
-            {user?.name || 'User'}
-          </Text>
-          <Text style={[styles.userEmail, { color: theme.colors.text.secondary }]}>
-            {user?.email || 'email@example.com'}
-          </Text>
-          <View style={[styles.rankBadge, { backgroundColor: theme.colors.primary + '20' }]}>
-            <MaterialCommunityIcons
-              name="crown"
-              size={16}
-              color={theme.colors.primary}
-            />
-            <Text style={[styles.rankText, { color: theme.colors.primary }]}>
-              {contributionStats.rank}
-            </Text>
-          </View>
-        </View>
-
-        {/* Contribution Stats */}
-        <View style={styles.statsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Contribution Stats
-            </Text>
-            {(isLoadingMy || isLoadingPublic) && (
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-            )}
-          </View>
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
-              <MaterialCommunityIcons
-                name="robot"
-                size={24}
-                color={theme.colors.primary}
-              />
-              <Text style={[styles.statNumber, { color: theme.colors.text }]}>
-                {contributionStats.automationsCreated}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                Created
-              </Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
-              <MaterialCommunityIcons
-                name="share-variant"
-                size={24}
-                color={theme.colors.success}
-              />
-              <Text style={[styles.statNumber, { color: theme.colors.text }]}>
-                {contributionStats.automationsShared}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                Shared
-              </Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
-              <MaterialCommunityIcons
-                name="download"
-                size={24}
-                color={theme.colors.info}
-              />
-              <Text style={[styles.statNumber, { color: theme.colors.text }]}>
-                {contributionStats.totalDownloads}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                Downloads
-              </Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
-              <MaterialCommunityIcons
-                name="thumb-up"
-                size={24}
-                color={theme.colors.warning}
-              />
-              <Text style={[styles.statNumber, { color: theme.colors.text }]}>
-                {contributionStats.helpfulVotes}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                Helpful
-              </Text>
-            </View>
-          </View>
-          <Text style={[styles.joinDate, { color: theme.colors.textSecondary }]}>
-            Member since {contributionStats.joinDate}
-          </Text>
-        </View>
-
-        {/* Developer Section - Only for developers */}
-        {isDeveloper && (
-          <DeveloperSection navigation={navigation} theme={theme} />
-        )}
-
-        {/* Menu Items */}
-        <View style={styles.menuSection}>
-          {menuItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.menuItem, { backgroundColor: theme.colors.surface.primary }]}
-              onPress={item.onPress}
-              activeOpacity={theme.constants.activeOpacity}
-              accessibilityRole="button"
-              accessibilityLabel={item.title}
-              accessibilityHint={`Open ${item.title.toLowerCase()} screen`}
-            >
-              <View style={styles.menuItemLeft}>
-                <MaterialCommunityIcons
-                  name={item.icon as any}
-                  size={24}
-                  color={theme.colors.text}
-                />
-                <Text style={[styles.menuItemTitle, { color: theme.colors.text }]}>
-                  {item.title}
+          }
+        >
+          {/* Profile Header Card */}
+          <GradientCard gradientKey="primary" style={styles.profileCard}>
+            <View style={styles.profileHeader}>
+              <View style={styles.avatarContainer}>
+                {user.user_metadata?.avatar_url ? (
+                  <Image
+                    source={{ uri: user.user_metadata.avatar_url }}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                    <MaterialCommunityIcons
+                      name="account"
+                      size={40}
+                      color="white"
+                    />
+                  </View>
+                )}
+                <View style={styles.completionBadge}>
+                  <Animated.View
+                    style={[
+                      styles.completionBar,
+                      {
+                        width: profileCompletion.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%'],
+                        }),
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+              
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>
+                  {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                </Text>
+                <Text style={styles.profileEmail}>
+                  {user.email}
+                </Text>
+                <Text style={styles.profileCompletion}>
+                  {profileStats.completionPercentage}% Complete
                 </Text>
               </View>
-              {item.rightElement || (
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={24}
-                  color={theme.colors.textSecondary}
-                />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
+            </View>
+          </GradientCard>
 
-        {/* Sign Out & Delete Account */}
-        <View style={styles.dangerSection}>
-          <TouchableOpacity
-            style={[styles.dangerButton, { borderColor: theme.colors.semantic.error }]}
-            onPress={handleSignOut}
-            accessibilityRole="button"
-            accessibilityLabel="Sign out"
-            accessibilityHint="Sign out of your account"
-          >
-            <MaterialCommunityIcons
-              name="logout"
-              size={20}
-              color={theme.colors.error}
+          {/* Stats Grid */}
+          {FEATURE_FLAGS.STAGGERED_ANIMATIONS ? (
+            <AnimatedStatsGrid
+              stats={[
+                { label: 'Automations', value: profileStats.automations, icon: 'robot' },
+                { label: 'Public', value: profileStats.publicAutomations, icon: 'earth' },
+                { label: 'Total Runs', value: profileStats.totalRuns, icon: 'play' },
+                { label: 'Likes', value: profileStats.totalLikes, icon: 'heart' },
+              ]}
+              theme={theme}
             />
-            <Text style={[styles.dangerButtonText, { color: theme.colors.error }]}>
-              Sign Out
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.deleteAccountButton}
-            onPress={handleDeleteAccount}
-          >
-            <Text style={[styles.deleteAccountText, { color: theme.colors.textSecondary }]}>
-              Delete Account
-            </Text>
-          </TouchableOpacity>
-        </View>
+          ) : (
+            <View style={styles.statsGrid}>
+              {[
+                { label: 'Automations', value: profileStats.automations, icon: 'robot' },
+                { label: 'Public', value: profileStats.publicAutomations, icon: 'earth' },
+                { label: 'Total Runs', value: profileStats.totalRuns, icon: 'play' },
+                { label: 'Likes', value: profileStats.totalLikes, icon: 'heart' },
+              ].map((stat, index) => (
+                <View key={index} style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
+                  <MaterialCommunityIcons 
+                    name={stat.icon as any} 
+                    size={24} 
+                    color={theme.colors.primary} 
+                  />
+                  <Text style={[styles.statValue, { color: theme.colors.onSurface }]}>
+                    {stat.value}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
+                    {stat.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
 
-        {/* App Version */}
-        <View style={styles.footer}>
-          <Text style={[styles.appVersion, { color: theme.colors.textSecondary }]}>
-            ZapTap v2.3.1
-          </Text>
-        </View>
-      </ScrollView>
+          {/* Tab Navigation */}
+          <View style={[styles.tabContainer, { backgroundColor: theme.colors.surface }]}>
+            {(['overview', 'achievements', 'activity'] as const).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[
+                  styles.tab,
+                  activeTab === tab && { backgroundColor: theme.colors.primary },
+                ]}
+                onPress={() => handleTabSwitch(tab)}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: activeTab === tab 
+                        ? theme.colors.onPrimary 
+                        : theme.colors.onSurfaceVariant
+                    },
+                  ]}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Tab Content */}
+          <Animated.View 
+            style={[
+              styles.tabContent,
+              FEATURE_FLAGS.ENHANCED_ANIMATIONS && {
+                opacity: tabSwitchAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1, 0.5],
+                }),
+              }
+            ]}
+          >
+            {activeTab === 'overview' && (
+              <View>
+                {/* Settings Section */}
+                <AnimatedMenuSection
+                  title="Settings"
+                  items={[
+                    {
+                      title: 'Notifications',
+                      icon: 'bell',
+                      rightComponent: (
+                        <Switch
+                          value={notificationsEnabled}
+                          onValueChange={handleNotificationToggle}
+                          trackColor={{ 
+                            false: theme.colors.outline, 
+                            true: theme.colors.primary 
+                          }}
+                          thumbColor={notificationsEnabled ? theme.colors.onPrimary : theme.colors.onSurface}
+                        />
+                      ),
+                    },
+                    {
+                      title: 'Dark Mode',
+                      icon: 'theme-light-dark',
+                      rightComponent: (
+                        <Switch
+                          value={darkMode}
+                          onValueChange={handleDarkModeToggle}
+                          trackColor={{ 
+                            false: theme.colors.outline, 
+                            true: theme.colors.primary 
+                          }}
+                          thumbColor={darkMode ? theme.colors.onPrimary : theme.colors.onSurface}
+                        />
+                      ),
+                    },
+                    {
+                      title: 'Privacy & Security',
+                      icon: 'shield-account',
+                      onPress: () => navigation.navigate('PrivacySettings' as never),
+                    },
+                    {
+                      title: 'Help & Support',
+                      icon: 'help-circle',
+                      onPress: () => navigation.navigate('HelpSupport' as never),
+                    },
+                  ]}
+                  theme={theme}
+                />
+
+                {/* Developer Section */}
+                {FEATURE_FLAGS.DEVELOPER_MODE && isDeveloper && (
+                  <DeveloperSection theme={theme} />
+                )}
+
+                {/* Sign Out Button */}
+                <View style={styles.signOutContainer}>
+                  <GradientButton
+                    title="Sign Out"
+                    onPress={handleSignOut}
+                    gradientKey="error"
+                    style={styles.signOutButton}
+                  />
+                </View>
+              </View>
+            )}
+
+            {activeTab === 'achievements' && FEATURE_FLAGS.ACHIEVEMENT_SYSTEM && (
+              <AchievementSystem 
+                theme={theme}
+                userStats={profileStats}
+              />
+            )}
+
+            {activeTab === 'activity' && FEATURE_FLAGS.ACTIVITY_TIMELINE && (
+              <ActivityTimeline
+                theme={theme}
+                userId={user.id}
+              />
+            )}
+          </Animated.View>
+
+          {/* Connection Status */}
+          {!isConnected && (
+            <View style={[styles.connectionIndicator, { backgroundColor: theme.colors.errorContainer }]}>
+              <MaterialCommunityIcons 
+                name="wifi-off" 
+                size={20} 
+                color={theme.colors.onErrorContainer} 
+              />
+              <Text style={[styles.connectionText, { color: theme.colors.onErrorContainer }]}>
+                You're offline. Some features may be limited.
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </Animated.View>
+
+      {/* Feedback */}
+      {showFeedback && (
+        <FeedbackAnimation
+          type={feedbackType}
+          message={feedbackMessage}
+          visible={showFeedback}
+        />
+      )}
     </SafeAreaView>
   );
-};
+});
 
-const createStyles = (theme: Theme) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.md,
-      paddingBottom: theme.spacing.lg,
-    },
-    headerTitle: {
-      ...createTextStyle(theme, '3xl', 'bold'),
-    },
-    settingsButton: {
-      width: theme.accessibility.minTouchTarget,
-      height: theme.accessibility.minTouchTarget,
-      borderRadius: theme.tokens.borderRadius.full,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: theme.colors.surface.primary,
-    },
-    profileSection: {
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.xl,
-    },
-    avatar: {
-      width: 80,
-      height: 80,
-      borderRadius: theme.borderRadius.round,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: theme.spacing.md,
-    },
-    avatarText: {
-      ...createTextStyle(theme, '3xl', 'semibold', theme.colors.text.inverse),
-    },
-    userName: {
-      ...createTextStyle(theme, 'xl', 'semibold'),
-      marginBottom: theme.spacing.xs,
-    },
-    userEmail: {
-      fontSize: 16,
-      marginBottom: theme.spacing.md,
-    },
-    rankBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.xs,
-      borderRadius: theme.borderRadius.round,
-    },
-    rankText: {
-      fontSize: 14,
-      fontWeight: '600',
-      marginLeft: theme.spacing.xs,
-    },
-    statsSection: {
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.xl,
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: theme.spacing.md,
-    },
-    sectionTitle: {
-      fontSize: theme.typography.h3.fontSize,
-      fontWeight: theme.typography.h3.fontWeight,
-    },
-    statsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing.sm,
-      marginBottom: theme.spacing.md,
-    },
-    statCard: {
-      flex: 1,
-      minWidth: '48%',
-      padding: theme.spacing.md,
-      borderRadius: theme.borderRadius.lg,
-      alignItems: 'center',
-      shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 6,
-      elevation: 1,
-    },
-    statNumber: {
-      fontSize: 20,
-      fontWeight: '700',
-      marginTop: theme.spacing.sm,
-    },
-    statLabel: {
-      fontSize: 12,
-      marginTop: theme.spacing.xs,
-    },
-    joinDate: {
-      fontSize: 14,
-      textAlign: 'center',
-    },
-    menuSection: {
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.xl,
-    },
-    menuItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: theme.spacing.md,
-      borderRadius: theme.borderRadius.lg,
-      marginBottom: theme.spacing.sm,
-    },
-    menuItemLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    menuItemTitle: {
-      fontSize: 16,
-      marginLeft: theme.spacing.md,
-    },
-    themeSelector: {
-      flexDirection: 'row',
-      gap: theme.spacing.xs,
-    },
-    themeOption: {
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs,
-      borderRadius: theme.borderRadius.sm,
-    },
-    themeOptionText: {
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    dangerSection: {
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.xl,
-    },
-    dangerButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: theme.spacing.md,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1.5,
-      marginBottom: theme.spacing.md,
-    },
-    dangerButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
-      marginLeft: theme.spacing.sm,
-    },
-    deleteAccountButton: {
-      alignItems: 'center',
-      padding: theme.spacing.md,
-    },
-    deleteAccountText: {
-      fontSize: 14,
-      textDecorationLine: 'underline',
-    },
-    footer: {
-      alignItems: 'center',
-      paddingBottom: theme.spacing.xl,
-    },
-    appVersion: {
-      fontSize: 12,
-    },
-    signInPrompt: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.xl,
-    },
-    signInTitle: {
-      fontSize: 24,
-      fontWeight: '600',
-      marginTop: theme.spacing.lg,
-      marginBottom: theme.spacing.sm,
-    },
-    signInDescription: {
-      fontSize: 16,
-      textAlign: 'center',
-      marginBottom: theme.spacing.xl,
-    },
-    signInButton: {
-      paddingHorizontal: theme.spacing.xl,
-      paddingVertical: theme.spacing.md,
-      borderRadius: theme.borderRadius.round,
-    },
-    signInButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: '#FFFFFF',
-    },
-  });
+ModernProfileScreen.displayName = 'ModernProfileScreen';
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  content: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 50,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  profileCard: {
+    margin: 20,
+    padding: 20,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginRight: 16,
+  },
+  avatarPlaceholder: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  completionBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 16,
+    width: 30,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+  },
+  completionBar: {
+    height: '100%',
+    backgroundColor: 'white',
+    borderRadius: 2,
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
+  },
+  profileEmail: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 8,
+  },
+  profileCompletion: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+    gap: 12,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: (screenWidth - 64) / 2,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    gap: 8,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  statLabel: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tabContent: {
+    paddingHorizontal: 20,
+  },
+  signOutContainer: {
+    marginTop: 40,
+    marginBottom: 20,
+  },
+  signOutButton: {
+    marginHorizontal: 20,
+  },
+  connectionIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 20,
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  connectionText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+});
 
 export default ModernProfileScreen;

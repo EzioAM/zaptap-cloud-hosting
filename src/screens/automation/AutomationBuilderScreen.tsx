@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { EventLogger } from '../../utils/EventLogger';
   import {
     View,
     StyleSheet,
@@ -6,6 +7,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     Alert,
     TextInput as RNTextInput,
     TouchableOpacity,
+    Platform,
   } from 'react-native';
   import {
     Appbar,
@@ -38,14 +40,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
   import StepConfigModal from '../../components/automation/StepConfigModal';
   import ModernStepConfigRenderer from '../../components/automation/ModernStepConfigRenderer';
   import { VisualStepEditor } from '../../components/organisms/StepEditor';
-  import { useUnifiedTheme as useTheme } from '../../contexts/UnifiedThemeProvider';
-  import { theme } from '../../theme';
+  import { useUnifiedTheme as useTheme } from '../../contexts/ThemeCompatibilityShim';
 
   type Props = NativeStackScreenProps<RootStackParamList, 'AutomationBuilder'>;
 
   const AutomationBuilderScreen: React.FC<Props> = ({ navigation, route }) => {
     const { theme: currentTheme } = useTheme();
-    const colors = theme.getColors(currentTheme);
+    const colors = currentTheme.colors;
     const [steps, setSteps] = useState<AutomationStep[]>([]);
     const [automationTitle, setAutomationTitle] = useState('My Automation');
     const [isExecuting, setIsExecuting] = useState(false);
@@ -217,14 +218,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     }, []);
 
     const openStepConfig = (index: number) => {
-      console.log('Opening step config for index:', index, 'Step:', steps[index]);
+      EventLogger.debug('Automation', 'Opening step config for index:', index, 'Step:', steps[index]);
       if (index >= 0 && index < steps.length && steps[index]) {
         setConfigStepIndex(index);
         setStepConfig({ ...steps[index].config || {} });
         setShowStepConfig(true);
-        console.log('Step config modal should be visible now');
+        EventLogger.debug('Automation', 'Step config modal should be visible now');
       } else {
-        console.log('Invalid step index or step not found');
+        EventLogger.debug('Automation', 'Invalid step index or step not found');
       }
     };
 
@@ -317,13 +318,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
     const handleNFCScan = async (automationId: string, metadata: any) => {
       try {
-        console.log('NFC scan received:', { automationId, metadata });
+        EventLogger.debug('Automation', 'NFC scan received:', { automationId, metadata });
         
         let automationData: AutomationData | null = null;
         
         // Check if this is a public share URL
         if (metadata?.source === 'web' && metadata?.url?.includes('/share/')) {
-          console.log('NFC tag contains public share link, fetching from public_shares');
+          EventLogger.debug('Automation', 'NFC tag contains public share link, fetching from public_shares');
           
           // This is a public share ID, not an automation ID
           const { data: shareData, error: shareError } = await supabase
@@ -334,7 +335,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             .single();
           
           if (shareError || !shareData) {
-            console.error('Failed to fetch public share:', shareError);
+            EventLogger.error('Automation', 'Failed to fetch public share:', shareError as Error);
             Alert.alert(
               'Share Link Invalid',
               'This shared automation link is invalid or has expired.'
@@ -371,7 +372,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             .single();
 
           if (error) {
-            console.error('Database error:', error);
+            EventLogger.error('Automation', 'Database error:', error as Error);
             Alert.alert(
               'Automation Not Found',
               `Could not find automation with ID: ${automationId}\n\nError: ${error.message}`
@@ -419,7 +420,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         );
 
       } catch (error: any) {
-        console.error('NFC scan error:', error);
+        EventLogger.error('Automation', 'NFC scan error:', error as Error);
         Alert.alert('Error', `Failed to process NFC scan: ${error.message || 'Unknown error'}`);
         setShowNFCScanner(false);
       }
@@ -427,14 +428,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
     const executeAutomationSafely = async (automationData: AutomationData) => {
       try {
-        console.log('Starting safe automation execution...');
+        EventLogger.debug('Automation', 'Starting safe automation execution...');
         
         // Execute the automation using AutomationEngine
         const engine = new AutomationEngine();
-        console.log('AutomationEngine created, executing...');
+        EventLogger.debug('Automation', 'AutomationEngine created, executing...');
         
         const result = await engine.execute(automationData);
-        console.log('Execution completed, result:', result);
+        EventLogger.debug('Automation', 'Execution completed, result:', result);
         
         // Wait a bit before showing the alert to prevent timing issues
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -453,7 +454,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         }
         
       } catch (execError: any) {
-        console.error('Execution error:', execError);
+        EventLogger.error('Automation', 'Execution error:', execError as Error);
         Alert.alert(
           'Execution Error',
           `Failed to run automation: ${execError.message || 'Unknown error'}`
@@ -1315,6 +1316,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     content: {
       flex: 1,
       padding: 16,
+      paddingBottom: Platform.OS === 'ios' ? 100 : 90,
     },
     infoCard: {
       marginBottom: 16,
@@ -1416,7 +1418,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       position: 'absolute',
       margin: 16,
       right: 0,
-      bottom: 0,
+      bottom: Platform.OS === 'ios' ? 90 : 80,
     },
     modalContainer: {
       backgroundColor: 'white',

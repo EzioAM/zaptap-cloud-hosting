@@ -1,4 +1,5 @@
 import { supabase } from '../supabase/client';
+import { EventLogger } from '../../utils/EventLogger';
 
 export enum UserRole {
   USER = 'user',
@@ -52,7 +53,7 @@ export class RoleService {
       return profile?.role === UserRole.DEVELOPER || 
              profile?.role === UserRole.SUPER_ADMIN;
     } catch (error) {
-      console.error('Error checking developer access:', error);
+      EventLogger.error('Authentication', 'Error checking developer access:', error as Error);
       return false;
     }
   }
@@ -87,7 +88,7 @@ export class RoleService {
       // Check specific permissions
       return profile.permissions?.includes(permission) || false;
     } catch (error) {
-      console.error('Error checking permission:', error);
+      EventLogger.error('Authentication', 'Error checking permission:', error as Error);
       return false;
     }
   }
@@ -116,7 +117,7 @@ export class RoleService {
 
       return (profile?.role as UserRole) || UserRole.USER;
     } catch (error) {
-      console.error('Error getting user role:', error);
+      EventLogger.error('Authentication', 'Error getting user role:', error as Error);
       return UserRole.USER;
     }
   }
@@ -142,7 +143,7 @@ export class RoleService {
       if (error) throw error;
       return true;
     } catch (error) {
-      console.error('Error updating user role:', error);
+      EventLogger.error('Authentication', 'Error updating user role:', error as Error);
       return false;
     }
   }

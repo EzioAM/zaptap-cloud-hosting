@@ -31,6 +31,7 @@ export type RootStackParamList = {
     fromGallery?: boolean;
   };
   Templates: undefined;
+  Scanner: undefined;
   LocationTriggers: undefined;
   Reviews: { 
     automationId: string;
@@ -46,6 +47,9 @@ export type RootStackParamList = {
   Help: undefined;
   Feedback: undefined;
   About: undefined;
+  Terms: undefined;
+  Docs: undefined;
+  FAQ: undefined;
   
   // Developer screens
   DeveloperMenu: undefined;
@@ -54,6 +58,7 @@ export type RootStackParamList = {
   
   // Onboarding screens
   WelcomeScreen: undefined;
+  OnboardingFlow: undefined;
   TutorialScreen: undefined;
 };
 

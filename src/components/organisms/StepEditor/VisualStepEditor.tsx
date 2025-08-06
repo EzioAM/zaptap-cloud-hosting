@@ -13,7 +13,7 @@ import DraggableFlatList, {
 } from 'react-native-draggable-flatlist';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { theme } from '../../../theme';
 import { AutomationStep, StepType } from '../../../types';
 import { StepCard } from './StepCard';
@@ -40,8 +40,8 @@ export const VisualStepEditor: React.FC<VisualStepEditorProps> = ({
   onStepDelete,
   readonly = false,
 }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  const currentTheme = useSafeTheme();
+  const colors = currentTheme.colors;
   const { trigger } = useHaptic();
   const [showPalette, setShowPalette] = useState(false);
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
@@ -90,7 +90,7 @@ export const VisualStepEditor: React.FC<VisualStepEditorProps> = ({
             {index < steps.length - 1 && (
               <StepConnector
                 isActive={isActive}
-                color={colors.brand.primary}
+                color={colors?.primary || '#6200ee'}
               />
             )}
           </View>
@@ -101,7 +101,7 @@ export const VisualStepEditor: React.FC<VisualStepEditorProps> = ({
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
+    <View style={[styles.container, { backgroundColor: colors?.background || '#f5f5f5' }]}>
       {steps.length === 0 ? (
         <EmptyState
           type="no-automations"
@@ -113,10 +113,10 @@ export const VisualStepEditor: React.FC<VisualStepEditorProps> = ({
       ) : (
         <>
           <View style={styles.header}>
-            <Text style={[styles.headerTitle, { color: colors.text.primary }]}>
+            <Text style={[styles.headerTitle, { color: colors?.text || '#000' }]}>
               Automation Steps
             </Text>
-            <Text style={[styles.headerSubtitle, { color: colors.text.secondary }]}>
+            <Text style={[styles.headerSubtitle, { color: colors?.textSecondary || '#666' }]}>
               {readonly ? 'Viewing' : 'Drag to reorder'} • {steps.length} step{steps.length !== 1 ? 's' : ''}
             </Text>
           </View>
@@ -139,7 +139,7 @@ export const VisualStepEditor: React.FC<VisualStepEditorProps> = ({
       {!readonly && steps.length > 0 && (
         <Animated.View
           layout={Layout.springify()}
-          style={[styles.addButtonContainer, { borderTopColor: colors.border.light }]}
+          style={[styles.addButtonContainer, { borderTopColor: colors?.border || '#e0e0e0' }]}
         >
           <Button
             variant="outline"

@@ -29,6 +29,7 @@ import { DeveloperService } from '../../services/developer/DeveloperService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase/client';
 import Constants from 'expo-constants';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface DeveloperMenuScreenProps {
   navigation: any;
@@ -60,7 +61,7 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
         );
       }
     } catch (error) {
-      console.error('Error checking developer access:', error);
+      EventLogger.error('DeveloperMenu', 'Error checking developer access:', error as Error);
       setHasAccess(false);
       Alert.alert(
         'Error',
@@ -323,7 +324,7 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
               onPress={async () => {
                 try {
                   const debugBundle = await DeveloperService.exportDebugBundle();
-                  console.log('DEVELOPER_DEBUG_BUNDLE:', debugBundle);
+                  EventLogger.debug('DeveloperMenu', 'DEVELOPER_DEBUG_BUNDLE:', debugBundle);
                   Alert.alert(
                     'Debug Bundle Exported',
                     'Complete debug bundle has been exported to console logs. Check console for DEVELOPER_DEBUG_BUNDLE.',

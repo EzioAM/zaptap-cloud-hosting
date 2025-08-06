@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/client';
 import { AutomationData, AutomationStep } from '../../types';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface AutomationVersion {
   id: string;
@@ -40,7 +41,7 @@ export class VersionHistoryService {
       if (error) throw error;
       return data || [];
     } catch (error) {
-      console.error('Failed to get version history:', error);
+      EventLogger.error('VersionHistory', 'Failed to get version history:', error as Error);
       return [];
     }
   }
@@ -89,7 +90,7 @@ export class VersionHistoryService {
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Failed to create version:', error);
+      EventLogger.error('VersionHistory', 'Failed to create version:', error as Error);
       return null;
     }
   }
@@ -145,7 +146,7 @@ export class VersionHistoryService {
 
       return true;
     } catch (error) {
-      console.error('Failed to restore version:', error);
+      EventLogger.error('VersionHistory', 'Failed to restore version:', error as Error);
       return false;
     }
   }
@@ -265,7 +266,7 @@ export class VersionHistoryService {
         averageChangesPerVersion: versions.length > 1 ? Math.round((versions.length - 1) / versions.length * 100) / 100 : 0,
       };
     } catch (error) {
-      console.error('Failed to get version stats:', error);
+      EventLogger.error('VersionHistory', 'Failed to get version stats:', error as Error);
       return {
         totalVersions: 0,
         lastModified: null,
@@ -288,7 +289,7 @@ export class VersionHistoryService {
       if (error) throw error;
       return true;
     } catch (error) {
-      console.error('Failed to delete version:', error);
+      EventLogger.error('VersionHistory', 'Failed to delete version:', error as Error);
       return false;
     }
   }

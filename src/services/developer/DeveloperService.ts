@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../supabase/client';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface PerformanceMetrics {
   jsHeapUsed: number;
@@ -240,7 +241,7 @@ class DeveloperServiceClass {
         itemCount: items.length,
       };
     } catch (error) {
-      console.error('Failed to get storage info:', error);
+      EventLogger.error('Developer', 'Failed to get storage info:', error as Error);
       return { items: [], totalSize: 0, itemCount: 0 };
     }
   }
@@ -254,7 +255,7 @@ class DeveloperServiceClass {
       }
       return true;
     } catch (error) {
-      console.error('Failed to clear storage:', error);
+      EventLogger.error('Developer', 'Failed to clear storage:', error as Error);
       return false;
     }
   }
@@ -305,7 +306,7 @@ class DeveloperServiceClass {
 
       return stats;
     } catch (error) {
-      console.error('Failed to get database stats:', error);
+      EventLogger.error('Developer', 'Failed to get database stats:', error as Error);
       return { tables: [], totalRecords: 0 };
     }
   }
@@ -319,7 +320,7 @@ class DeveloperServiceClass {
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Failed to run database query:', error);
+      EventLogger.error('Developer', 'Failed to run database query:', error as Error);
       throw error;
     }
   }

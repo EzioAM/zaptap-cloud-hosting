@@ -11,7 +11,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Modal } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { theme } from '../../../theme';
 import { StepType } from '../../../types';
 import { Card } from '../../atoms/Card';
@@ -85,8 +85,8 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
   onSelectStep,
   recentSteps = [],
 }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  const theme = useSafeTheme();
+  const colors = theme.colors;
   const { trigger } = useHaptic();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -134,27 +134,27 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
             <View
               style={[
                 styles.stepIcon,
-                { backgroundColor: `${colors.brand.primary}15` },
+                { backgroundColor: `${colors?.brand?.primary || colors?.primary || '#6200ee'}15` },
               ]}
             >
               <MaterialCommunityIcons
                 name={step.icon as any}
                 size={24}
-                color={colors.brand.primary}
+                color={colors?.brand?.primary || colors?.primary || '#6200ee'}
               />
             </View>
             <View style={styles.stepInfo}>
-              <Text style={[styles.stepLabel, { color: colors.text.primary }]}>
+              <Text style={[styles.stepLabel, { color: colors?.text?.primary || colors?.onSurface || '#333333' }]}>
                 {step.label}
               </Text>
-              <Text style={[styles.stepDescription, { color: colors.text.secondary }]}>
+              <Text style={[styles.stepDescription, { color: colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' }]}>
                 {step.description}
               </Text>
             </View>
             <MaterialCommunityIcons
               name="plus"
               size={20}
-              color={colors.text.tertiary}
+              color={colors?.text?.tertiary || colors?.onSurfaceVariant || '#999999'}
             />
           </View>
         </Card>
@@ -176,33 +176,33 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
       >
         <TouchableOpacity 
           activeOpacity={1}
-          style={[styles.container, { backgroundColor: colors.background.primary }]}
+          style={[styles.container, { backgroundColor: colors?.background?.primary || colors?.background || '#ffffff' }]}
         >
           <View style={styles.handle} />
           
           <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text.primary }]}>
+          <Text style={[styles.title, { color: colors?.text?.primary || colors?.onSurface || '#333333' }]}>
             Add Step
           </Text>
           <TouchableOpacity onPress={onClose}>
             <MaterialCommunityIcons
               name="close"
               size={24}
-              color={colors.text.secondary}
+              color={colors?.text?.secondary || colors?.onSurfaceVariant || '#666666'}
             />
           </TouchableOpacity>
         </View>
         
-        <View style={[styles.searchContainer, { backgroundColor: colors.surface.secondary }]}>
+        <View style={[styles.searchContainer, { backgroundColor: colors?.surface?.secondary || colors?.surface || '#f5f5f5' }]}>
           <MaterialCommunityIcons
             name="magnify"
             size={20}
-            color={colors.text.secondary}
+            color={colors?.text?.secondary || colors?.onSurfaceVariant || '#666666'}
           />
           <TextInput
-            style={[styles.searchInput, { color: colors.text.primary }]}
+            style={[styles.searchInput, { color: colors?.text?.primary || colors?.onSurface || '#333333' }]}
             placeholder="Search steps..."
-            placeholderTextColor={colors.text.tertiary}
+            placeholderTextColor={colors?.text?.tertiary || colors?.onSurfaceVariant || '#999999'}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -211,7 +211,7 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
               <MaterialCommunityIcons
                 name="close-circle"
                 size={20}
-                color={colors.text.secondary}
+                color={colors?.text?.secondary || colors?.onSurfaceVariant || '#666666'}
               />
             </TouchableOpacity>
           )}
@@ -227,13 +227,13 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
             onPress={() => setSelectedCategory(null)}
             style={[
               styles.categoryChip,
-              !selectedCategory && { backgroundColor: colors.brand.primary },
+              !selectedCategory && { backgroundColor: colors?.brand?.primary || colors?.primary || '#6200ee' },
             ]}
           >
             <Text
               style={[
                 styles.categoryText,
-                { color: !selectedCategory ? '#FFFFFF' : colors.text.secondary },
+                { color: !selectedCategory ? '#FFFFFF' : colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' },
               ]}
             >
               All
@@ -245,13 +245,13 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
               onPress={() => setSelectedCategory(category)}
               style={[
                 styles.categoryChip,
-                selectedCategory === category && { backgroundColor: colors.brand.primary },
+                selectedCategory === category && { backgroundColor: colors?.brand?.primary || colors?.primary || '#6200ee' },
               ]}
             >
               <Text
                 style={[
                   styles.categoryText,
-                  { color: selectedCategory === category ? '#FFFFFF' : colors.text.secondary },
+                  { color: selectedCategory === category ? '#FFFFFF' : colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' },
                 ]}
               >
                 {category}
@@ -267,11 +267,11 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
         >
           {recentStepOptions.length > 0 && !searchQuery && !selectedCategory && (
             <>
-              <Text style={[styles.sectionTitle, { color: colors.text.secondary }]}>
+              <Text style={[styles.sectionTitle, { color: colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' }]}>
                 Recently Used
               </Text>
               {recentStepOptions.map((step, index) => renderStepOption(step, index))}
-              <Text style={[styles.sectionTitle, { color: colors.text.secondary }]}>
+              <Text style={[styles.sectionTitle, { color: colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' }]}>
                 All Steps
               </Text>
             </>
@@ -284,9 +284,9 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
               <MaterialCommunityIcons
                 name="magnify-close"
                 size={48}
-                color={colors.text.disabled}
+                color={colors?.text?.disabled || colors?.onSurfaceDisabled || '#CCCCCC'}
               />
-              <Text style={[styles.emptyText, { color: colors.text.secondary }]}>
+              <Text style={[styles.emptyText, { color: colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' }]}>
                 No steps found
               </Text>
             </View>
@@ -301,7 +301,7 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
 const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',  // Slightly darker for better contrast
     justifyContent: 'flex-end',
   },
   container: {

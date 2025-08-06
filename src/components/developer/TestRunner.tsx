@@ -18,6 +18,7 @@ import {
 } from 'react-native-paper';
 import { DeveloperService } from '../../services/developer/DeveloperService';
 import { supabase } from '../../services/supabase/client';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface TestCase {
   id: string;
@@ -63,7 +64,7 @@ export const TestRunner: React.FC = () => {
       if (error) throw error;
       setAutomations(data || []);
     } catch (error) {
-      console.error('Failed to load automations:', error);
+      EventLogger.error('TestRunner', 'Failed to load automations:', error as Error);
       Alert.alert('Error', 'Failed to load automations');
     } finally {
       setLoadingAutomations(false);
@@ -309,7 +310,7 @@ export const TestRunner: React.FC = () => {
             onPress={async () => {
               try {
                 const bundle = await DeveloperService.exportDebugBundle();
-                console.log('DEBUG_BUNDLE:', bundle);
+                EventLogger.debug('TestRunner', 'DEBUG_BUNDLE:', bundle);
                 Alert.alert('Success', 'Debug bundle exported to console');
               } catch (error) {
                 Alert.alert('Error', 'Failed to export debug bundle');
@@ -340,7 +341,7 @@ export const TestRunner: React.FC = () => {
             mode="text"
             onPress={() => {
               const env = DeveloperService.getEnvironmentInfo();
-              console.log('ENVIRONMENT_INFO:', env);
+              EventLogger.debug('TestRunner', 'ENVIRONMENT_INFO:', env);
               Alert.alert('Environment', JSON.stringify(env, null, 2));
             }}
             style={styles.quickButton}

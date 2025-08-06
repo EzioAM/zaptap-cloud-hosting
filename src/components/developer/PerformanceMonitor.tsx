@@ -16,6 +16,7 @@ import {
 } from 'react-native-paper';
 import { DeveloperService } from '../../services/developer/DeveloperService';
 import { LineChart } from 'react-native-chart-kit';
+import { EventLogger } from '../../utils/EventLogger';
 
 const { width } = Dimensions.get('window');
 
@@ -260,7 +261,7 @@ export const PerformanceMonitor: React.FC = () => {
                 metrics: metrics,
                 memoryHistory: memoryHistory,
               };
-              console.log('PERFORMANCE_REPORT:', report);
+              EventLogger.debug('PerformanceMonitor', 'PERFORMANCE_REPORT:', report);
             }}
             style={styles.actionButton}
           >

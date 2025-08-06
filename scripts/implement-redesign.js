@@ -94,7 +94,7 @@ class RedesignImplementer {
 
   extractFilename(code) {
     // Look for filename in comments
-    const filenameMatch = code.match(/\\/\\/ (\\w+\\.(tsx?|ts|js))/);
+    const filenameMatch = code.match(/\/\/ (\w+\.(tsx?|ts|js))/);
     if (filenameMatch) {
       return filenameMatch[1];
     }

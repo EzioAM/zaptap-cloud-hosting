@@ -4,6 +4,7 @@
  */
 
 import { Theme } from '../theme';
+import { EventLogger } from './/EventLogger';
 
 // Color manipulation utilities
 export const hexToRgba = (hex: string, alpha: number): string => {
@@ -158,7 +159,7 @@ export const createResponsiveStyle = (
 // Theme debugging utilities (development only)
 export const logThemeUsage = (componentName: string, theme: Theme) => {
   if (__DEV__) {
-    console.log(`[Theme Debug] ${componentName} using theme mode: ${theme.mode}`);
+    EventLogger.debug('ThemeUtils', '[Theme Debug] ${componentName} using theme mode: ${theme.mode}');
   }
 };
 
@@ -175,14 +176,14 @@ export const safeColorAccess = (
     for (const key of pathArray) {
       current = current[key];
       if (current === undefined) {
-        console.warn(`[Theme] Color path ${colorPath} not found, using fallback`);
+        EventLogger.warn('ThemeUtils', '[Theme] Color path ${colorPath} not found, using fallback');
         return fallback;
       }
     }
     
     return current;
   } catch (error) {
-    console.warn(`[Theme] Error accessing color path ${colorPath}, using fallback`);
+    EventLogger.warn('ThemeUtils', '[Theme] Error accessing color path ${colorPath}, using fallback');
     return fallback;
   }
 };

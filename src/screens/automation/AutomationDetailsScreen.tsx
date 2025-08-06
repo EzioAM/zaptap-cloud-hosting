@@ -41,13 +41,32 @@ import { FullScreenModal } from '../../components/common/FullScreenModal';
 import { VersionHistoryModal } from '../../components/versions/VersionHistoryModal';
 import { AnalyticsModal } from '../../components/analytics/AnalyticsModal';
 import { CommentsModal } from '../../components/comments/CommentsModal';
+import { DeploymentOptions } from '../../components/deployment/DeploymentOptions';
+import { EventLogger } from '../../utils/EventLogger';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AutomationDetails'>;
 
 const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const { automationId, fromGallery } = route.params;
+  
+  // Validate route parameters
+  React.useEffect(() => {
+    if (!automationId || automationId === 'undefined' || automationId === 'null') {
+      EventLogger.error('Automation', 'Invalid automation ID in route params:', automationId as Error);
+      Alert.alert(
+        'Invalid Automation',
+        'The automation could not be found. Please try again.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+      return;
+    }
+  }, [automationId, navigation]);
+  
   const { user } = useSelector((state: RootState) => state.auth);
-  const { data: automation, isLoading, error } = useGetAutomationQuery(automationId);
+  // Only call the API if we have a valid automationId
+  const { data: automation, isLoading, error } = useGetAutomationQuery(automationId, {
+    skip: !automationId || automationId === 'undefined' || automationId === 'null'
+  });
   const [trackDownload] = useTrackAutomationDownloadMutation();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -206,7 +225,7 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
                 'Your automation is now live in the Gallery! Others can discover, rate, and use your automation.',
                 [
                   { text: 'OK' },
-                  { text: 'View in Gallery', onPress: () => navigation.navigate('Gallery') }
+                  { text: 'View in Gallery', onPress: () => navigation.navigate('DiscoverTab') }
                 ]
               );
             } catch (error) {
@@ -337,6 +356,9 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
             </Button>
           </Card.Content>
         </Card>
+
+        {/* Deploy & Share */}
+        <DeploymentOptions automation={automation} />
 
         {/* Quick Actions */}
         <Card style={styles.actionsCard}>

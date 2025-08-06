@@ -1,42 +1,30 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Card, CardBody, Button } from '../../atoms';
-import { useTheme } from '../../../contexts/ThemeContext';
-import { theme } from '../../../theme';
-import { useHaptic } from '../../../hooks/useHaptic';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 
 interface ActionButtonProps {
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  icon: string;
   label: string;
   onPress: () => void;
   gradient: string[];
-  delay?: number;
 }
 
 const ActionButton: React.FC<ActionButtonProps> = ({ 
   icon, 
   label, 
   onPress, 
-  gradient,
-  delay = 0 
+  gradient
 }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
-  const { trigger } = useHaptic();
-
-  const handlePress = () => {
-    trigger('medium');
-    onPress();
-  };
+  const theme = useSafeTheme();
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(delay).springify()}
+    <TouchableOpacity
       style={styles.actionButton}
+      onPress={onPress}
+      activeOpacity={0.7}
     >
       <LinearGradient
         colors={gradient}
@@ -44,48 +32,44 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <Button
-          variant="ghost"
-          size="large"
-          label=""
-          onPress={handlePress}
-          style={styles.transparentButton}
-          icon={icon}
+        <MaterialCommunityIcons 
+          name={icon as any} 
+          size={32} 
+          color="white" 
         />
       </LinearGradient>
-      <Text style={[styles.actionLabel, { color: colors.text.secondary }]}>
+      <Text style={[styles.actionLabel, { color: theme.colors?.textSecondary || '#666' }]}>
         {label}
       </Text>
-    </Animated.View>
+    </TouchableOpacity>
   );
 };
 
 export const QuickActionsWidget: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  const theme = useSafeTheme();
 
   const actions = [
     {
-      icon: 'plus-circle' as const,
+      icon: 'plus-circle',
       label: 'Create',
-      gradient: [colors.brand.primary, colors.brand.primaryLight],
+      gradient: ['#6366F1', '#818CF8'],
       onPress: () => navigation.navigate('AutomationBuilder'),
     },
     {
-      icon: 'qrcode-scan' as const,
+      icon: 'qrcode-scan',
       label: 'Scan',
-      gradient: [colors.brand.secondary, '#FF6B9D'],
-      onPress: () => navigation.navigate('Gallery'), // TODO: Replace with Scanner when implemented
+      gradient: ['#EC4899', '#F472B6'],
+      onPress: () => navigation.navigate('Scanner'),
     },
     {
-      icon: 'import' as const,
+      icon: 'import',
       label: 'Import',
-      gradient: [colors.brand.accent, '#34D399'],
-      onPress: () => navigation.navigate('Templates'), // TODO: Replace with Import when implemented
+      gradient: ['#10B981', '#34D399'],
+      onPress: () => navigation.navigate('LibraryTab'), // TODO: Replace with Import when implemented
     },
     {
-      icon: 'compass' as const,
+      icon: 'compass',
       label: 'Discover',
       gradient: ['#F59E0B', '#FCD34D'],
       onPress: () => navigation.navigate('DiscoverTab'),
@@ -93,33 +77,39 @@ export const QuickActionsWidget: React.FC = () => {
   ];
 
   return (
-    <Card variant="elevated" style={styles.container} elevation="md">
-      <CardBody>
-        <Text style={[styles.title, { color: colors.text.primary }]}>
-          Quick Actions
-        </Text>
-        <View style={styles.actionsGrid}>
-          {actions.map((action, index) => (
-            <ActionButton
-              key={action.label}
-              {...action}
-              delay={index * 100}
-            />
-          ))}
-        </View>
-      </CardBody>
-    </Card>
+    <View style={[styles.container, { backgroundColor: theme.colors?.surface || '#fff' }]}>
+      <Text style={[styles.title, { color: theme.colors?.text || '#000' }]}>
+        Quick Actions
+      </Text>
+      <View style={styles.actionsGrid}>
+        {actions.map((action) => (
+          <ActionButton
+            key={action.label}
+            {...action}
+          />
+        ))}
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    margin: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   title: {
-    ...theme.typography.titleMedium,
-    marginBottom: theme.spacing.lg,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
   },
   actionsGrid: {
     flexDirection: 'row',
@@ -132,20 +122,20 @@ const styles = StyleSheet.create({
   gradientButton: {
     width: 64,
     height: 64,
-    borderRadius: theme.tokens.borderRadius.xl,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-    ...theme.shadows.md,
-  },
-  transparentButton: {
-    backgroundColor: 'transparent',
-    width: '100%',
-    height: '100%',
-    padding: 0,
-    minHeight: 0,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
   actionLabel: {
-    ...theme.typography.labelSmall,
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
+
+export default QuickActionsWidget;

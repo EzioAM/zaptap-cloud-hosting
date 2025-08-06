@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { AutomationStep, StepType } from '../types';
+import { EventLogger } from '../utils/EventLogger';
 
 interface AutomationFormData {
   title: string;
@@ -192,7 +193,7 @@ export const useAutomationForm = (options: UseAutomationFormOptions = {}) => {
       setIsDirty(false);
       return true;
     } catch (error) {
-      console.error('Form submission error:', error);
+      EventLogger.error('Automation', 'Form submission error:', error as Error);
       return false;
     } finally {
       setIsSubmitting(false);

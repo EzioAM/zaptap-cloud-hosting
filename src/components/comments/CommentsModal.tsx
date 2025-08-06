@@ -27,6 +27,7 @@ import { AutomationData } from '../../types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { FullScreenModal } from '../common/FullScreenModal';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface CommentsModalProps {
   visible: boolean;
@@ -64,7 +65,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
       const data = await CommentsService.getComments(automation.id);
       setComments(data);
     } catch (error) {
-      console.error('Failed to load comments:', error);
+      EventLogger.error('CommentsModal', 'Failed to load comments:', error as Error);
     } finally {
       setLoading(false);
     }
@@ -96,7 +97,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
         // Success feedback is subtle - comment appears immediately
       }
     } catch (error: any) {
-      console.error('Comment post error:', error);
+      EventLogger.error('CommentsModal', 'Comment post error:', error as Error);
       
       let errorTitle = 'Failed to Post';
       let errorMessage = error.message || 'Unknown error occurred';

@@ -20,6 +20,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationTrigger, LocationTriggerConfig as LocationConfig } from '../../types';
 import { locationTriggerService } from '../../services/triggers/LocationTriggerService';
 import * as Location from 'expo-location';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface LocationTriggerConfigProps {
   trigger?: AutomationTrigger;
@@ -44,10 +45,10 @@ const LocationTriggerConfig: React.FC<LocationTriggerConfigProps> = ({
   const [radius, setRadius] = useState('100');
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
-  console.log('LocationTriggerConfig render - visible:', visible, 'initialTriggerType:', initialTriggerType);
+  EventLogger.debug('LocationTriggerConfig', 'LocationTriggerConfig render - visible:', visible, 'initialTriggerType:', initialTriggerType);
 
   useEffect(() => {
-    console.log('LocationTriggerConfig useEffect - trigger:', trigger, 'visible:', visible, 'initialTriggerType:', initialTriggerType);
+    EventLogger.debug('LocationTriggerConfig', 'LocationTriggerConfig useEffect - trigger:', trigger, 'visible:', visible, 'initialTriggerType:', initialTriggerType);
     if (visible) {
       if (trigger && trigger.config) {
         const config = trigger.config as LocationConfig;
@@ -101,7 +102,7 @@ const LocationTriggerConfig: React.FC<LocationTriggerConfigProps> = ({
             }
           }
         } catch (geocodeError) {
-          console.log('Geocoding failed, but location obtained');
+          EventLogger.debug('LocationTriggerConfig', 'Geocoding failed, but location obtained');
         }
         
         Alert.alert('Success', 'Current location obtained successfully!');
@@ -116,7 +117,7 @@ const LocationTriggerConfig: React.FC<LocationTriggerConfigProps> = ({
   };
 
   const validateAndSave = () => {
-    console.log('Validating and saving trigger with type:', triggerType);
+    EventLogger.debug('LocationTriggerConfig', 'Validating and saving trigger with type:', triggerType);
     
     if (!locationName.trim()) {
       Alert.alert('Error', 'Please enter a location name');
@@ -160,7 +161,7 @@ const LocationTriggerConfig: React.FC<LocationTriggerConfigProps> = ({
       } as LocationConfig
     };
 
-    console.log('Created trigger:', newTrigger);
+    EventLogger.debug('LocationTriggerConfig', 'Created trigger:', newTrigger);
     onSave(newTrigger);
   };
 
@@ -172,7 +173,7 @@ const LocationTriggerConfig: React.FC<LocationTriggerConfigProps> = ({
     return 'Very low precision (good for large areas)';
   };
 
-  console.log('LocationTriggerConfig rendering modal - visible:', visible);
+  EventLogger.debug('LocationTriggerConfig', 'LocationTriggerConfig rendering modal - visible:', visible);
 
   return (
     <Modal
@@ -180,7 +181,7 @@ const LocationTriggerConfig: React.FC<LocationTriggerConfigProps> = ({
       animationType="slide"
       transparent={true}
       onRequestClose={() => {
-        console.log('Modal onRequestClose called, visible was:', visible);
+        EventLogger.debug('LocationTriggerConfig', 'Modal onRequestClose called, visible was:', visible);
         onCancel();
       }}
     >

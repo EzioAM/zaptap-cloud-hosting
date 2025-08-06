@@ -11,6 +11,7 @@ import {
 import { Card, List, Divider } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_VERSION } from '../constants/version';
+import { EventLogger } from '../utils/EventLogger';
 
 export default function SettingsScreen() {
   const [settings, setSettings] = React.useState({
@@ -33,7 +34,7 @@ export default function SettingsScreen() {
         setSettings(JSON.parse(savedSettings));
       }
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      EventLogger.error('Settings', 'Failed to load settings:', error as Error);
     }
   };
 
@@ -43,7 +44,7 @@ export default function SettingsScreen() {
     try {
       await AsyncStorage.setItem('app_settings', JSON.stringify(newSettings));
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      EventLogger.error('Settings', 'Failed to save settings:', error as Error);
       Alert.alert('Error', 'Failed to save settings');
     }
   };

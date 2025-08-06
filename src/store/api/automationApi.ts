@@ -9,6 +9,8 @@ import { createApi } from '@reduxjs/toolkit/query/react';
 import { supabase } from '../../services/supabase/client';
 import { AutomationData, UserStats, AutomationExecution } from '../../types';
 import { baseApiConfig, createQueryConfig, createCacheTags, ApiError } from './baseApi';
+import { networkAwareQuery, logApiError } from './networkAwareApi';
+import { EventLogger } from '../../utils/EventLogger';
 
 /**
  * Enhanced automation API with unified configuration
@@ -40,7 +42,7 @@ export const automationApi = createApi({
             .abortSignal(signal);
 
           if (error) {
-            console.error('Error fetching user automations:', error);
+            EventLogger.error('API', 'Error fetching user automations:', error as Error);
             return { 
               error: { 
                 status: 'FETCH_ERROR',
@@ -56,7 +58,7 @@ export const automationApi = createApi({
             return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
           }
           
-          console.error('Failed to fetch user automations:', error);
+          EventLogger.error('API', 'Failed to fetch user automations:', error as Error);
           return { 
             error: { 
               status: 'FETCH_ERROR',
@@ -77,6 +79,43 @@ export const automationApi = createApi({
     getAutomation: builder.query<AutomationData, string>({
       queryFn: async (id, { signal }) => {
         try {
+          // Validate ID parameter before making request
+          if (!id || typeof id !== 'string') {
+            EventLogger.error('API', 'Invalid automation ID provided:', id as Error);
+            return {
+              error: {
+                status: 'INVALID_REQUEST',
+                message: 'Invalid automation ID provided',
+                code: 'INVALID_PARAMS',
+              }
+            };
+          }
+
+          // Check for string literals that shouldn't be passed as UUIDs
+          if (id === 'undefined' || id === 'null' || id === '') {
+            EventLogger.error('API', 'Invalid automation ID value:', id as Error);
+            return {
+              error: {
+                status: 'INVALID_REQUEST',
+                message: `Invalid automation ID: "${id}"`,
+                code: 'INVALID_UUID',
+              }
+            };
+          }
+
+          // Validate UUID format (optional but recommended for better error handling)
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (!uuidRegex.test(id)) {
+            EventLogger.error('API', 'Invalid UUID format:', id as Error);
+            return {
+              error: {
+                status: 'INVALID_REQUEST',
+                message: `Invalid UUID format: ${id}`,
+                code: 'INVALID_UUID_FORMAT',
+              }
+            };
+          }
+
           const { data, error } = await supabase
             .from('automations')
             .select('*')
@@ -85,7 +124,7 @@ export const automationApi = createApi({
             .abortSignal(signal);
 
           if (error) {
-            console.error('Error fetching automation:', error);
+            EventLogger.error('API', 'Error fetching automation:', error as Error);
             return {
               error: {
                 status: error.code === 'PGRST116' ? 'NOT_FOUND' : 'FETCH_ERROR',
@@ -101,7 +140,7 @@ export const automationApi = createApi({
             return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
           }
           
-          console.error('Failed to fetch automation:', error);
+          EventLogger.error('API', 'Failed to fetch automation:', error as Error);
           return {
             error: {
               status: 'FETCH_ERROR',
@@ -119,36 +158,46 @@ export const automationApi = createApi({
     getPublicAutomations: builder.query<AutomationData[], { limit?: number }>({
       queryFn: async ({ limit = 50 }, { signal }) => {
         try {
-          const { data, error } = await supabase
-            .from('automations')
-            .select('*')
-            .eq('is_public', true)
-            .order('created_at', { ascending: false })
-            .limit(limit)
-            .abortSignal(signal);
+          // Use network-aware wrapper to prevent calls when offline
+          const data = await networkAwareQuery(
+            async () => {
+              const { data, error } = await supabase
+                .from('automations')
+                .select('*')
+                .eq('is_public', true)
+                .order('created_at', { ascending: false })
+                .limit(limit)
+                .abortSignal(signal);
 
-          if (error) {
-            console.error('Error fetching public automations:', error);
-            return {
-              error: {
-                status: 'FETCH_ERROR',
-                message: error.message || 'Failed to fetch public automations',
-                code: error.code,
+              if (error) {
+                logApiError(error, 'getPublicAutomations');
+                throw error;
               }
-            };
-          }
 
-          return { data: data || [] };
+              return data || [];
+            },
+            {
+              offlineData: [], // Return empty array when offline
+            }
+          );
+
+          return { data };
         } catch (error: any) {
           if (error.name === 'AbortError') {
             return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
           }
           
-          console.error('Failed to fetch public automations:', error);
+          // Check if it's an offline error
+          if (error.status === 'OFFLINE' || error.code === 'NETWORK_OFFLINE') {
+            return { data: [] }; // Return empty data instead of error for offline
+          }
+          
+          logApiError(error, 'getPublicAutomations');
           return {
             error: {
-              status: 'FETCH_ERROR',
+              status: error.status || 'FETCH_ERROR',
               message: error.message || 'Failed to fetch public automations',
+              code: error.code,
             }
           };
         }
@@ -190,7 +239,7 @@ export const automationApi = createApi({
             .single();
 
           if (error) {
-            console.error('Error creating automation:', error);
+            EventLogger.error('API', 'Error creating automation:', error as Error);
             return {
               error: {
                 status: 'CREATE_ERROR',
@@ -202,7 +251,7 @@ export const automationApi = createApi({
 
           return { data };
         } catch (error: any) {
-          console.error('Failed to create automation:', error);
+          EventLogger.error('API', 'Failed to create automation:', error as Error);
           return {
             error: {
               status: 'CREATE_ERROR',
@@ -223,6 +272,18 @@ export const automationApi = createApi({
     updateAutomation: builder.mutation<AutomationData, { id: string; updates: Partial<AutomationData> }>({
       queryFn: async ({ id, updates }) => {
         try {
+          // Validate ID parameter
+          if (!id || id === 'undefined' || id === 'null') {
+            EventLogger.error('API', 'Invalid automation ID for update:', id as Error);
+            return {
+              error: {
+                status: 'INVALID_REQUEST',
+                message: 'Invalid automation ID provided for update',
+                code: 'INVALID_PARAMS',
+              }
+            };
+          }
+
           const { data, error } = await supabase
             .from('automations')
             .update(updates)
@@ -231,7 +292,7 @@ export const automationApi = createApi({
             .single();
 
           if (error) {
-            console.error('Error updating automation:', error);
+            EventLogger.error('API', 'Error updating automation:', error as Error);
             return {
               error: {
                 status: 'UPDATE_ERROR',
@@ -243,7 +304,7 @@ export const automationApi = createApi({
 
           return { data };
         } catch (error: any) {
-          console.error('Failed to update automation:', error);
+          EventLogger.error('API', 'Failed to update automation:', error as Error);
           return {
             error: {
               status: 'UPDATE_ERROR',
@@ -255,6 +316,7 @@ export const automationApi = createApi({
       invalidatesTags: (result, error, { id }) => [
         { type: 'Automation', id },
         { type: 'Automation', id: 'LIST' },
+        { type: 'Automation', id: 'PUBLIC' },
       ],
     }),
 
@@ -264,13 +326,25 @@ export const automationApi = createApi({
     deleteAutomation: builder.mutation<void, string>({
       queryFn: async (id) => {
         try {
+          // Validate ID parameter
+          if (!id || id === 'undefined' || id === 'null') {
+            EventLogger.error('API', 'Invalid automation ID for deletion:', id as Error);
+            return {
+              error: {
+                status: 'INVALID_REQUEST',
+                message: 'Invalid automation ID provided for deletion',
+                code: 'INVALID_PARAMS',
+              }
+            };
+          }
+
           const { error } = await supabase
             .from('automations')
             .delete()
             .eq('id', id);
 
           if (error) {
-            console.error('Error deleting automation:', error);
+            EventLogger.error('API', 'Error deleting automation:', error as Error);
             return {
               error: {
                 status: 'DELETE_ERROR',
@@ -280,9 +354,9 @@ export const automationApi = createApi({
             };
           }
 
-          return { data: undefined };
+          return { data: null };
         } catch (error: any) {
-          console.error('Failed to delete automation:', error);
+          EventLogger.error('API', 'Failed to delete automation:', error as Error);
           return {
             error: {
               status: 'DELETE_ERROR',
@@ -304,6 +378,18 @@ export const automationApi = createApi({
     cloneAutomation: builder.mutation<AutomationData, string>({
       queryFn: async (automationId) => {
         try {
+          // Validate automationId parameter
+          if (!automationId || automationId === 'undefined' || automationId === 'null') {
+            EventLogger.error('API', 'Invalid automation ID for cloning:', automationId as Error);
+            return {
+              error: {
+                status: 'INVALID_REQUEST',
+                message: 'Invalid automation ID provided for cloning',
+                code: 'INVALID_PARAMS',
+              }
+            };
+          }
+
           const { data: { user } } = await supabase.auth.getUser();
           
           if (!user) {
@@ -362,7 +448,7 @@ export const automationApi = createApi({
 
           return { data };
         } catch (error: any) {
-          console.error('Failed to clone automation:', error);
+          EventLogger.error('API', 'Failed to clone automation:', error as Error);
           return {
             error: {
               status: 'CREATE_ERROR',
@@ -399,66 +485,39 @@ export const automationApi = createApi({
             };
           }
 
-          // Try RPC function first
-          const { data, error } = await supabase
-            .rpc('get_user_automation_stats', { p_user_id: user.id })
+          // Skip RPC function to avoid download_count error, use fallback directly
+          const { data: automations, error: countError } = await supabase
+            .from('automations')
+            .select('id')
+            .eq('created_by', user.id)
             .abortSignal(signal);
-
-          if (error) {
-            console.warn('RPC function not available, using fallback:', error.message);
-            
-            // Fallback: manually count automations
-            const { data: automations, error: countError } = await supabase
-              .from('automations')
-              .select('id')
-              .eq('created_by', user.id);
-            
-            if (countError) {
-              console.error('Failed to fetch automation count:', countError);
-              return {
-                error: {
-                  status: 'FETCH_ERROR',
-                  message: countError.message || 'Failed to fetch user statistics',
-                  code: countError.code,
-                }
-              };
-            }
-            
-            return { 
-              data: { 
-                total_automations: automations?.length || 0, 
-                total_runs: 0, 
-                successful_runs: 0, 
-                failed_runs: 0, 
-                total_time_saved: 0 
-              } 
+          
+          if (countError) {
+            EventLogger.error('API', 'Failed to fetch automation count:', countError as Error);
+            return {
+              error: {
+                status: 'FETCH_ERROR',
+                message: countError.message || 'Failed to fetch user statistics',
+                code: countError.code,
+              }
             };
           }
-
-          // Ensure we return properly typed object
-          const stats = data?.[0] || { 
-            total_automations: 0, 
-            total_runs: 0, 
-            successful_runs: 0, 
-            failed_runs: 0, 
-            total_time_saved: 0 
-          };
           
           return { 
-            data: {
-              total_automations: Number(stats.total_automations) || 0,
-              total_runs: Number(stats.total_runs) || 0,
-              successful_runs: Number(stats.successful_runs) || 0,
-              failed_runs: Number(stats.failed_runs) || 0,
-              total_time_saved: Number(stats.total_time_saved) || 0
-            }
+            data: { 
+              total_automations: automations?.length || 0, 
+              total_runs: 0, 
+              successful_runs: 0, 
+              failed_runs: 0, 
+              total_time_saved: 0 
+            } 
           };
         } catch (error: any) {
           if (error.name === 'AbortError') {
             return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
           }
           
-          console.error('Failed to fetch user stats:', error);
+          EventLogger.error('API', 'Failed to fetch user stats:', error as Error);
           return {
             error: {
               status: 'FETCH_ERROR',
@@ -493,7 +552,7 @@ export const automationApi = createApi({
             .abortSignal(signal);
 
           if (error) {
-            console.error('Error fetching recent executions:', error);
+            EventLogger.error('API', 'Error fetching recent executions:', error as Error);
             return {
               error: {
                 status: 'FETCH_ERROR',
@@ -509,7 +568,7 @@ export const automationApi = createApi({
             return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
           }
           
-          console.error('Failed to fetch recent executions:', error);
+          EventLogger.error('API', 'Failed to fetch recent executions:', error as Error);
           return {
             error: {
               status: 'FETCH_ERROR',
@@ -527,6 +586,18 @@ export const automationApi = createApi({
     getAutomationExecutions: builder.query<AutomationExecution[], string>({
       queryFn: async (automationId, { signal }) => {
         try {
+          // Validate automationId parameter
+          if (!automationId || automationId === 'undefined' || automationId === 'null') {
+            EventLogger.error('API', 'Invalid automation ID for executions:', automationId as Error);
+            return {
+              error: {
+                status: 'INVALID_REQUEST',
+                message: 'Invalid automation ID provided for executions',
+                code: 'INVALID_PARAMS',
+              }
+            };
+          }
+
           const { data, error } = await supabase
             .from('automation_executions')
             .select('*')
@@ -535,7 +606,7 @@ export const automationApi = createApi({
             .abortSignal(signal);
 
           if (error) {
-            console.error('Error fetching automation executions:', error);
+            EventLogger.error('API', 'Error fetching automation executions:', error as Error);
             return {
               error: {
                 status: 'FETCH_ERROR',
@@ -551,7 +622,7 @@ export const automationApi = createApi({
             return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
           }
           
-          console.error('Failed to fetch automation executions:', error);
+          EventLogger.error('API', 'Failed to fetch automation executions:', error as Error);
           return {
             error: {
               status: 'FETCH_ERROR',
@@ -589,7 +660,7 @@ export const automationApi = createApi({
             .abortSignal(signal);
 
           if (error) {
-            console.error('Error fetching execution history:', error);
+            EventLogger.error('API', 'Error fetching execution history:', error as Error);
             return {
               error: {
                 status: 'FETCH_ERROR',
@@ -605,7 +676,7 @@ export const automationApi = createApi({
             return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
           }
           
-          console.error('Failed to fetch execution history:', error);
+          EventLogger.error('API', 'Failed to fetch execution history:', error as Error);
           return {
             error: {
               status: 'FETCH_ERROR',
@@ -640,7 +711,7 @@ export const automationApi = createApi({
             .eq('user_id', user.id);
 
           if (error) {
-            console.error('Error clearing history:', error);
+            EventLogger.error('API', 'Error clearing history:', error as Error);
             return {
               error: {
                 status: 'DELETE_ERROR',
@@ -650,9 +721,9 @@ export const automationApi = createApi({
             };
           }
 
-          return { data: undefined };
+          return { data: null };
         } catch (error: any) {
-          console.error('Failed to clear history:', error);
+          EventLogger.error('API', 'Failed to clear history:', error as Error);
           return {
             error: {
               status: 'DELETE_ERROR',
@@ -676,51 +747,47 @@ export const automationApi = createApi({
     getTrendingAutomations: builder.query<AutomationData[], { limit?: number; timeWindow?: string }>({
       queryFn: async ({ limit = 10, timeWindow = '7 days' }, { signal }) => {
         try {
-          // Try RPC function first
-          const { data, error } = await supabase
-            .rpc('get_trending_automations', { 
-              p_limit: limit,
-              p_time_window: timeWindow 
-            })
-            .abortSignal(signal);
-
-          if (error) {
-            console.warn('RPC function failed, using fallback:', error.message);
-            
-            // Fallback to simple recent public automations
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from('automations')
-              .select('*')
-              .eq('is_public', true)
-              .order('created_at', { ascending: false })
-              .limit(limit)
-              .abortSignal(signal);
-            
-            if (fallbackError) {
-              console.error('Fallback also failed:', fallbackError);
-              return {
-                error: {
-                  status: 'FETCH_ERROR',
-                  message: fallbackError.message || 'Failed to fetch trending automations',
-                  code: fallbackError.code,
-                }
-              };
+          // Use network-aware wrapper to prevent calls when offline
+          const data = await networkAwareQuery(
+            async () => {
+              // Skip RPC function and use direct query to avoid download_count error
+              const { data: fallbackData, error: fallbackError } = await supabase
+                .from('automations')
+                .select('*')
+                .eq('is_public', true)
+                .order('created_at', { ascending: false })
+                .limit(limit)
+                .abortSignal(signal);
+              
+              if (fallbackError) {
+                logApiError(fallbackError, 'getTrendingAutomations');
+                throw fallbackError;
+              }
+              
+              return fallbackData || [];
+            },
+            {
+              offlineData: [], // Return empty array when offline
             }
-            
-            return { data: fallbackData || [] };
-          }
-
-          return { data: data || [] };
+          );
+          
+          return { data };
         } catch (error: any) {
           if (error.name === 'AbortError') {
             return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
           }
           
-          console.error('Failed to fetch trending automations:', error);
+          // Check if it's an offline error
+          if (error.status === 'OFFLINE' || error.code === 'NETWORK_OFFLINE') {
+            return { data: [] }; // Return empty data instead of error for offline
+          }
+          
+          logApiError(error, 'getTrendingAutomations');
           return {
             error: {
-              status: 'FETCH_ERROR',
+              status: error.status || 'FETCH_ERROR',
               message: error.message || 'Failed to fetch trending automations',
+              code: error.code,
             }
           };
         }
@@ -755,7 +822,7 @@ export const automationApi = createApi({
             });
 
           if (error && !error.message.includes('duplicate')) {
-            console.error('Error liking automation:', error);
+            EventLogger.error('API', 'Error liking automation:', error as Error);
             return {
               error: {
                 status: 'ACTION_ERROR',
@@ -765,9 +832,9 @@ export const automationApi = createApi({
             };
           }
 
-          return { data: undefined };
+          return { data: null };
         } catch (error: any) {
-          console.error('Failed to like automation:', error);
+          EventLogger.error('API', 'Failed to like automation:', error as Error);
           return {
             error: {
               status: 'ACTION_ERROR',
@@ -778,6 +845,8 @@ export const automationApi = createApi({
       },
       invalidatesTags: (result, error, automationId) => [
         { type: 'Automation', id: automationId },
+        { type: 'Automation', id: 'LIST' },
+        { type: 'Automation', id: 'PUBLIC' },
       ],
     }),
 
@@ -807,7 +876,7 @@ export const automationApi = createApi({
             });
 
           if (error) {
-            console.error('Error unliking automation:', error);
+            EventLogger.error('API', 'Error unliking automation:', error as Error);
             return {
               error: {
                 status: 'ACTION_ERROR',
@@ -817,9 +886,9 @@ export const automationApi = createApi({
             };
           }
 
-          return { data: undefined };
+          return { data: null };
         } catch (error: any) {
-          console.error('Failed to unlike automation:', error);
+          EventLogger.error('API', 'Failed to unlike automation:', error as Error);
           return {
             error: {
               status: 'ACTION_ERROR',
@@ -830,6 +899,8 @@ export const automationApi = createApi({
       },
       invalidatesTags: (result, error, automationId) => [
         { type: 'Automation', id: automationId },
+        { type: 'Automation', id: 'LIST' },
+        { type: 'Automation', id: 'PUBLIC' },
       ],
     }),
 
@@ -860,7 +931,7 @@ export const automationApi = createApi({
             });
 
           if (error && !error.message.includes('duplicate')) {
-            console.error('Error tracking download:', error);
+            EventLogger.error('API', 'Error tracking download:', error as Error);
             return {
               error: {
                 status: 'ACTION_ERROR',
@@ -870,9 +941,9 @@ export const automationApi = createApi({
             };
           }
 
-          return { data: undefined };
+          return { data: null };
         } catch (error: any) {
-          console.error('Failed to track download:', error);
+          EventLogger.error('API', 'Failed to track download:', error as Error);
           return {
             error: {
               status: 'ACTION_ERROR',
@@ -883,6 +954,8 @@ export const automationApi = createApi({
       },
       invalidatesTags: (result, error, automationId) => [
         { type: 'Automation', id: automationId },
+        { type: 'Automation', id: 'LIST' },
+        { type: 'Automation', id: 'PUBLIC' },
       ],
     }),
   }),

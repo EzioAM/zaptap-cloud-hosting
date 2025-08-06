@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/client';
 import { sampleAutomations } from '../../data/sampleAutomations';
+import { EventLogger } from '../../utils/EventLogger';
 
 export class OnboardingService {
   /**
@@ -33,7 +34,7 @@ export class OnboardingService {
         .select();
 
       if (automationError) {
-        console.error('Error creating sample automations:', automationError);
+        EventLogger.error('Onboarding', 'Error creating sample automations:', automationError as Error);
         return { success: false, error: automationError };
       }
 
@@ -46,7 +47,7 @@ export class OnboardingService {
         automations: insertedAutomations 
       };
     } catch (error) {
-      console.error('Failed to create sample automations:', error);
+      EventLogger.error('Onboarding', 'Failed to create sample automations:', error as Error);
       return { success: false, error };
     }
   }
@@ -64,13 +65,13 @@ export class OnboardingService {
         .limit(1);
 
       if (error) {
-        console.error('Error checking sample automations:', error);
+        EventLogger.error('Onboarding', 'Error checking sample automations:', error as Error);
         return false;
       }
 
       return (data?.length || 0) > 0;
     } catch (error) {
-      console.error('Failed to check sample automations:', error);
+      EventLogger.error('Onboarding', 'Failed to check sample automations:', error as Error);
       return false;
     }
   }
@@ -88,7 +89,7 @@ export class OnboardingService {
         const result = await this.createSampleAutomations(userId);
         
         if (result.success) {
-          console.log(`Created ${result.count} sample automations for user ${userId}`);
+          EventLogger.debug('Onboarding', 'Created ${result.count} sample automations for user ${userId}');
         }
         
         return result;
@@ -96,7 +97,7 @@ export class OnboardingService {
 
       return { success: true, message: 'User already has sample automations' };
     } catch (error) {
-      console.error('Failed to initialize new user:', error);
+      EventLogger.error('Onboarding', 'Failed to initialize new user:', error as Error);
       return { success: false, error };
     }
   }

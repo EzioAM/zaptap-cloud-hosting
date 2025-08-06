@@ -7,6 +7,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Button } from './Button';
 import { theme } from '../../../theme';
+import { EventLogger } from '../../../utils/EventLogger';
 
 export const ButtonExamples = () => {
   return (
@@ -17,7 +18,7 @@ export const ButtonExamples = () => {
           variant="primary"
           size="large"
           label="Get Started"
-          onPress={() => console.log('Primary pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Primary pressed');}
           icon="rocket-launch"
         />
         
@@ -25,7 +26,7 @@ export const ButtonExamples = () => {
           variant="secondary"
           size="medium"
           label="Learn More"
-          onPress={() => console.log('Secondary pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Secondary pressed');}
           icon="information"
           iconPosition="right"
         />
@@ -34,7 +35,7 @@ export const ButtonExamples = () => {
           variant="accent"
           size="medium"
           label="Success Action"
-          onPress={() => console.log('Accent pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Accent pressed');}
           icon="check-circle"
         />
       </View>
@@ -45,21 +46,21 @@ export const ButtonExamples = () => {
           variant="outline"
           size="medium"
           label="Cancel"
-          onPress={() => console.log('Outline pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Outline pressed');}
         />
         
         <Button
           variant="ghost"
           size="medium"
           label="Skip"
-          onPress={() => console.log('Ghost pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Ghost pressed');}
         />
         
         <Button
           variant="danger"
           size="medium"
           label="Delete"
-          onPress={() => console.log('Danger pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Danger pressed');}
           icon="trash-can"
         />
       </View>
@@ -70,21 +71,21 @@ export const ButtonExamples = () => {
           variant="primary"
           size="small"
           label="Small"
-          onPress={() => console.log('Small pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Small pressed');}
         />
         
         <Button
           variant="primary"
           size="medium"
           label="Medium"
-          onPress={() => console.log('Medium pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Medium pressed');}
         />
         
         <Button
           variant="primary"
           size="large"
           label="Large"
-          onPress={() => console.log('Large pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Large pressed');}
         />
       </View>
 
@@ -94,7 +95,7 @@ export const ButtonExamples = () => {
           variant="primary"
           size="medium"
           label="Loading..."
-          onPress={() => console.log('Loading pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Loading pressed');}
           loading
         />
         
@@ -102,7 +103,7 @@ export const ButtonExamples = () => {
           variant="primary"
           size="medium"
           label="Disabled"
-          onPress={() => console.log('Disabled pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Disabled pressed');}
           disabled
         />
         
@@ -110,7 +111,7 @@ export const ButtonExamples = () => {
           variant="primary"
           size="medium"
           label="Full Width"
-          onPress={() => console.log('Full width pressed')}
+          onPress={() => EventLogger.debug('Button.example', 'Full width pressed');}
           fullWidth
         />
       </View>

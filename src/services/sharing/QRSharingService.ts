@@ -4,6 +4,7 @@ import * as MediaLibrary from 'expo-media-library';
 import { smartLinkService } from '../linking/SmartLinkService';
 import { sharingAnalyticsService } from './SharingAnalyticsService';
 import { AutomationData } from '../../types';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface QRShareOptions {
   linkType?: 'smart' | 'emergency';
@@ -71,7 +72,7 @@ class QRSharingService {
 
       return { success: true, method: 'share' };
     } catch (error: any) {
-      console.error('QR share error:', error);
+      EventLogger.error('QRCode', 'QR share error:', error as Error);
       
       // Don't show error for user cancellation
       if (error.message?.includes('cancel')) {
@@ -145,7 +146,7 @@ class QRSharingService {
 
       return { success: true, method: 'save' };
     } catch (error: any) {
-      console.error('Save QR error:', error);
+      EventLogger.error('QRCode', 'Save QR error:', error as Error);
       Alert.alert(
         'Save Failed',
         'Could not save QR code. Please try again.',

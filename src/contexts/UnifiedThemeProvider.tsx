@@ -8,6 +8,7 @@ import { useColorScheme, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Theme, ThemeMode, getTheme } from '../theme';
 import { createCompatibleTheme } from '../utils/themeCompatibility';
+import { EventLogger } from '../utils/EventLogger';
 
 interface ThemeContextType {
   theme: Theme;
@@ -55,7 +56,7 @@ export const UnifiedThemeProvider: React.FC<ThemeProviderProps> = ({
         setThemeModeState(savedMode as ThemeMode);
       }
     } catch (error) {
-      console.error('Failed to load theme preference:', error);
+      EventLogger.error('UnifiedTheme', 'Failed to load theme preference:', error as Error);
     } finally {
       setIsLoaded(true);
     }
@@ -65,7 +66,7 @@ export const UnifiedThemeProvider: React.FC<ThemeProviderProps> = ({
     try {
       await AsyncStorage.setItem('theme_preference', mode);
     } catch (error) {
-      console.error('Failed to save theme preference:', error);
+      EventLogger.error('UnifiedTheme', 'Failed to save theme preference:', error as Error);
     }
   };
 

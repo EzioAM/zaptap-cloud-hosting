@@ -3,6 +3,7 @@ import { RootState } from '../store';
 import { DEVELOPER_EMAILS, USER_ROLES, UserRole } from '../constants/roles';
 import { useEffect, useState } from 'react';
 import { RoleService } from '../services/auth/RoleService';
+import { EventLogger } from '../utils/EventLogger';
 
 export const useUserRole = () => {
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -29,7 +30,7 @@ export const useUserRole = () => {
         const userRole = await RoleService.getCurrentUserRole();
         setRole(userRole as UserRole);
       } catch (error) {
-        console.error('Error checking user role:', error);
+        EventLogger.error('useUserRole', 'Error checking user role:', error as Error);
         setRole(USER_ROLES.USER);
       } finally {
         setIsLoading(false);

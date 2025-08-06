@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';
+import { EventLogger } from '../utils/EventLogger';
 
 interface Props {
   children: ReactNode;
@@ -36,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    EventLogger.error('ErrorBoundary', 'ErrorBoundary caught an error:', error, errorInfo as Error);
     
     // Update state with error details
     this.setState(prevState => ({
@@ -48,13 +49,13 @@ export class ErrorBoundary extends Component<Props, State> {
     // Log to analytics service if available
     try {
       // Add your analytics logging here
-      console.error('Error details:', {
+      EventLogger.error('ErrorBoundary', 'Error details:', {
         message: error.message,
         stack: error.stack,
         componentStack: errorInfo.componentStack,
-      });
+      } as Error);
     } catch (analyticsError) {
-      console.error('Failed to log error to analytics:', analyticsError);
+      EventLogger.error('ErrorBoundary', 'Failed to log error to analytics:', analyticsError as Error);
     }
   }
 
@@ -76,7 +77,7 @@ export class ErrorBoundary extends Component<Props, State> {
         this.handleReset();
       }
     } catch (error) {
-      console.error('Failed to reload app:', error);
+      EventLogger.error('ErrorBoundary', 'Failed to reload app:', error as Error);
       this.handleReset();
     }
   };

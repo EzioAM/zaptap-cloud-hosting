@@ -56,14 +56,20 @@ const EnhancedLoadingSkeleton: React.FC<EnhancedLoadingSkeletonProps> = ({
     borderRadius,
   };
 
-  const shimmerStyle = {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: interpolate(
+  // Create animated style for shimmer instead of static style
+  const shimmerAnimatedStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolate(
       shimmerTranslateX.value,
       [-screenWidth, 0, screenWidth],
       [0, 0.3, 0]
-    ),
-  };
+    );
+    
+    return {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: `rgba(255, 255, 255, ${backgroundColor})`,
+      transform: [{ translateX: shimmerTranslateX.value }],
+    };
+  });
 
   const renderVariant = () => {
     switch (variant) {
@@ -82,7 +88,7 @@ const EnhancedLoadingSkeleton: React.FC<EnhancedLoadingSkeletonProps> = ({
               <View style={[styles.automationChip, baseStyle]} />
             </View>
             {showAnimation && (
-              <Animated.View style={[shimmerStyle, animatedStyle]} />
+              <Animated.View style={shimmerAnimatedStyle} />
             )}
           </View>
         );
@@ -96,7 +102,7 @@ const EnhancedLoadingSkeleton: React.FC<EnhancedLoadingSkeletonProps> = ({
                 <View style={[styles.statNumber, baseStyle]} />
                 <View style={[styles.statLabel, baseStyle]} />
                 {showAnimation && (
-                  <Animated.View style={[shimmerStyle, animatedStyle]} />
+                  <Animated.View style={shimmerAnimatedStyle} />
                 )}
               </View>
             ))}
@@ -113,7 +119,7 @@ const EnhancedLoadingSkeleton: React.FC<EnhancedLoadingSkeletonProps> = ({
             </View>
             <View style={[styles.listItemAction, baseStyle]} />
             {showAnimation && (
-              <Animated.View style={[shimmerStyle, animatedStyle]} />
+              <Animated.View style={shimmerAnimatedStyle} />
             )}
           </View>
         );
@@ -130,7 +136,7 @@ const EnhancedLoadingSkeleton: React.FC<EnhancedLoadingSkeletonProps> = ({
               <View style={[styles.profileStatItem, baseStyle]} />
             </View>
             {showAnimation && (
-              <Animated.View style={[shimmerStyle, animatedStyle]} />
+              <Animated.View style={shimmerAnimatedStyle} />
             )}
           </View>
         );
@@ -139,7 +145,7 @@ const EnhancedLoadingSkeleton: React.FC<EnhancedLoadingSkeletonProps> = ({
         return (
           <View style={[{ width, height }, baseStyle]}>
             {showAnimation && (
-              <Animated.View style={[shimmerStyle, animatedStyle]} />
+              <Animated.View style={shimmerAnimatedStyle} />
             )}
           </View>
         );

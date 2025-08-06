@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, ActivityIndicator } from 'react-native';
 import { supabase, testConnection } from '../../services/supabase/client';
+import { EventLogger } from '../../utils/EventLogger';
 
 export const SupabaseTestComponent = () => {
   const [status, setStatus] = useState<string>('🔍 Testing connection...');
@@ -15,22 +16,22 @@ export const SupabaseTestComponent = () => {
   const checkConnection = async () => {
     setLoading(true);
     try {
-      console.log('🔍 Testing Supabase connection...');
+      EventLogger.debug('SupabaseTest', '🔍 Testing Supabase connection...');
       const result = await testConnection();
       
       if (result.connected) {
         setStatus('✅ Supabase Connected');
         setDetails(result);
-        console.log('✅ Supabase connection successful:', result);
+        EventLogger.debug('SupabaseTest', '✅ Supabase connection successful:', result);
       } else {
         setStatus('❌ Supabase Connection Failed');
         setDetails(result);
-        console.error('❌ Supabase connection failed:', result);
+        EventLogger.error('SupabaseTest', '❌ Supabase connection failed:', result as Error);
       }
     } catch (error: any) {
       setStatus('❌ Connection Error');
       setDetails({ error: error.message });
-      console.error('❌ Supabase test error:', error);
+      EventLogger.error('SupabaseTest', '❌ Supabase test error:', error as Error);
     } finally {
       setLoading(false);
     }
@@ -39,7 +40,7 @@ export const SupabaseTestComponent = () => {
   const testQuery = async () => {
     setQueryResult('Loading...');
     try {
-      console.log('🔍 Testing Supabase query...');
+      EventLogger.debug('SupabaseTest', '🔍 Testing Supabase query...');
       
       // Simple query to test database access
       const { data, error, count } = await supabase
@@ -48,20 +49,20 @@ export const SupabaseTestComponent = () => {
       
       if (error) {
         setQueryResult(`❌ Query Error: ${error.message}`);
-        console.error('❌ Query error:', error);
+        EventLogger.error('SupabaseTest', '❌ Query error:', error as Error);
       } else {
         setQueryResult(`✅ Query Success! Automation count: ${count || 0}`);
-        console.log('✅ Query successful, count:', count);
+        EventLogger.debug('SupabaseTest', '✅ Query successful, count:', count);
       }
     } catch (error: any) {
       setQueryResult(`❌ Error: ${error.message}`);
-      console.error('❌ Query exception:', error);
+      EventLogger.error('SupabaseTest', '❌ Query exception:', error as Error);
     }
   };
 
   const testAuth = async () => {
     try {
-      console.log('🔍 Testing Supabase auth...');
+      EventLogger.debug('SupabaseTest', '🔍 Testing Supabase auth...');
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {

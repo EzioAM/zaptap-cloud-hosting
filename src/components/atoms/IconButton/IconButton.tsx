@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, ViewStyle, StyleProp } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { theme } from '../../../theme';
 import { useHaptic } from '../../../hooks/useHaptic';
 
@@ -34,8 +34,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
   color,
   style,
 }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  const theme = useSafeTheme();
+  const colors = theme.colors;
   const { trigger } = useHaptic();
   
   const handlePress = () => {
@@ -47,7 +47,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
   
   const buttonSize = sizeMap[size];
   const iconSize = iconSizeMap[size];
-  const finalColor = color || colors.text.secondary;
+  const finalColor = color || colors?.text?.secondary || colors?.onSurfaceVariant || '#666666';
   
   return (
     <TouchableOpacity

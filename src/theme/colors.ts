@@ -3,6 +3,7 @@
  */
 
 import { tokens } from './tokens';
+import { gradients, glassEffects, GradientDefinition, subtleGradients, getGradientStyle, getGlassStyle } from './gradients';
 
 export interface ColorScheme {
   // Background colors
@@ -71,6 +72,15 @@ export interface ColorScheme {
     medium: string;
     dark: string;
   };
+  
+  // Gradient definitions
+  gradients?: typeof gradients;
+  
+  // Glass effects
+  glass?: typeof glassEffects;
+  
+  // Subtle gradients for backgrounds
+  subtleGradients?: typeof subtleGradients;
 }
 
 export const lightColors: ColorScheme = {
@@ -237,5 +247,17 @@ export const getColors = (theme: 'light' | 'dark' | 'oled-dark' = 'light'): Colo
   }
 };
 
-// Export contrast utilities
+// Export all color utilities
 export { getContrastRatio };
+export { gradients, glassEffects, subtleGradients, getGradientStyle, getGlassStyle } from './gradients';
+
+// Extended color scheme with gradients
+export const getExtendedColors = (theme: 'light' | 'dark' | 'oled-dark' = 'light'): ColorScheme & { gradients: typeof gradients; glass: typeof glassEffects; subtleGradients: typeof subtleGradients } => {
+  const baseColors = getColors(theme);
+  return {
+    ...baseColors,
+    gradients,
+    glass: glassEffects,
+    subtleGradients,
+  };
+};

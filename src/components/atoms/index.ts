@@ -4,5 +4,14 @@ export * from './Card';
 export * from './Badge';
 export * from './IconButton';
 export * from './Shimmer';
+
+// Enhanced components
+export * from './InteractiveElement';
+export * from './SkeletonLoader';
+export * from './Typography';
+
+// Platform-aware components
+export * from './PlatformAware';
+
 // Future exports:
 // export * from './Input';

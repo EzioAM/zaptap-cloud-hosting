@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
+import { EventLogger } from '../../utils/EventLogger';
 
 export const ReduxTestComponent = () => {
   const dispatch = useDispatch();
@@ -15,11 +16,11 @@ export const ReduxTestComponent = () => {
     // Try to access auth state
     authState = useSelector((state: RootState) => state.auth);
     reduxStatus = '✅ Redux Connected';
-    console.log('🔍 Redux auth state:', authState);
+    EventLogger.debug('ReduxTest', '🔍 Redux auth state:', authState);
   } catch (err: any) {
     reduxStatus = '❌ Redux Error';
     error = err.message;
-    console.error('❌ Redux selector error:', err);
+    EventLogger.error('ReduxTest', '❌ Redux selector error:', err as Error);
   }
   
   return (
@@ -50,12 +51,12 @@ export const ReduxTestComponent = () => {
         title="Test Dispatch" 
         onPress={() => {
           try {
-            console.log('🔍 Testing Redux dispatch...');
+            EventLogger.debug('ReduxTest', '🔍 Testing Redux dispatch...');
             // This won't do anything visible but tests if dispatch works
             dispatch({ type: 'TEST_ACTION' });
-            console.log('✅ Dispatch successful');
+            EventLogger.debug('ReduxTest', '✅ Dispatch successful');
           } catch (err) {
-            console.error('❌ Dispatch error:', err);
+            EventLogger.error('ReduxTest', '❌ Dispatch error:', err as Error);
           }
         }}
       />

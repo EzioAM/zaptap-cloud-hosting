@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useForm, UseFormProps, FieldValues, Path, Control } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import { EventLogger } from '../utils/EventLogger';
 
 export interface ValidationRule {
   required?: boolean;
@@ -122,7 +123,7 @@ export function useFormValidation<T extends FieldValues>({
       try {
         await onSubmit(data);
       } catch (error) {
-        console.error('Form submission error:', error);
+        EventLogger.error('useFormValidation', 'Form submission error:', error as Error);
         // Set form errors if needed
         if (error instanceof Error) {
           form.setError('root' as Path<T>, {

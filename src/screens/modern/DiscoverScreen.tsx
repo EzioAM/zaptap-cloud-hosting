@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -7,31 +7,74 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
-  Image,
   ActivityIndicator,
+  Animated,
+  Dimensions,
+  InteractionManager,
+  RefreshControl,
+  Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useUnifiedTheme, useThemedStyles } from '../../contexts/UnifiedThemeProvider';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
 import { 
   useGetPublicAutomationsQuery, 
   useGetTrendingAutomationsQuery,
-  useGetAutomationEngagementQuery,
   useLikeAutomationMutation,
-  useUnlikeAutomationMutation,
-  useTrackAutomationDownloadMutation,
-  useTrackAutomationViewMutation
+  useUnlikeAutomationMutation
 } from '../../store/api/automationApi';
-import { RefreshControl } from 'react-native';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
 import { useConnection } from '../../contexts/ConnectionContext';
+import * as Haptics from 'expo-haptics';
+
+// Error Boundaries and Recovery
+import { ScreenErrorBoundary, WidgetErrorBoundary, NetworkErrorBoundary } from '../../components/ErrorBoundaries';
+import { ErrorFallback, NetworkErrorFallback, EmptyStateFallback } from '../../components/Fallbacks';
+import { useErrorHandler } from '../../utils/errorRecovery';
+import { EventLogger } from '../../utils/EventLogger';
+
+// Components
 import { DiscoverScreenSkeleton } from '../../components/loading/SkeletonLoading';
 import { ErrorState } from '../../components/states/ErrorState';
 import { EmptyState } from '../../components/states/EmptyState';
-import { Theme } from '../../theme';
-import { createTextStyle } from '../../utils/ThemeUtils';
+import { ParallaxScrollView } from '../../components/common/ParallaxScrollView';
+import TrendingCarousel from '../../components/discover/TrendingCarousel';
+import FeaturedCard from '../../components/discover/FeaturedCard';
+import AnimatedCategoryChips from '../../components/discover/AnimatedCategoryChips';
+import AnimatedAutomationCard from '../../components/discover/AnimatedAutomationCard';
+import AnimatedSearchBar from '../../components/discover/AnimatedSearchBar';
+
+// Enhanced gradient components
+import { GradientHeader } from '../../components/shared/GradientHeader';
+import { GradientCard } from '../../components/shared/GradientCard';
+import { GradientButton } from '../../components/shared/GradientButton';
+import { EmptyStateIllustration } from '../../components/shared/EmptyStateIllustration';
+
+// Enhanced theme imports
+import { gradients, glassEffects, getGlassStyle } from '../../theme/gradients';
+import { typography, fontWeights, textShadows } from '../../theme/typography';
+
+// Animation constants
+import { ANIMATION_CONFIG } from '../../constants/animations';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Feature flags for progressive enhancement
+const FEATURE_FLAGS = {
+  ENHANCED_ANIMATIONS: Platform.OS !== 'web',
+  HAPTIC_FEEDBACK: Platform.OS !== 'web',
+  BLUR_EFFECTS: Platform.OS !== 'web',
+  PARALLAX_SCROLLING: Platform.OS !== 'web',
+  GRADIENT_HEADERS: true,
+  STAGGERED_ANIMATIONS: Platform.OS !== 'web',
+  TRENDING_CAROUSEL: true,
+  SEARCH_SUGGESTIONS: true,
+};
 
 interface Automation {
   id: string;
@@ -46,1096 +89,826 @@ interface Automation {
   color: string;
   trending?: boolean;
   hasLiked?: boolean;
+  image?: string;
+  gradientKey?: keyof typeof gradients;
+  tags?: string[];
+  rating?: number;
+  installs?: string;
+  featured?: boolean;
 }
 
-interface Category {
+interface Creator {
   id: string;
   name: string;
-  icon: string;
-  color: string;
-  count: number;
+  avatar: string;
+  automations: number;
+  followers: string;
+  verified: boolean;
 }
 
-const DiscoverScreen = () => {
-  const { theme } = useUnifiedTheme();
-  const navigation = useNavigation();
-  const { connectionState, checkConnection } = useConnection();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+const categories = [
+  { id: 'all', name: 'All', icon: 'view-grid', gradient: ['#667eea', '#764ba2'], gradientKey: 'primary' as keyof typeof gradients, count: 150 },
+  { id: 'popular', name: 'Popular', icon: 'trending-up', gradient: ['#ff9a9e', '#fecfef'], gradientKey: 'fire' as keyof typeof gradients, count: 89 },
+  { id: 'new', name: 'New', icon: 'star', gradient: ['#a8edea', '#fed6e3'], gradientKey: 'aurora' as keyof typeof gradients, count: 32 },
+  { id: 'productivity', name: 'Productivity', icon: 'briefcase', gradient: ['#f093fb', '#f5576c'], gradientKey: 'ocean' as keyof typeof gradients, count: 45 },
+  { id: 'smart-home', name: 'Smart Home', icon: 'home-automation', gradient: ['#4facfe', '#00f2fe'], gradientKey: 'forest' as keyof typeof gradients, count: 32 },
+  { id: 'health', name: 'Health', icon: 'heart', gradient: ['#43e97b', '#38f9d7'], gradientKey: 'success' as keyof typeof gradients, count: 28 },
+  { id: 'finance', name: 'Finance', icon: 'cash', gradient: ['#fa709a', '#fee140'], count: 19 },
+  { id: 'social', name: 'Social', icon: 'account-group', gradient: ['#a8edea', '#fed6e3'], gradientKey: 'secondary' as keyof typeof gradients, count: 23 },
+  { id: 'entertainment', name: 'Entertainment', icon: 'gamepad', gradient: ['#ff9a9e', '#fecfef'], gradientKey: 'sunset' as keyof typeof gradients, count: 37 },
+  { id: 'travel', name: 'Travel', icon: 'airplane', gradient: ['#ffecd2', '#fcb69f'], count: 15 },
+];
 
-  const styles = useThemedStyles(createStyles);
+const searchSuggestions = [
+  { id: '1', text: 'Smart Home Controls', type: 'trending' as const },
+  { id: '2', text: 'Morning Routine', type: 'recent' as const },
+  { id: '3', text: 'Productivity', type: 'category' as const },
+  { id: '4', text: 'Workout Tracker', type: 'suggestion' as const },
+  { id: '5', text: 'Email Automation', type: 'trending' as const },
+  { id: '6', text: 'Bedtime Routine', type: 'recent' as const },
+  { id: '7', text: 'Focus Mode', type: 'suggestion' as const },
+  { id: '8', text: 'Travel Assistant', type: 'category' as const },
+];
+
+// Sample featured automations for enhanced features
+const featuredAutomations: Automation[] = [
+  {
+    id: '1',
+    title: 'Smart Morning Routine',
+    description: 'Start your day perfectly with automated lights, music, and weather',
+    author: 'Alex Chen',
+    authorAvatar: '👨‍💻',
+    likes: 245,
+    uses: 1200,
+    category: 'productivity',
+    icon: 'weather-sunny',
+    color: '#FFC107',
+    gradientKey: 'sunrise',
+    tags: ['morning', 'smart-home', 'routine'],
+    rating: 4.8,
+    installs: '1.2k',
+    featured: true,
+  },
+  {
+    id: '2',
+    title: 'Focus Mode Ultra',
+    description: 'Block distractions and boost productivity with smart notifications',
+    author: 'Sarah Kim',
+    authorAvatar: '👩‍💼',
+    likes: 189,
+    uses: 890,
+    category: 'productivity',
+    icon: 'brain',
+    color: '#9C27B0',
+    gradientKey: 'ocean',
+    tags: ['focus', 'productivity', 'notifications'],
+    rating: 4.9,
+    installs: '890',
+    featured: true,
+  },
+];
+
+const DiscoverScreen: React.FC = memo(() => {
+  const theme = useSafeTheme();
+  const navigation = useNavigation();
+  const { connectionState } = useConnection();
+  const { isConnected } = connectionState;
+  const { user } = useSelector((state: RootState) => state.auth);
   
-  const { data: publicAutomations = [], isLoading, error, refetch, isFetching } = useGetPublicAutomationsQuery(undefined, {
-    // Optimized fetching configuration to prevent infinite loops
-    refetchOnMountOrArgChange: 30, // Only refetch if data is older than 30 seconds
-    refetchOnReconnect: false, // Don't auto-refetch on reconnect
-    refetchOnFocus: false, // Don't refetch when screen comes into focus
-    skip: false, // Always fetch
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const [featuredAutomation, setFeaturedAutomation] = useState<Automation | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'warning'; message: string; visible: boolean }>({ 
+    type: 'success', 
+    message: '', 
+    visible: false 
   });
-  const { data: trendingData = [], error: trendingError, isLoading: trendingLoading } = useGetTrendingAutomationsQuery({ limit: 6 }, {
-    // Optimized fetching configuration to prevent repeated requests
-    refetchOnMountOrArgChange: 30, // Only refetch if data is older than 30 seconds
-    refetchOnReconnect: false,
-    refetchOnFocus: false,
-    skip: false, // Always fetch
+  
+  // Animation refs
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerOpacity = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  
+  // API queries with error handling
+  const { 
+    data: publicAutomations = [], 
+    isLoading: isLoadingPublic,
+    error: publicError,
+    refetch: refetchPublic 
+  } = useGetPublicAutomationsQuery({ 
+    limit: 50,
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+    search: searchQuery || undefined
+  }, {
+    skip: !isConnected,
   });
+  
+  const { 
+    data: trendingAutomations = [],
+    isLoading: isLoadingTrending,
+    error: trendingError,
+    refetch: refetchTrending
+  } = useGetTrendingAutomationsQuery({ limit: 10 }, {
+    skip: !isConnected,
+  });
+
   const [likeAutomation] = useLikeAutomationMutation();
   const [unlikeAutomation] = useUnlikeAutomationMutation();
-  const [trackDownload] = useTrackAutomationDownloadMutation();
-  const [trackView] = useTrackAutomationViewMutation();
-  const [engagementData, setEngagementData] = useState<Record<string, any>>({});
-  const [displayedAutomations, setDisplayedAutomations] = useState<any[]>([]);
-  
-  const ITEMS_PER_PAGE = 10;
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    setPage(1);
-    setHasMore(true);
-    setLoadingTimedOut(false);
-    
-    try {
-      // Check connection first
-      await checkConnection();
-      
-      if (connectionState.isConnected) {
-        // Refresh both queries in parallel for better performance
-        await Promise.all([
-          refetch(),
-          // Add trending data refetch if available
-        ]);
+  // Haptic feedback helper
+  const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' = 'light') => {
+    if (FEATURE_FLAGS.HAPTIC_FEEDBACK) {
+      try {
+        switch (type) {
+          case 'light':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            break;
+          case 'medium':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            break;
+          case 'heavy':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            break;
+        }
+      } catch (error) {
+        // Haptics not supported, continue silently
       }
+    }
+  }, []);
+
+  const showFeedback = useCallback((type: 'success' | 'error' | 'warning', message: string) => {
+    setFeedback({ type, message, visible: true });
+    setTimeout(() => setFeedback(prev => ({ ...prev, visible: false })), 3000);
+  }, []);
+
+  // Initialize featured automation
+  useEffect(() => {
+    if (featuredAutomations.length > 0 && !featuredAutomation) {
+      setFeaturedAutomation(featuredAutomations[0]);
+    }
+  }, [featuredAutomation]);
+
+  // Header animation based on scroll
+  useEffect(() => {
+    if (FEATURE_FLAGS.ENHANCED_ANIMATIONS) {
+      const listener = scrollY.addListener(({ value }) => {
+        const opacity = Math.max(0, Math.min(1, 1 - value / 200));
+        headerOpacity.setValue(opacity);
+      });
+
+      return () => scrollY.removeListener(listener);
+    }
+  }, [scrollY, headerOpacity]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!isConnected) {
+      showFeedback('warning', 'No internet connection');
+      return;
+    }
+
+    try {
+      setRefreshing(true);
+      triggerHaptic('medium');
+      
+      await Promise.all([
+        refetchPublic(),
+        refetchTrending(),
+      ]);
+      
+      showFeedback('success', 'Content updated');
     } catch (error) {
-      console.error('Error during refresh:', error);
+      EventLogger.error('DiscoverScreen', 'Refresh operation failed', error as Error, {
+        userId: user?.id,
+        connectionState: isConnected,
+      });
+      showFeedback('error', 'Failed to refresh content');
     } finally {
       setRefreshing(false);
     }
-  };
-  
-  // Component to fetch engagement data for a single automation
-  const AutomationEngagement = ({ automationId, onDataFetched }: { automationId: string; onDataFetched: (id: string, data: any) => void }) => {
-    const { data } = useGetAutomationEngagementQuery(automationId);
-    
-    React.useEffect(() => {
-      if (data) {
-        onDataFetched(automationId, data);
+  }, [isConnected, refetchPublic, refetchTrending, triggerHaptic, showFeedback]);
+
+  const handleCategorySelect = useCallback((categoryId: string) => {
+    try {
+      setSelectedCategory(categoryId);
+      triggerHaptic('light');
+      
+      if (FEATURE_FLAGS.ENHANCED_ANIMATIONS) {
+        Animated.sequence([
+          Animated.timing(fadeAnim, {
+            toValue: 0.5,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+        ]).start();
       }
-    }, [data, automationId, onDataFetched]);
-    
-    return null;
-  };
-  
-  const handleEngagementData = React.useCallback((automationId: string, data: any) => {
-    setEngagementData(prev => ({ ...prev, [automationId]: data }));
-  }, []);
-
-  // Map real automations to the expected format
-  const mappedAutomations: Automation[] = publicAutomations.map((automation) => {
-    const categoryIcons: Record<string, string> = {
-      'Productivity': 'briefcase',
-      'Smart Home': 'home-automation',
-      'Social': 'share-variant',
-      'Health': 'heart-pulse',
-      'Communication': 'message',
-      'Entertainment': 'movie',
-      'Business': 'message-reply-text',
-      'Finance': 'cash-multiple',
-    };
-    
-    const categoryColors: Record<string, string> = {
-      'Productivity': theme.colors.semantic.error,
-      'Smart Home': theme.colors.brand.accent,
-      'Social': theme.colors.semantic.success,
-      'Health': theme.colors.semantic.warning,
-      'Communication': theme.colors.brand.primary,
-      'Entertainment': theme.colors.brand.secondary,
-      'Business': theme.colors.brand.accent,
-      'Finance': theme.colors.semantic.warning,
-    };
-    
-    // Calculate popularity based on creation date (newer = more trending)
-    const daysOld = Math.floor((new Date().getTime() - new Date(automation.created_at).getTime()) / (1000 * 60 * 60 * 24));
-    const estimatedLikes = Math.max(50, 500 - (daysOld * 10));
-    const estimatedUses = Math.max(100, 1500 - (daysOld * 20));
-    
-    return {
-      id: automation.id,
-      title: automation.title,
-      description: automation.description || 'No description',
-      author: automation.author?.name || 'Unknown',
-      likes: estimatedLikes,
-      uses: estimatedUses,
-      category: automation.category,
-      icon: categoryIcons[automation.category] || 'robot',
-      color: categoryColors[automation.category] || theme.colors.brand.primary,
-      trending: daysOld < 7, // Trending if created in last 7 days
-    };
-  });
-
-  // Filter by search query and category
-  const filteredAutomations = mappedAutomations.filter((automation) => {
-    const matchesSearch = searchQuery === '' || 
-      automation.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      automation.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      automation.category.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = !selectedCategory || 
-      selectedCategory === 'All' || 
-      automation.category === selectedCategory;
-    
-    return matchesSearch && matchesCategory;
-  });
-
-  // Map trending automations with real engagement data
-  const trendingAutomations = trendingData.map((automation) => {
-    const categoryIcons: Record<string, string> = {
-      'Productivity': 'briefcase',
-      'Smart Home': 'home-automation',
-      'Social': 'share-variant',
-      'Health': 'heart-pulse',
-      'Communication': 'message',
-      'Entertainment': 'movie',
-      'Business': 'message-reply-text',
-      'Finance': 'cash-multiple',
-    };
-    
-    const categoryColors: Record<string, string> = {
-      'Productivity': theme.colors.semantic.error,
-      'Smart Home': theme.colors.brand.accent,
-      'Social': theme.colors.semantic.success,
-      'Health': theme.colors.semantic.warning,
-      'Communication': theme.colors.brand.primary,
-      'Entertainment': theme.colors.brand.secondary,
-      'Business': theme.colors.brand.accent,
-      'Finance': theme.colors.semantic.warning,
-    };
-    
-    const engagement = engagementData[automation.id];
-    
-    return {
-      id: automation.id,
-      title: automation.title,
-      description: automation.description || 'No description',
-      author: automation.created_by || 'Unknown',
-      likes: engagement?.likes_count ?? automation.likes_count ?? 0,
-      uses: engagement?.downloads_count ?? automation.downloads_count ?? 0,
-      category: automation.category,
-      icon: categoryIcons[automation.category] || 'robot',
-      color: categoryColors[automation.category] || theme.colors.brand.primary,
-      trending: true,
-      hasLiked: engagement?.user_has_liked ?? false,
-    };
-  });
-
-  // Implement pagination
-  React.useEffect(() => {
-    const startIndex = 0;
-    const endIndex = page * ITEMS_PER_PAGE;
-    const paginatedAutomations = filteredAutomations.slice(startIndex, endIndex);
-    setDisplayedAutomations(paginatedAutomations);
-    setHasMore(endIndex < filteredAutomations.length);
-  }, [filteredAutomations, page]);
-  
-  const loadMore = () => {
-    if (!isLoadingMore && hasMore && !isFetching) {
-      setIsLoadingMore(true);
-      setTimeout(() => {
-        setPage(prev => prev + 1);
-        setIsLoadingMore(false);
-      }, 300);
+    } catch (error) {
+      EventLogger.error('DiscoverScreen', 'Category selection failed', error as Error, {
+        category,
+        userId: user?.id,
+      });
+      showFeedback('error', 'Failed to update category');
     }
-  };
-  
-  const handleEndReached = () => {
-    if (hasMore && !isLoadingMore) {
-      loadMore();
+  }, [triggerHaptic, showFeedback, fadeAnim]);
+
+  const handleSearch = useCallback((query: string) => {
+    try {
+      setSearchQuery(query);
+      setShowSearchSuggestions(query.length > 0);
+      triggerHaptic('light');
+    } catch (error) {
+      EventLogger.error('DiscoverScreen', 'Search operation failed', error as Error, {
+        searchQuery: newQuery,
+        userId: user?.id,
+        connectionState: isConnected,
+      });
     }
-  };
+  }, [triggerHaptic]);
 
-  // Calculate categories dynamically from available automations
-  const categoryMap = new Map<string, number>();
-  mappedAutomations.forEach(automation => {
-    const count = categoryMap.get(automation.category) || 0;
-    categoryMap.set(automation.category, count + 1);
-  });
+  const handleSearchSuggestionPress = useCallback((suggestion: any) => {
+    try {
+      setSearchQuery(suggestion.text);
+      setShowSearchSuggestions(false);
+      triggerHaptic('medium');
+      
+      // If it's a category suggestion, also update the category
+      if (suggestion.type === 'category') {
+        const categoryId = categories.find(cat => 
+          cat.name.toLowerCase() === suggestion.text.toLowerCase()
+        )?.id;
+        if (categoryId) {
+          setSelectedCategory(categoryId);
+        }
+      }
+    } catch (error) {
+      EventLogger.error('DiscoverScreen', 'Search suggestion failed', error as Error, {
+        suggestion,
+        userId: user?.id,
+      });
+    }
+  }, [triggerHaptic]);
 
-  const categoryIcons: Record<string, string> = {
-    'Productivity': 'rocket-launch',
-    'Smart Home': 'home-automation',
-    'Social': 'share-variant',
-    'Health': 'heart-pulse',
-    'Business': 'briefcase',
-    'Entertainment': 'movie-open',
-    'Finance': 'cash-multiple',
-    'Communication': 'message',
-  };
+  const handleLike = useCallback(async (automationId: string, isLiked: boolean) => {
+    if (!user) {
+      showFeedback('warning', 'Please sign in to like automations');
+      return;
+    }
 
-  const categoryColors: Record<string, string> = {
-    'Productivity': theme.colors.semantic.error,
-    'Smart Home': theme.colors.brand.accent,
-    'Social': theme.colors.semantic.success,
-    'Health': theme.colors.semantic.warning,
-    'Business': theme.colors.semantic.warning,
-    'Entertainment': theme.colors.semantic.success,
-    'Finance': theme.colors.semantic.warning,
-    'Communication': theme.colors.brand.primary,
-  };
+    if (!isConnected) {
+      showFeedback('warning', 'No internet connection');
+      return;
+    }
 
-  const categories: Category[] = [
-    { id: '1', name: 'All', icon: 'apps', color: theme.colors.brand.primary, count: mappedAutomations.length },
-    ...Array.from(categoryMap.entries()).map((entry, index) => ({
-      id: (index + 2).toString(),
-      name: entry[0],
-      icon: categoryIcons[entry[0]] || 'folder',
-      color: categoryColors[entry[0]] || theme.colors.brand.primary,
-      count: entry[1],
-    })),
-  ];
+    try {
+      triggerHaptic('medium');
+      
+      if (isLiked) {
+        await unlikeAutomation(automationId).unwrap();
+        showFeedback('success', 'Removed from favorites');
+      } else {
+        await likeAutomation(automationId).unwrap();
+        showFeedback('success', 'Added to favorites');
+      }
+    } catch (error) {
+      EventLogger.error('DiscoverScreen', 'Like toggle operation failed', error as Error, {
+        automationId,
+        action: automation.hasLiked ? 'unlike' : 'like',
+        userId: user?.id,
+      });
+      showFeedback('error', 'Failed to update favorites');
+    }
+  }, [user, isConnected, likeAutomation, unlikeAutomation, triggerHaptic, showFeedback]);
 
-  const renderCategory = ({ item }: { item: Category }) => (
-    <TouchableOpacity
-      style={[
-        styles.categoryChip,
-        {
-          backgroundColor: item.name === (selectedCategory || 'All') 
-            ? theme.colors.brand.primary 
-            : theme.colors.surface.secondary,
-        },
-      ]}
-      onPress={() => setSelectedCategory(item.name === 'All' ? null : item.name)}
-      activeOpacity={theme.constants.activeOpacity}
-      accessibilityRole="button"
-      accessibilityLabel={`Filter by ${item.name} category`}
-      accessibilityState={{ selected: item.name === (selectedCategory || 'All') }}
-    >
-      <MaterialCommunityIcons
-        name={item.icon as any}
-        size={18}
-        color={item.name === (selectedCategory || 'All') ? theme.colors.text.inverse : theme.colors.text.primary}
+  const handleAutomationPress = useCallback((automation: Automation) => {
+    try {
+      triggerHaptic('light');
+      navigation.navigate('AutomationDetails' as never, { automation } as never);
+    } catch (error) {
+      EventLogger.error('DiscoverScreen', 'Navigation to automation details failed', error as Error, {
+        automationId: automation.id,
+        userId: user?.id,
+      });
+      showFeedback('error', 'Failed to open automation details');
+    }
+  }, [navigation, triggerHaptic, showFeedback]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || !isConnected) return;
+    
+    try {
+      setLoadingMore(true);
+      // In a real implementation, you would load more data here
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      EventLogger.error('DiscoverScreen', 'Load more operation failed', error as Error, {
+        currentPage: page,
+        userId: user?.id,
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, isConnected]);
+
+  // Filter automations based on search and category
+  const filteredAutomations = useMemo(() => {
+    try {
+      return publicAutomations.filter((automation: any) => {
+        const matchesSearch = !searchQuery || 
+          automation.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          automation.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          automation.author?.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const matchesCategory = selectedCategory === 'all' || automation.category === selectedCategory;
+        
+        return matchesSearch && matchesCategory;
+      });
+    } catch (error) {
+      EventLogger.error('DiscoverScreen', 'Automation filtering failed', error as Error, {
+        selectedCategory,
+        searchQuery: query,
+        userId: user?.id,
+      });
+      return [];
+    }
+  }, [publicAutomations, searchQuery, selectedCategory]);
+
+  const renderAutomationCard = useCallback(({ item, index }: { item: Automation; index: number }) => {
+    return (
+      <AnimatedAutomationCard
+        automation={item}
+        index={index}
+        onPress={() => handleAutomationPress(item)}
+        onLike={() => handleLike(item.id, item.hasLiked || false)}
+        theme={theme}
+        delayMs={FEATURE_FLAGS.STAGGERED_ANIMATIONS ? index * 100 : 0}
       />
-      <Text
-        style={[
-          styles.categoryChipText,
-          {
-            color: item.name === (selectedCategory || 'All') ? theme.colors.text.inverse : theme.colors.text.primary,
-          },
-        ]}
-      >
-        {item.name}
-      </Text>
-      <Text
-        style={[
-          styles.categoryCount,
-          {
-            color: item.name === (selectedCategory || 'All')
-              ? theme.colors.text.inverse
-              : theme.colors.text.secondary,
-          },
-        ]}
-      >
-        {item.count}
-      </Text>
-    </TouchableOpacity>
-  );
+    );
+  }, [handleAutomationPress, handleLike, theme]);
 
-  const renderTrendingCard = ({ item, index }: { item: Automation; index: number }) => (
-    <TouchableOpacity
-      style={[styles.trendingCard, { backgroundColor: theme.colors.surface }]}
-      activeOpacity={0.7}
-      onPress={async () => {
-        // Track view when opening automation
-        await trackView(item.id);
-        navigation.navigate('AutomationDetails', { 
-          automationId: item.id,
-          fromGallery: true 
-        });
-      }}
-    >
-      <View style={styles.trendingRank}>
-        <Text style={styles.trendingRankText}>#{index + 1}</Text>
-      </View>
-      <View
+  const renderCategoryChip = useCallback(({ item, index }: { item: any; index: number }) => {
+    const isSelected = selectedCategory === item.id;
+    
+    return (
+      <TouchableOpacity
         style={[
-          styles.automationIcon,
-          { backgroundColor: `${item.color}20` },
+          styles.categoryChip,
+          isSelected && styles.categoryChipSelected,
+          { backgroundColor: isSelected ? theme.colors.primary : theme.colors.surfaceVariant }
         ]}
+        onPress={() => handleCategorySelect(item.id)}
+        activeOpacity={0.8}
       >
-        <MaterialCommunityIcons
-          name={item.icon as any}
-          size={24}
-          color={item.color}
-        />
-      </View>
-      <View style={[styles.automationInfo, { flex: 1 }]}>
-        <Text style={[styles.automationTitle, { color: theme.colors.text }]} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <View style={styles.trendingMeta}>
-          <TouchableOpacity 
-            style={styles.stat}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={item.hasLiked ? 'Unlike automation' : 'Like automation'}
-            onPress={async () => {
-              if (item.hasLiked) {
-                await unlikeAutomation(item.id);
-                // Update local state
-                setEngagementData(prev => ({
-                  ...prev,
-                  [item.id]: {
-                    ...prev[item.id],
-                    user_has_liked: false,
-                    likes_count: (prev[item.id]?.likes_count || item.likes) - 1
-                  }
-                }));
-              } else {
-                await likeAutomation(item.id);
-                // Update local state
-                setEngagementData(prev => ({
-                  ...prev,
-                  [item.id]: {
-                    ...prev[item.id],
-                    user_has_liked: true,
-                    likes_count: (prev[item.id]?.likes_count || item.likes) + 1
-                  }
-                }));
-              }
-            }}
-          >
-            <MaterialCommunityIcons
-              name={item.hasLiked ? "heart" : "heart-outline"}
-              size={14}
-              color={theme.colors.error}
-            />
-            <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>
-              {item.likes}
-            </Text>
-          </TouchableOpacity>
-          <View style={[styles.stat, { marginLeft: theme.spacing.md }]}>
-            <MaterialCommunityIcons
-              name="download"
-              size={14}
-              color={theme.colors.success}
-            />
-            <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>
-              {item.uses}
-            </Text>
-          </View>
-          <View style={[styles.stat, { marginLeft: theme.spacing.md }]}>
-            <MaterialCommunityIcons
-              name="trending-up"
-              size={14}
-              color={theme.colors.primary}
-            />
-            <Text style={[styles.statText, { color: theme.colors.primary, fontWeight: '600' }]}>
-              Trending
-            </Text>
-          </View>
-        </View>
-      </View>
-      <MaterialCommunityIcons
-        name="chevron-right"
-        size={20}
-        color={theme.colors.textSecondary}
-      />
-    </TouchableOpacity>
-  );
-
-  const renderAutomation = ({ item, index }: { item: Automation; index: number }) => (
-    <TouchableOpacity
-      style={[styles.automationCard, { backgroundColor: theme.colors.surface }]}
-      activeOpacity={0.7}
-      onPress={async () => {
-        // Track view when opening automation
-        await trackView(item.id);
-        navigation.navigate('AutomationDetails', { 
-          automationId: item.id,
-          fromGallery: true 
-        });
-      }}
-    >
-      {item.trending && (
-        <View style={styles.trendingBadge}>
-          <MaterialCommunityIcons name="trending-up" size={14} color={theme.colors.text.inverse} />
-          <Text style={styles.trendingText}>Trending</Text>
-        </View>
-      )}
-      <View style={styles.automationHeader}>
-        <View
-          style={[
-            styles.automationIcon,
-            { backgroundColor: `${item.color}20` },
-          ]}
+        <LinearGradient
+          colors={isSelected ? item.gradient || [theme.colors.primary, theme.colors.primary] : ['transparent', 'transparent']}
+          style={[styles.categoryChipGradient, !isSelected && { backgroundColor: theme.colors.surfaceVariant }]}
         >
-          <MaterialCommunityIcons
-            name={item.icon as any}
-            size={24}
-            color={item.color}
+          <MaterialCommunityIcons 
+            name={item.icon as any} 
+            size={16} 
+            color={isSelected ? 'white' : theme.colors.onSurfaceVariant} 
           />
-        </View>
-        <View style={styles.automationInfo}>
-          <Text style={[styles.automationTitle, { color: theme.colors.text }]}>
-            {item.title}
+          <Text style={[
+            styles.categoryChipText,
+            { color: isSelected ? 'white' : theme.colors.onSurfaceVariant }
+          ]}>
+            {item.name}
           </Text>
-          <Text style={[styles.automationDescription, { color: theme.colors.textSecondary }]}>
-            {item.description}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.automationMeta}>
-        <View style={styles.authorInfo}>
-          <View style={[styles.authorAvatar, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <Text style={[styles.authorInitial, { color: theme.colors.text }]}>
-              {item.author.charAt(0)}
+          {item.count && (
+            <Text style={[
+              styles.categoryChipCount,
+              { color: isSelected ? 'rgba(255,255,255,0.8)' : theme.colors.onSurfaceVariant }
+            ]}>
+              {item.count}
             </Text>
-          </View>
-          <Text style={[styles.authorName, { color: theme.colors.textSecondary }]}>
-            {item.author}
-          </Text>
-        </View>
-        <View style={styles.statsContainer}>
-          <TouchableOpacity 
-            style={styles.stat}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={item.hasLiked ? 'Unlike automation' : 'Like automation'}
-            onPress={async () => {
-              if (item.hasLiked) {
-                await unlikeAutomation(item.id);
-                // Update local state
-                setEngagementData(prev => ({
-                  ...prev,
-                  [item.id]: {
-                    ...prev[item.id],
-                    user_has_liked: false,
-                    likes_count: (prev[item.id]?.likes_count || item.likes) - 1
-                  }
-                }));
-              } else {
-                await likeAutomation(item.id);
-                // Update local state
-                setEngagementData(prev => ({
-                  ...prev,
-                  [item.id]: {
-                    ...prev[item.id],
-                    user_has_liked: true,
-                    likes_count: (prev[item.id]?.likes_count || item.likes) + 1
-                  }
-                }));
-              }
-            }}
-          >
-            <MaterialCommunityIcons
-              name={item.hasLiked ? "heart" : "heart-outline"}
-              size={16}
-              color={theme.colors.error}
-            />
-            <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>
-              {item.likes}
-            </Text>
-          </TouchableOpacity>
-          <View style={styles.stat}>
-            <MaterialCommunityIcons
-              name="download"
-              size={16}
-              color={theme.colors.success}
-            />
-            <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>
-              {item.uses}
-            </Text>
-          </View>
-        </View>
-      </View>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }, [selectedCategory, theme, handleCategorySelect]);
+
+  const renderSearchSuggestion = useCallback(({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={[styles.suggestionItem, { backgroundColor: theme.colors.surface }]}
+      onPress={() => handleSearchSuggestionPress(item)}
+    >
+      <MaterialCommunityIcons 
+        name={item.type === 'trending' ? 'trending-up' : 
+              item.type === 'recent' ? 'history' :
+              item.type === 'category' ? 'folder' : 'magnify'} 
+        size={16} 
+        color={theme.colors.onSurfaceVariant} 
+      />
+      <Text style={[styles.suggestionText, { color: theme.colors.onSurface }]}>
+        {item.text}
+      </Text>
+      <Text style={[styles.suggestionType, { color: theme.colors.onSurfaceVariant }]}>
+        {item.type}
+      </Text>
     </TouchableOpacity>
-  );
+  ), [theme, handleSearchSuggestionPress]);
 
-  // Enhanced loading timeout effect with better UX
-  React.useEffect(() => {
-    if ((isLoading || trendingLoading) && !refreshing && publicAutomations.length === 0) {
-      const timeout = setTimeout(() => {
-        console.warn('⚠️ Loading timeout after 12 seconds');
-        setLoadingTimedOut(true);
-      }, 12000); // Increased timeout to 12 seconds for better UX
-      return () => clearTimeout(timeout);
-    } else {
-      setLoadingTimedOut(false);
-    }
-  }, [isLoading, trendingLoading, refreshing, publicAutomations.length]);
+  // Loading state
+  if (isLoadingPublic && publicAutomations.length === 0) {
+    return <DiscoverScreenSkeleton />;
+  }
 
-  // Show skeleton loading for better perceived performance
-  if ((isLoading || trendingLoading) && !refreshing && publicAutomations.length === 0 && !loadingTimedOut && !error && !trendingError) {
-    console.log('🔄 DiscoverScreen: Showing skeleton loading', { 
-      isLoading, 
-      trendingLoading, 
-      publicAutomationsCount: publicAutomations.length,
-      hasError: !!error,
-      hasTrendingError: !!trendingError
-    });
-    
+  // Error state
+  if ((publicError || trendingError) && !isConnected) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <DiscoverScreenSkeleton />
-      </SafeAreaView>
+      <ErrorState
+        title="No Internet Connection"
+        description="Please check your connection and try again"
+        action={{
+          label: "Retry",
+          onPress: handleRefresh,
+        }}
+      />
     );
   }
 
-  // Enhanced error handling with user-friendly messages
-  const hasError = error || trendingError || loadingTimedOut;
-  if (hasError && publicAutomations.length === 0 && !refreshing) {
-    console.warn('❌ DiscoverScreen: Failed to load automations', {
-      error: error?.message || error,
-      trendingError: trendingError?.message || trendingError,
-      loadingTimedOut,
-      isLoading,
-      trendingLoading,
-      publicAutomationsCount: publicAutomations.length
-    });
-
-    const getErrorType = () => {
-      if (!connectionState.isConnected) return 'network';
-      if (loadingTimedOut) return 'timeout';
-      return 'generic';
-    };
-
-    const getErrorMessage = () => {
-      if (!connectionState.isConnected) return 'Please check your internet connection and try again.';
-      if (loadingTimedOut) return 'The request is taking longer than expected. Please check your connection and try again.';
-      if (error?.message || trendingError?.message) return error?.message || trendingError?.message;
-      return 'Unable to load automations. Please try again later.';
-    };
-
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <ErrorState
-          type={getErrorType()}
-          message={getErrorMessage()}
-          onRetry={async () => {
-            setLoadingTimedOut(false);
-            await checkConnection();
-            if (connectionState.isConnected) {
-              refetch();
-            }
-          }}
-        />
-      </SafeAreaView>
-    );
-  }
-  
-  // Debug current state
-  React.useEffect(() => {
-    console.log('🔍 DiscoverScreen state:', {
-      isLoading,
-      trendingLoading,
-      error: error?.message,
-      trendingError: trendingError?.message,
-      publicAutomationsCount: publicAutomations.length,
-      trendingDataCount: trendingData.length,
-      loadingTimedOut,
-      connectionState: connectionState.isConnected
-    });
-  }, [isLoading, trendingLoading, error, trendingError, publicAutomations.length, trendingData.length, loadingTimedOut, connectionState.isConnected]);
-
-  // Show connection error banner if not connected
-  const showConnectionBanner = !connectionState.isConnected || connectionState.error;
+  // Render main content
+  const ScrollComponent = FEATURE_FLAGS.PARALLAX_SCROLLING ? ParallaxScrollView : ScrollView;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Connection Status Banner */}
-      {showConnectionBanner && (
-        <TouchableOpacity 
-          style={[styles.connectionBanner, { backgroundColor: theme.colors.error }]}
-          onPress={checkConnection}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons 
-            name="wifi-off" 
-            size={20} 
-            color={theme.colors.text.inverse} 
-          />
-          <Text style={styles.connectionBannerText}>
-            {connectionState.error || 'No connection'}
-          </Text>
-          <MaterialCommunityIcons 
-            name="refresh" 
-            size={20} 
-            color={theme.colors.text.inverse} 
-          />
-        </TouchableOpacity>
-      )}
-      
-      {/* Render engagement data fetchers for visible automations */}
-      {[...new Set([...displayedAutomations, ...trendingAutomations])].map(automation => (
-        <AutomationEngagement 
-          key={automation.id} 
-          automationId={automation.id} 
-          onDataFetched={handleEngagementData}
-        />
-      ))}
-      
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={theme.colors.primary}
-          />
-        }
-        onScroll={({ nativeEvent }) => {
-          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-          const paddingToBottom = 20;
-          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
-            handleEndReached();
-          }
-        }}
-        scrollEventThrottle={16}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+    <ScreenErrorBoundary 
+      screenName="Discover"
+      onError={(error, errorInfo) => {
+        EventLogger.error('DiscoverScreen', 'Screen-level error caught', error, {
+          componentStack: errorInfo.componentStack,
+          userId: user?.id,
+          searchQuery,
+          selectedCategory,
+          isConnected,
+        });
+      }}
+    >
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      {/* Header */}
+      {FEATURE_FLAGS.GRADIENT_HEADERS ? (
+        <Animated.View style={{ opacity: headerOpacity }}>
+          <GradientHeader title="Discover" />
+        </Animated.View>
+      ) : (
+        <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
             Discover
           </Text>
-          <View style={styles.headerActions}>
-            {(isLoading || isFetching) && !refreshing && (
-              <ActivityIndicator 
-                size="small" 
-                color={theme.colors.primary} 
-                style={{ marginRight: theme.spacing.sm }}
-              />
-            )}
-            <TouchableOpacity 
-              style={styles.filterButton}
-              onPress={() => {
-                // Could implement filter modal here
-                console.log('Filter button pressed');
-              }}
-            >
-              <MaterialCommunityIcons
-                name="filter-variant"
-                size={24}
-                color={theme.colors.text}
-              />
-            </TouchableOpacity>
-          </View>
         </View>
+      )}
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: theme.colors.surface }]}>
-            <MaterialCommunityIcons
-              name="magnify"
-              size={20}
-              color={theme.colors.textSecondary}
+      {/* Search Bar */}
+      <View style={styles.searchSection}>
+        {FEATURE_FLAGS.SEARCH_SUGGESTIONS ? (
+          <AnimatedSearchBar
+            value={searchQuery}
+            onChangeText={handleSearch}
+            onFocus={() => setShowSearchSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSearchSuggestions(false), 200)}
+            placeholder="Search automations..."
+            theme={theme}
+          />
+        ) : (
+          <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <MaterialCommunityIcons 
+              name="magnify" 
+              size={20} 
+              color={theme.colors.onSurfaceVariant} 
             />
             <TextInput
-              style={[styles.searchInput, { color: theme.colors.text }]}
+              style={[styles.searchInput, { color: theme.colors.onSurface }]}
               placeholder="Search automations..."
-              placeholderTextColor={theme.colors.textSecondary}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChangeText={handleSearch}
             />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity 
-                onPress={() => setSearchQuery('')}
-                accessibilityRole="button"
-                accessibilityLabel="Clear search"
-              >
-                <MaterialCommunityIcons
-                  name="close-circle"
-                  size={18}
-                  color={theme.colors.textSecondary}
-                />
-              </TouchableOpacity>
-            )}
           </View>
-        </View>
+        )}
 
-        {/* Categories */}
-        <View style={styles.categoriesSection}>
+        {/* Search Suggestions */}
+        {FEATURE_FLAGS.SEARCH_SUGGESTIONS && showSearchSuggestions && searchQuery.length > 0 && (
+          <View style={[styles.suggestionsContainer, { backgroundColor: theme.colors.surface }]}>
+            <FlatList
+              data={searchSuggestions.filter(s => 
+                s.text.toLowerCase().includes(searchQuery.toLowerCase())
+              )}
+              renderItem={renderSearchSuggestion}
+              keyExtractor={item => item.id}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        )}
+      </View>
+
+      {/* Categories */}
+      <View style={styles.categoriesSection}>
+        {FEATURE_FLAGS.STAGGERED_ANIMATIONS ? (
+          <AnimatedCategoryChips
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onSelect={handleCategorySelect}
+            theme={theme}
+          />
+        ) : (
           <FlatList
             data={categories}
-            renderItem={renderCategory}
-            keyExtractor={(item) => item.id}
+            renderItem={renderCategoryChip}
+            keyExtractor={item => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoriesList}
           />
-        </View>
+        )}
+      </View>
 
-        {/* Trending Section - Only show if we have trending data */}
-        {trendingAutomations.length > 0 && (
+      {/* Content */}
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        <ScrollComponent
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={theme.colors.primary}
+            />
+          }
+          onScroll={FEATURE_FLAGS.ENHANCED_ANIMATIONS ? Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          ) : undefined}
+          onMomentumScrollEnd={handleLoadMore}
+        >
+          {/* Featured Section */}
+          {featuredAutomation && selectedCategory === 'all' && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                Featured
+              </Text>
+              <FeaturedCard
+                automation={featuredAutomation}
+                onPress={() => handleAutomationPress(featuredAutomation)}
+                onLike={() => handleLike(featuredAutomation.id, featuredAutomation.hasLiked || false)}
+                theme={theme}
+              />
+            </View>
+          )}
+
+          {/* Trending Section */}
+          {FEATURE_FLAGS.TRENDING_CAROUSEL && trendingAutomations.length > 0 && selectedCategory === 'all' && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                Trending Now
+              </Text>
+              <TrendingCarousel
+                automations={trendingAutomations}
+                onAutomationPress={handleAutomationPress}
+                onLike={handleLike}
+                theme={theme}
+              />
+            </View>
+          )}
+
+          {/* All Automations */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                🔥 Trending Now
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                {selectedCategory === 'all' ? 'All Automations' : 
+                 categories.find(c => c.id === selectedCategory)?.name || 'Automations'}
               </Text>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="See all automations"
-              >
-                <Text style={[styles.seeAllText, { color: theme.colors.brand.primary }]}>
-                  See All
-                </Text>
-              </TouchableOpacity>
+              <Text style={[styles.resultCount, { color: theme.colors.onSurfaceVariant }]}>
+                {filteredAutomations.length} results
+              </Text>
             </View>
-            {trendingAutomations.map((automation, index) => (
-              <View key={automation.id} style={styles.trendingCardWrapper}>
-                {renderTrendingCard({ item: automation, index })}
-              </View>
-            ))}
-          </View>
-        )}
 
-        {/* All Automations */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Popular Automations
-          </Text>
-          {displayedAutomations.length > 0 ? (
-            <>
-              {displayedAutomations.map((automation) => (
-                <View key={automation.id} style={styles.verticalAutomationWrapper}>
-                  {renderAutomation({ item: automation, index: 0 })}
-                </View>
-              ))}
-              
-              {/* Load More Button */}
-              {hasMore && (
-                <View style={styles.loadMoreContainer}>
-                  {isLoadingMore ? (
-                    <ActivityIndicator size="small" color={theme.colors.primary} />
-                  ) : (
-                    <TouchableOpacity
-                      style={[styles.loadMoreButton, { backgroundColor: theme.colors.primary }]}
-                      onPress={loadMore}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.loadMoreText}>Load More</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-            </>
-          ) : (
-            <EmptyState
-              type={!connectionState.isConnected ? 'offline' : 'no-content'}
-              title={searchQuery || selectedCategory !== 'All' ? 'No Results Found' : 'No Automations Available'}
-              message={
-                searchQuery || selectedCategory !== 'All' 
-                  ? 'Try adjusting your search or browse different categories.'
-                  : !connectionState.isConnected
-                  ? 'Please check your internet connection and try again.'
-                  : 'New automations will appear here as they become available.'
-              }
-              onAction={async () => {
-                if (!connectionState.isConnected || error || loadingTimedOut) {
-                  setLoadingTimedOut(false);
-                  await checkConnection();
-                  if (connectionState.isConnected) {
-                    refetch();
-                  }
-                } else if (searchQuery || selectedCategory !== 'All') {
-                  setSearchQuery('');
-                  setSelectedCategory('All');
-                } else {
-                  navigation.navigate('Build' as never);
+            {filteredAutomations.length === 0 ? (
+              <EmptyState
+                icon="magnify-scan"
+                title="No Results Found"
+                description={searchQuery ? 
+                  `No automations found for "${searchQuery}"` : 
+                  "No automations in this category"
                 }
-              }}
-              actionLabel={
-                !connectionState.isConnected || error || loadingTimedOut
-                  ? 'Retry'
-                  : searchQuery || selectedCategory !== 'All'
-                  ? 'Clear Filters'
-                  : 'Create Automation'
-              }
-            />
+                action={searchQuery ? {
+                  label: "Clear Search",
+                  onPress: () => {
+                    setSearchQuery('');
+                    setShowSearchSuggestions(false);
+                  },
+                } : undefined}
+              />
+            ) : (
+              <FlatList
+                data={filteredAutomations}
+                renderItem={renderAutomationCard}
+                keyExtractor={item => item.id}
+                showsVerticalScrollIndicator={false}
+                scrollEnabled={false}
+                contentContainerStyle={styles.automationsList}
+              />
+            )}
+          </View>
+
+          {/* Load More */}
+          {loadingMore && (
+            <View style={styles.loadMoreContainer}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+              <Text style={[styles.loadMoreText, { color: theme.colors.onSurfaceVariant }]}>
+                Loading more...
+              </Text>
+            </View>
           )}
-        </View>
-      </ScrollView>
+        </ScrollComponent>
+      </Animated.View>
+
+      {/* Feedback Toast */}
+      {feedback.visible && (
+        <Animated.View 
+          style={[
+            styles.feedbackToast,
+            { backgroundColor: theme.colors.surface },
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: Animated.multiply(fadeAnim, -50) }]
+            }
+          ]}
+        >
+          <MaterialCommunityIcons 
+            name={feedback.type === 'success' ? 'check-circle' :
+                  feedback.type === 'error' ? 'alert-circle' : 'alert'}
+            size={20}
+            color={feedback.type === 'success' ? '#4CAF50' :
+                  feedback.type === 'error' ? '#F44336' : '#FF9800'}
+          />
+          <Text style={[styles.feedbackText, { color: theme.colors.onSurface }]}>
+            {feedback.message}
+          </Text>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
-};
+});
 
-const createStyles = (theme: Theme) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-    },
-    connectionBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.md,
-      gap: theme.spacing.sm,
-    },
-    connectionBannerText: {
-      color: theme.colors.text.inverse,
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.md,
-      paddingBottom: theme.spacing.sm,
-    },
-    headerTitle: {
-      fontSize: theme.typography.h1.fontSize,
-      fontWeight: theme.typography.h1.fontWeight,
-    },
-    headerActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    filterButton: {
-      width: 44,
-      height: 44,
-      borderRadius: theme.borderRadius.round,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: theme.colors.surface,
-    },
-    searchContainer: {
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.md,
-    },
-    searchBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.md,
-      height: 48,
-      borderRadius: theme.borderRadius.lg,
-    },
-    searchInput: {
-      flex: 1,
-      fontSize: 16,
-      marginLeft: theme.spacing.sm,
-    },
-    categoriesSection: {
-      marginBottom: theme.spacing.lg,
-    },
-    categoriesList: {
-      paddingHorizontal: theme.spacing.lg,
-    },
-    categoryChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.borderRadius.round,
-      marginRight: theme.spacing.sm,
-      shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 1,
-    },
-    categoryChipText: {
-      fontSize: 14,
-      fontWeight: '600',
-      marginLeft: theme.spacing.xs,
-    },
-    categoryCount: {
-      fontSize: 12,
-      marginLeft: theme.spacing.xs,
-    },
-    section: {
-      marginBottom: theme.spacing.xl,
-    },
-    trendingMeta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: theme.spacing.xs,
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.md,
-    },
-    sectionTitle: {
-      fontSize: theme.typography.h3.fontSize,
-      fontWeight: theme.typography.h3.fontWeight,
-    },
-    seeAllText: {
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    horizontalList: {
-      paddingHorizontal: theme.spacing.lg,
-    },
-    trendingCardWrapper: {
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.md,
-    },
-    trendingCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: theme.spacing.lg,
-      borderRadius: theme.borderRadius.xl,
-      backgroundColor: theme.colors.surface,
-    },
-    trendingRank: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: theme.colors.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: theme.spacing.md,
-    },
-    trendingRankText: {
-      color: theme.colors.text.inverse,
-      fontSize: 14,
-      fontWeight: '700',
-    },
-    automationCard: {
-      width: 280,
-      padding: theme.spacing.lg,
-      borderRadius: theme.borderRadius.xl,
-      marginRight: theme.spacing.md,
-      shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    verticalAutomationWrapper: {
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.sm,
-    },
-    trendingBadge: {
-      position: 'absolute',
-      top: theme.spacing.md,
-      right: theme.spacing.md,
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: theme.colors.error,
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: 4,
-      borderRadius: theme.borderRadius.sm,
-    },
-    trendingText: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: theme.colors.text.inverse,
-      marginLeft: 4,
-    },
-    automationHeader: {
-      flexDirection: 'row',
-      marginBottom: theme.spacing.md,
-    },
-    automationIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: theme.borderRadius.md,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: theme.spacing.md,
-    },
-    automationInfo: {
-      flex: 1,
-    },
-    automationTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      marginBottom: 4,
-    },
-    automationDescription: {
-      fontSize: 13,
-      lineHeight: 18,
-    },
-    automationMeta: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    authorInfo: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    authorAvatar: {
-      width: 24,
-      height: 24,
-      borderRadius: theme.borderRadius.round,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: theme.spacing.xs,
-    },
-    authorInitial: {
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    authorName: {
-      fontSize: 13,
-    },
-    statsContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    stat: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginLeft: theme.spacing.md,
-    },
-    statText: {
-      fontSize: 13,
-      marginLeft: 4,
-    },
-    loadMoreContainer: {
-      paddingVertical: theme.spacing.lg,
-      alignItems: 'center',
-    },
-    loadMoreButton: {
-      paddingHorizontal: theme.spacing.xl,
-      paddingVertical: theme.spacing.md,
-      borderRadius: theme.borderRadius.round,
-    },
-    loadMoreText: {
-      color: theme.colors.text.inverse,
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    emptyText: {
-      fontSize: 14,
-      marginTop: theme.spacing.sm,
-    },
-    emptyStateContainer: {
-      paddingHorizontal: theme.spacing.xl,
-      paddingVertical: theme.spacing.xxl,
-      alignItems: 'center',
-    },
-    emptyStateTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      marginTop: theme.spacing.lg,
-      marginBottom: theme.spacing.sm,
-    },
-    emptyStateText: {
-      fontSize: 14,
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-    retryButton: {
-      marginTop: theme.spacing.lg,
-      paddingHorizontal: theme.spacing.xl,
-      paddingVertical: theme.spacing.md,
-      borderRadius: theme.borderRadius.round,
-    },
-    retryButtonText: {
-      color: theme.colors.text.inverse,
-      fontSize: 16,
-      fontWeight: '600',
-    },
-  });
+DiscoverScreen.displayName = 'DiscoverScreen';
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  searchSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    zIndex: 10,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+  },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 16,
+  },
+  suggestionType: {
+    fontSize: 12,
+    textTransform: 'capitalize',
+  },
+  categoriesSection: {
+    paddingVertical: 12,
+  },
+  categoriesList: {
+    paddingHorizontal: 20,
+  },
+  categoryChip: {
+    marginRight: 12,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  categoryChipSelected: {},
+  categoryChipGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  categoryChipCount: {
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  content: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  section: {
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  resultCount: {
+    fontSize: 14,
+  },
+  automationsList: {
+    paddingHorizontal: 20,
+  },
+  loadMoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    gap: 8,
+  },
+  loadMoreText: {
+    fontSize: 14,
+  },
+  feedbackToast: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    gap: 12,
+  },
+  feedbackText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+});
+
+      </SafeAreaView>
+    </ScreenErrorBoundary>
+  );
+});
+
+DiscoverScreen.displayName = 'DiscoverScreen';
 
 export default DiscoverScreen;

@@ -41,14 +41,20 @@ export class LinkingService {
     // Handle initial URL if app was opened with a link
     Linking.getInitialURL().then(url => {
       if (url) {
-        this.logger.info('App opened with initial URL', { url });
+        // Don't log Expo development URLs as deep links
+        if (!url.includes('expo-development-client') && !url.startsWith('exp+zaptap://')) {
+          this.logger.info('App opened with initial URL', { url });
+        }
         this.handleIncomingLink(url);
       }
     });
 
     // Handle incoming links while app is running
     const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
-      this.logger.info('Received deep link', { url });
+      // Don't log Expo development URLs as deep links
+      if (!url.includes('expo-development-client') && !url.startsWith('exp+zaptap://')) {
+        this.logger.info('Received deep link', { url });
+      }
       this.handleIncomingLink(url);
     });
 
@@ -68,7 +74,10 @@ export class LinkingService {
 
       const linkData = this.parseDeepLink(url);
       if (!linkData) {
-        this.logger.warn('Invalid deep link format', { url });
+        // Don't warn for Expo development URLs
+        if (!url.includes('expo-development-client') && !url.startsWith('exp+zaptap://')) {
+          this.logger.warn('Invalid deep link format', { url });
+        }
         return;
       }
 
@@ -89,6 +98,12 @@ export class LinkingService {
    */
   private parseDeepLink(url: string): DeepLinkData | null {
     try {
+      // Ignore Expo development client URLs
+      if (url.includes('expo-development-client') || url.startsWith('exp+zaptap://')) {
+        this.logger.debug('Ignoring Expo development URL', { url });
+        return null;
+      }
+      
       // Handle app scheme links (zaptap:// or legacy shortcuts-like://)
       if (url.startsWith('zaptap://') || url.startsWith('shortcuts-like://')) {
         return this.parseAppSchemeLink(url);

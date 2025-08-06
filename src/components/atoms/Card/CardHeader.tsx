@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ViewStyle, TextStyle } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { theme } from '../../../theme';
 
 export interface CardHeaderProps {
@@ -25,8 +25,8 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   titleStyle,
   subtitleStyle,
 }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  const theme = useSafeTheme();
+  const colors = theme.colors;
 
   return (
     <View style={[styles.container, style]}>
@@ -36,7 +36,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
             <MaterialCommunityIcons
               name={icon}
               size={24}
-              color={iconColor || colors.text.primary}
+              color={iconColor || colors?.text?.primary || colors?.onSurface || '#333333'}
             />
           </View>
         )}
@@ -57,7 +57,7 @@ const styles = {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
-    paddingBottom: theme.spacing.md,
+    paddingBottom: theme.spacing?.md || 16,
   },
   content: {
     flexDirection: 'row' as const,
@@ -65,21 +65,21 @@ const styles = {
     flex: 1,
   },
   iconContainer: {
-    marginRight: theme.spacing.sm,
+    marginRight: theme.spacing?.sm || 8,
   },
   textContainer: {
     flex: 1,
   },
   title: (colors: any) => ({
-    ...theme.typography.titleMedium,
-    color: colors.text.primary,
+    ...theme.typography?.titleMedium || { fontSize: 20, lineHeight: 28 },
+    color: colors?.text?.primary || colors?.onSurface || '#333333',
   }),
   subtitle: (colors: any) => ({
-    ...theme.typography.bodySmall,
-    color: colors.text.secondary,
+    ...theme.typography?.bodySmall || { fontSize: 14, lineHeight: 20 },
+    color: colors?.text?.secondary || colors?.onSurfaceVariant || '#666666',
     marginTop: 2,
   }),
   action: {
-    marginLeft: theme.spacing.md,
+    marginLeft: theme.spacing?.md || 16,
   },
 };

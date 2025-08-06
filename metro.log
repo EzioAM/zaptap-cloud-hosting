@@ -1,0 +1,12 @@
+
+> zaptap@2.3.0 start
+> expo start
+
+env: load .env
+env: export SUPABASE_URL SUPABASE_ANON_KEY
+Starting project at /Users/marcminott/Documents/DevProject/ShortcutsLike
+Starting Metro Bundler
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Android ./index.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Android Bundled 633ms index.js (1992 modules)

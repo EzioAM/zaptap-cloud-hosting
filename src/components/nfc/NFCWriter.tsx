@@ -17,6 +17,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import NFCService from '../../services/nfc/NFCService';
 import { AutomationData } from '../../types';
 import { smartLinkService } from '../../services/linking/SmartLinkService';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface NFCWriterProps {
   automation: AutomationData;
@@ -58,7 +59,7 @@ const NFCWriter: React.FC<NFCWriterProps> = ({ automation, onSuccess, onClose })
       const supported = await NFCService.initialize();
       setIsSupported(supported);
     } catch (error) {
-      console.error('Error checking NFC support:', error);
+      EventLogger.error('NFC', 'Error checking NFC support:', error as Error);
       setIsSupported(false);
     }
   };
@@ -106,7 +107,7 @@ const NFCWriter: React.FC<NFCWriterProps> = ({ automation, onSuccess, onClose })
       
     } catch (error) {
       setWriting(false);
-      console.error('NFC write preparation failed:', error);
+      EventLogger.error('NFC', 'NFC write preparation failed:', error as Error);
     }
   };
 
@@ -121,7 +122,7 @@ const NFCWriter: React.FC<NFCWriterProps> = ({ automation, onSuccess, onClose })
       }
       
     } catch (error) {
-      console.error('NFC write failed:', error);
+      EventLogger.error('NFC', 'NFC write failed:', error as Error);
       Alert.alert('Write Failed', 'Failed to write automation to NFC tag');
     } finally {
       setWriting(false);

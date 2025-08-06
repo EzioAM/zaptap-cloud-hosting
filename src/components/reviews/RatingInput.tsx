@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface RatingInputProps {
   visible: boolean;
@@ -54,7 +55,7 @@ const RatingInput: React.FC<RatingInputProps> = ({
     try {
       await onSubmit(rating, review.trim() || undefined);
     } catch (error) {
-      console.error('Failed to submit review:', error);
+      EventLogger.error('RatingInput', 'Failed to submit review:', error as Error);
       // Error handling is delegated to parent component
     }
   };

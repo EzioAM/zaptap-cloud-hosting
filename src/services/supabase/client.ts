@@ -3,6 +3,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import NetInfo from '@react-native-community/netinfo';
+import { EventLogger } from '../../utils/EventLogger';
 
 const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || 'https://gfkdclzgdlcvhfiujkwz.supabase.co';
 const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdma2RjbHpnZGxjdmhmaXVqa3d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0OTI2NTcsImV4cCI6MjA2OTA2ODY1N30.lJpGLp14e_9ku8n3WN8i61jYPohfx7htTEmTrnje-uE';
@@ -13,7 +14,7 @@ const customStorage = {
     try {
       return await AsyncStorage.getItem(key);
     } catch (error) {
-      console.error('Storage getItem error:', error);
+      EventLogger.error('client', 'Storage getItem error:', error as Error);
       return null;
     }
   },
@@ -21,14 +22,14 @@ const customStorage = {
     try {
       await AsyncStorage.setItem(key, value);
     } catch (error) {
-      console.error('Storage setItem error:', error);
+      EventLogger.error('client', 'Storage setItem error:', error as Error);
     }
   },
   removeItem: async (key: string) => {
     try {
       await AsyncStorage.removeItem(key);
     } catch (error) {
-      console.error('Storage removeItem error:', error);
+      EventLogger.error('client', 'Storage removeItem error:', error as Error);
     }
   },
 };
@@ -68,7 +69,7 @@ class SupabaseClientWithRetry {
     // Monitor network connectivity
     NetInfo.addEventListener(state => {
       this.isOnline = state.isConnected ?? true;
-      console.log('Network status:', this.isOnline ? 'Online' : 'Offline');
+      EventLogger.debug('client', 'Network status:', this.isOnline ? 'Online' : 'Offline');
     });
   }
 
@@ -91,7 +92,7 @@ class SupabaseClientWithRetry {
         return await operation();
       } catch (error: any) {
         lastError = error;
-        console.error(`Attempt ${attempt + 1} failed:`, error.message);
+        EventLogger.error('client', 'Attempt ${attempt + 1} failed:', error.message as Error);
 
         // Don't retry on auth errors or validation errors
         if (error.code === '42501' || // permission denied
@@ -153,7 +154,7 @@ export const testConnection = async (): Promise<{
     });
     
     if (healthError) {
-      console.error('❌ Database connection failed:', healthError);
+      EventLogger.error('client', '❌ Database connection failed:', healthError as Error);
       return { 
         connected: false, 
         authenticated: false,
@@ -167,7 +168,7 @@ export const testConnection = async (): Promise<{
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
-      console.error('❌ Auth service error:', sessionError);
+      EventLogger.error('client', '❌ Auth service error:', sessionError as Error);
       return { 
         connected: false,
         authenticated: false, 
@@ -177,8 +178,8 @@ export const testConnection = async (): Promise<{
       };
     }
 
-    console.log('✅ Supabase connected successfully');
-    console.log('✅ Session status:', session ? 'Authenticated' : 'Not authenticated');
+    EventLogger.debug('client', '✅ Supabase connected successfully');
+    EventLogger.debug('client', '✅ Session status:', session ? 'Authenticated' : 'Not authenticated');
     
     return { 
       connected: true, 
@@ -188,7 +189,14 @@ export const testConnection = async (): Promise<{
       networkStatus: true,
     };
   } catch (error: any) {
-    console.error('❌ Supabase connection failed:', error);
+    // Don't log network errors as errors
+    if (error?.message?.includes('Network request failed') || 
+        error?.name === 'NetworkError') {
+      EventLogger.debug('client', '📴 Network unavailable for connection test');
+    } else {
+      EventLogger.error('client', '❌ Supabase connection failed:', error as Error);
+    }
+    
     return { 
       connected: false,
       authenticated: false, 
@@ -204,35 +212,64 @@ export const refreshSession = async () => {
   try {
     const { data: { session }, error } = await supabase.auth.refreshSession();
     if (error) {
-      console.error('Failed to refresh session:', error);
+      // Don't log network errors as errors
+      if (error?.message?.includes('Network request failed') || 
+          error?.name === 'NetworkError' ||
+          error?.name === 'AuthRetryableFetchError') {
+        EventLogger.debug('client', '📴 Network unavailable - cannot refresh session');
+        return null;
+      }
+      
+      EventLogger.error('client', 'Failed to refresh session:', error as Error);
       
       // If refresh fails, try to get the current session
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       return currentSession;
     }
     return session;
-  } catch (error) {
-    console.error('Failed to refresh session:', error);
+  } catch (error: any) {
+    // Handle network errors gracefully
+    if (error?.message?.includes('Network request failed') || 
+        error?.name === 'NetworkError' ||
+        error?.name === 'AuthRetryableFetchError') {
+      EventLogger.debug('client', '📴 Network unavailable - cannot refresh session');
+      return null;
+    }
+    
+    EventLogger.error('client', 'Failed to refresh session:', error as Error);
     return null;
   }
 };
 
 // Helper to ensure session is valid
 export const ensureValidSession = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    return null;
-  }
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      return null;
+    }
 
-  // Check if token is expired
-  const expiresAt = session.expires_at;
-  if (expiresAt && expiresAt * 1000 < Date.now()) {
-    // Token expired, try to refresh
-    return await refreshSession();
-  }
+    // Check if token is expired
+    const expiresAt = session.expires_at;
+    if (expiresAt && expiresAt * 1000 < Date.now()) {
+      // Token expired, try to refresh
+      return await refreshSession();
+    }
 
-  return session;
+    return session;
+  } catch (error: any) {
+    // Handle network errors gracefully
+    if (error?.message?.includes('Network request failed') || 
+        error?.name === 'NetworkError' ||
+        error?.name === 'AuthRetryableFetchError') {
+      EventLogger.debug('client', '📴 Network unavailable - cannot validate session');
+      return null;
+    }
+    
+    // Re-throw non-network errors
+    throw error;
+  }
 };
 
 // Helper to handle auth errors globally
@@ -241,10 +278,10 @@ export const handleAuthError = async (error: any) => {
     // JWT error, try to refresh session
     const newSession = await refreshSession();
     if (newSession) {
-      console.log('✅ Session refreshed successfully');
+      EventLogger.debug('client', '✅ Session refreshed successfully');
       return true;
     } else {
-      console.error('❌ Failed to refresh session, user needs to login again');
+      EventLogger.error('client', '❌ Failed to refresh session, user needs to login again');
       return false;
     }
   }

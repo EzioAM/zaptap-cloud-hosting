@@ -88,7 +88,7 @@ const checkNfcSupport = async () => {
     }
     return false;
   } catch (ex) {
-    console.warn('NFC not supported', ex);
+    EventLogger.warn('LocalResearch', 'NFC not supported', ex);
     return false;
   }
 };`,
@@ -100,11 +100,11 @@ const readNfcTag = async () => {
     });
     
     const tag = await NfcManager.getTag();
-    console.log('Tag found:', tag);
+    EventLogger.debug('LocalResearch', 'Tag found:', tag);
     
     return tag;
   } catch (ex) {
-    console.warn('NFC read failed:', ex);
+    EventLogger.warn('LocalResearch', 'NFC read failed:', ex);
   } finally {
     NfcManager.cancelTechnologyRequest();
   }
@@ -204,6 +204,7 @@ class OfflineQueue {
 }`,
         `// Network state monitoring
 import NetInfo from '@react-native-async-storage/async-storage';
+import { EventLogger } from '../../utils/EventLogger';
 
 const useNetworkState = () => {
   const [isConnected, setIsConnected] = useState(true);

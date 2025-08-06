@@ -1,4 +1,7 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
+// Error Boundaries and Recovery
+import { ScreenErrorBoundary, WidgetErrorBoundary } from '../../components/ErrorBoundaries';
+import { EventLogger } from '../../utils/EventLogger';
 import {
   View,
   Text,
@@ -11,10 +14,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Animated,
+  Dimensions,
+  Vibration,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useUnifiedTheme as useTheme } from '../../contexts/UnifiedThemeProvider';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
@@ -23,11 +32,53 @@ import DraggableFlatList, {
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
 import { useCreateAutomationMutation } from '../../store/api/automationApi';
-import { Alert } from 'react-native';
-import { useAutomationForm } from '../../hooks/useAutomationForm';
 import { useOptimizedComponents } from '../../hooks/useOptimizedComponents';
 import { ErrorState } from '../../components/states/ErrorState';
 import { EmptyState } from '../../components/states/EmptyState';
+import { ModernStepConfigRenderer } from '../../components/automation/ModernStepConfigRenderer';
+import { EnhancedStepCard } from '../../components/automation/EnhancedStepCard';
+import {
+  AnimatedSectionHeader,
+  PressableAnimated,
+  FeedbackAnimation,
+  LoadingPulse,
+  StaggeredContainer,
+} from '../../components/automation/AnimationHelpers';
+import {
+  StepCounterBadge,
+  ConnectionLine,
+  DropZoneIndicator,
+} from '../../components/automation/DragDropHelpers';
+
+// Enhanced gradient components
+import { GradientHeader } from '../../components/shared/GradientHeader';
+import { GradientCard } from '../../components/shared/GradientCard';
+import { GradientButton } from '../../components/shared/GradientButton';
+import { EmptyStateIllustration } from '../../components/shared/EmptyStateIllustration';
+
+// Enhanced theme imports
+import { gradients, glassEffects, getGlassStyle } from '../../theme/gradients';
+import { typography, fontWeights, textShadows } from '../../theme/typography';
+
+// Animation constants
+import { ANIMATION_CONFIG } from '../../constants/animations';
+
+// Haptics
+import * as Haptics from 'expo-haptics';
+import { v4 as uuidv4 } from 'uuid';
+import { EventLogger } from '../../utils/EventLogger';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Feature flags for progressive enhancement
+const FEATURE_FLAGS = {
+  ENHANCED_ANIMATIONS: Platform.OS !== 'web',
+  HAPTIC_FEEDBACK: Platform.OS !== 'web',
+  BLUR_EFFECTS: Platform.OS !== 'web',
+  ADVANCED_GESTURES: Platform.OS !== 'web',
+  GRADIENT_HEADERS: true,
+  STAGGERED_ANIMATIONS: Platform.OS !== 'web',
+};
 
 interface AutomationStep {
   id: string;
@@ -48,1107 +99,1121 @@ const stepTypes = [
   // Web & Data
   { type: 'webhook', title: 'Call Webhook', icon: 'webhook', color: '#9C27B0', category: 'Web & Data' },
   { type: 'http', title: 'HTTP Request', icon: 'api', color: '#3F51B5', category: 'Web & Data' },
-  { type: 'scrape', title: 'Scrape Web Page', icon: 'web', color: '#00BCD4', category: 'Web & Data' },
+  { type: 'json', title: 'Parse JSON', icon: 'code-json', color: '#00BCD4', category: 'Web & Data' },
+  
+  // Device & System
+  { type: 'location', title: 'Get Location', icon: 'map-marker', color: '#F44336', category: 'Device & System' },
+  { type: 'wifi', title: 'Control WiFi', icon: 'wifi', color: '#795548', category: 'Device & System' },
+  { type: 'bluetooth', title: 'Control Bluetooth', icon: 'bluetooth', color: '#607D8B', category: 'Device & System' },
+  { type: 'brightness', title: 'Set Brightness', icon: 'brightness-6', color: '#FFC107', category: 'Device & System' },
+  { type: 'volume', title: 'Set Volume', icon: 'volume-high', color: '#E91E63', category: 'Device & System' },
+  
+  // Apps & Services
+  { type: 'open-app', title: 'Open App', icon: 'application', color: '#009688', category: 'Apps & Services' },
+  { type: 'shortcut', title: 'Run Shortcut', icon: 'play-circle', color: '#FF5722', category: 'Apps & Services' },
   
   // Control Flow
-  { type: 'delay', title: 'Wait/Delay', icon: 'timer-sand', color: '#607D8B', category: 'Control Flow' },
-  { type: 'condition', title: 'If/Then', icon: 'code-braces', color: '#795548', category: 'Control Flow' },
-  { type: 'loop', title: 'Repeat/Loop', icon: 'repeat', color: '#FF5722', category: 'Control Flow' },
-  
-  // Variables & Data
-  { type: 'variable', title: 'Set Variable', icon: 'variable', color: '#E91E63', category: 'Variables' },
-  { type: 'get_variable', title: 'Get Variable', icon: 'variable-box', color: '#E91E63', category: 'Variables' },
-  { type: 'prompt_input', title: 'Ask for Input', icon: 'form-textbox', color: '#9C27B0', category: 'Variables' },
-  
-  // System
-  { type: 'clipboard', title: 'Copy to Clipboard', icon: 'content-copy', color: '#009688', category: 'System' },
-  { type: 'open_url', title: 'Open URL', icon: 'open-in-new', color: '#FF6B6B', category: 'System' },
-  { type: 'share_text', title: 'Share Text', icon: 'share-variant', color: '#673AB7', category: 'System' },
-  
-  // Location
-  { type: 'location', title: 'Location', icon: 'map-marker', color: '#4CAF50', category: 'Location' },
-  
-  // Advanced
-  { type: 'text', title: 'Text Operations', icon: 'format-text', color: '#FFC107', category: 'Advanced' },
-  { type: 'math', title: 'Math Operations', icon: 'calculator', color: '#03A9F4', category: 'Advanced' },
-  { type: 'photo', title: 'Take/Select Photo', icon: 'camera', color: '#8BC34A', category: 'Advanced' },
-  { type: 'app', title: 'Open App', icon: 'application', color: '#FF5722', category: 'Advanced' },
+  { type: 'wait', title: 'Wait', icon: 'clock', color: '#9E9E9E', category: 'Control Flow' },
+  { type: 'condition', title: 'If/Then', icon: 'source-branch', color: '#673AB7', category: 'Control Flow' },
+  { type: 'loop', title: 'Repeat', icon: 'repeat', color: '#CDDC39', category: 'Control Flow' },
 ];
 
-const BuildScreen = () => {
-  const { theme } = useTheme();
+const templates = [
+  {
+    id: 'morning',
+    name: 'Morning Routine',
+    icon: 'weather-sunny',
+    color: '#FFC107',
+    description: 'Start your day right',
+    gradient: ['#FFC107', '#FFB300'],
+    steps: [
+      { type: 'wifi', title: 'Turn On WiFi', icon: 'wifi', color: '#795548', config: { enabled: true } },
+      { type: 'brightness', title: 'Set Brightness', icon: 'brightness-6', color: '#FFC107', config: { level: 80 } },
+      { type: 'notification', title: 'Good Morning', icon: 'bell', color: '#FF9800', config: { message: 'Have a great day!' } },
+    ],
+  },
+  {
+    id: 'meeting',
+    name: 'Meeting Mode',
+    icon: 'briefcase',
+    color: '#9C27B0',
+    description: 'Silence distractions',
+    gradient: ['#9C27B0', '#8E24AA'],
+    steps: [
+      { type: 'volume', title: 'Silent Mode', icon: 'volume-high', color: '#E91E63', config: { level: 0 } },
+      { type: 'notification', title: 'In Meeting', icon: 'bell', color: '#FF9800', config: { message: 'In a meeting' } },
+    ],
+  },
+  {
+    id: 'bedtime',
+    name: 'Bedtime',
+    icon: 'weather-night',
+    color: '#3F51B5',
+    description: 'Wind down for sleep',
+    gradient: ['#3F51B5', '#303F9F'],
+    steps: [
+      { type: 'brightness', title: 'Dim Screen', icon: 'brightness-6', color: '#FFC107', config: { level: 20 } },
+      { type: 'wifi', title: 'Turn Off WiFi', icon: 'wifi', color: '#795548', config: { enabled: false } },
+    ],
+  },
+  {
+    id: 'workout',
+    name: 'Workout',
+    icon: 'run',
+    color: '#4CAF50',
+    description: 'Get pumped up',
+    gradient: ['#4CAF50', '#388E3C'],
+    steps: [
+      { type: 'volume', title: 'Max Volume', icon: 'volume-high', color: '#E91E63', config: { level: 100 } },
+      { type: 'open-app', title: 'Open Music', icon: 'application', color: '#009688', config: { app: 'music' } },
+    ],
+  },
+];
+
+const BuildScreen: React.FC = memo(() => {
+  const theme = useSafeTheme();
   const navigation = useNavigation();
   const { user } = useSelector((state: RootState) => state.auth);
-  const [isAddStepModalVisible, setIsAddStepModalVisible] = useState(false);
-  const [editingStep, setEditingStep] = useState<AutomationStep | null>(null);
-  const [createAutomation, { isLoading }] = useCreateAutomationMutation();
-
-  // Use the form hook for better state management
-  const {
-    formData,
-    errors: formErrors,
-    isValid,
-    isDirty,
-    updateField,
-    addStep: formAddStep,
-    updateStep: formUpdateStep,
-    removeStep: formRemoveStep,
-    reorderSteps: formReorderSteps,
-    handleSubmit: formHandleSubmit,
-  } = useAutomationForm({
-    onSubmit: async (data) => {
-      const result = await createAutomation(data).unwrap();
-      console.log('Automation created:', result);
-      
-      Alert.alert(
-        'Success',
-        'Automation created successfully!',
-        [
-          {
-            text: 'View Details',
-            onPress: () => navigation.navigate('AutomationDetails', { automationId: result.id }),
-          },
-          {
-            text: 'Advanced Edit',
-            onPress: () => navigation.navigate('AutomationBuilder', { automationId: result.id }),
-          },
-          {
-            text: 'OK',
-            style: 'cancel',
-          },
-        ],
-      );
-    },
+  const [createAutomation, { isLoading: isSaving }] = useCreateAutomationMutation();
+  
+  const [steps, setSteps] = useState<AutomationStep[]>([]);
+  const [selectedStep, setSelectedStep] = useState<AutomationStep | null>(null);
+  const [isConfigModalVisible, setIsConfigModalVisible] = useState(false);
+  const [isStepPickerVisible, setIsStepPickerVisible] = useState(false);
+  const [automationName, setAutomationName] = useState('');
+  const [automationDescription, setAutomationDescription] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [stepConfig, setStepConfig] = useState<Record<string, any>>({});
+  const [isTesting, setIsTesting] = useState(false);
+  const [testProgress, setTestProgress] = useState(0);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'warning'; message: string; visible: boolean }>({ 
+    type: 'success', 
+    message: '', 
+    visible: false 
   });
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [draggedStepIndex, setDraggedStepIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  
+  // Animation refs
+  const headerAnimValue = useRef(new Animated.Value(0)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const testProgressWidth = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  // Use optimization hook for better performance
-  const { stepStats, stepRenderData } = useOptimizedComponents({
-    steps: formData.steps,
-    onStepUpdate: formUpdateStep,
-    onStepRemove: formRemoveStep,
-    onStepToggle: (index) => {
-      const step = formData.steps[index];
+  // Use optimized components for step management
+  const { stepStats, stepValidation } = useOptimizedComponents({
+    steps,
+    onStepUpdate: (index, updates) => {
+      const step = steps[index];
       if (step) {
-        formUpdateStep(index, { enabled: !step.enabled });
+        handleUpdateStep(step.id, updates);
+      }
+    },
+    onStepRemove: (index) => {
+      const step = steps[index];
+      if (step) {
+        handleDeleteStep(step.id);
+      }
+    },
+    onStepToggle: (index) => {
+      const step = steps[index];
+      if (step) {
+        handleUpdateStep(step.id, { enabled: !step.enabled });
       }
     },
   });
-
-  const styles = createStyles(theme);
-
-  // Cleanup effect for modal state
+  
+  // Entry animation effect
   useEffect(() => {
-    return () => {
-      setIsAddStepModalVisible(false);
-      setEditingStep(null);
-    };
+    if (FEATURE_FLAGS.ENHANCED_ANIMATIONS) {
+      Animated.timing(headerAnimValue, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      headerAnimValue.setValue(1);
+    }
+  }, [headerAnimValue]);
+
+  // Haptic feedback helper
+  const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' = 'light') => {
+    if (FEATURE_FLAGS.HAPTIC_FEEDBACK) {
+      try {
+        switch (type) {
+          case 'light':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            break;
+          case 'medium':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            break;
+          case 'heavy':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            break;
+        }
+      } catch (error) {
+        // Haptics not supported, continue silently
+      }
+    }
   }, []);
 
-  // Helper function to update step configuration
-  const updateStepConfig = useCallback((configUpdate: Partial<any>) => {
-    if (!editingStep) return;
-    
-    const stepIndex = formData.steps.findIndex(step => step.id === editingStep.id);
-    if (stepIndex >= 0) {
-      const updatedConfig = { ...editingStep.config, ...configUpdate };
-      formUpdateStep(stepIndex, { config: updatedConfig });
-      setEditingStep({ ...editingStep, config: updatedConfig });
-    }
-  }, [editingStep, formData.steps, formUpdateStep]);
+  const showFeedback = useCallback((type: 'success' | 'error' | 'warning', message: string) => {
+    setFeedback({ type, message, visible: true });
+    setTimeout(() => setFeedback(prev => ({ ...prev, visible: false })), 3000);
+  }, []);
 
-  const getStepCategories = () => {
-    const categories = new Map<string, typeof stepTypes>();
-    
-    stepTypes.forEach((step) => {
-      const category = step.category || 'Other';
-      if (!categories.has(category)) {
-        categories.set(category, []);
-      }
-      categories.get(category)!.push(step);
-    });
-    
-    return Array.from(categories.entries()).map(([name, steps]) => ({
-      name,
-      steps,
-    }));
-  };
-
-  const addStep = useCallback((stepType: typeof stepTypes[0]) => {
-    formAddStep(stepType.type as any, {});
-    setIsAddStepModalVisible(false);
-  }, [formAddStep]);
-
-  const validateForm = useCallback(() => {
-    return isValid; // Use the form hook's validation
-  }, [isValid]);
-
-  const handleTestRun = useCallback(() => {
-    if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors before testing');
-      return;
-    }
-
-    // Create temporary automation for testing
-    const testAutomation = {
-      id: 'test-' + Date.now(),
-      title: formData.title || 'Test Automation',
-      description: 'Test run',
-      created_by: user?.id || 'anonymous',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      is_public: false,
-      category: 'Productivity',
-      tags: ['test'],
-      execution_count: 0,
-      average_rating: 0,
-      rating_count: 0,
-      steps: formData.steps.map((step, index) => ({
-        id: step.id,
-        type: step.type,
-        title: step.title,
-        config: step.config || {},
-        enabled: step.enabled !== false,
-      })),
-    };
-
-    // Navigate to test screen
+  const handleAddStep = useCallback((stepType: any) => {
     try {
-      navigation.navigate('AutomationTest' as never, { automation: testAutomation } as never);
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Error', 'Failed to start test');
-    }
-  }, [formData.title, formData.steps, user, navigation, validateForm]);
-
-  const handleSave = useCallback(async () => {
-    if (!validateForm()) {
-      Alert.alert(
-        'Validation Error', 
-        formData.title.trim() === '' 
-          ? 'Please enter an automation name'
-          : formData.steps.length === 0
-          ? 'Please add at least one step'
-          : 'Please fix the errors before saving'
-      );
-      return;
-    }
-
-    if (!user) {
-      Alert.alert(
-        'Authentication Required', 
-        'Please log in to save automations',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Sign In',
-            onPress: () => navigation.navigate('SignIn' as never),
-          },
-        ]
-      );
-      return;
-    }
-
-    try {
-      console.log('Starting save automation...');
-      console.log('User:', user);
-      console.log('Automation name:', formData.title);
-      console.log('Steps:', formData.steps);
-
-      const automationData = {
-        title: formData.title.trim(),
-        description: `Created with ${formData.steps.length} steps`,
-        category: 'Productivity',
-        steps: formData.steps.map((step, index) => ({
-          id: step.id,
-          type: step.type,
-          title: step.title,
-          config: step.config || {},
-          enabled: step.enabled !== false,
-        })),
-        tags: ['custom', 'builder'],
-        is_public: false,
+      triggerHaptic('medium');
+      
+      const newStep: AutomationStep = {
+        id: uuidv4(),
+        type: stepType.type,
+        title: stepType.title,
+        icon: stepType.icon,
+        color: stepType.color,
+        config: {},
+        enabled: true,
       };
 
-      console.log('Automation data to save:', JSON.stringify(automationData, null, 2));
+      setSteps(prev => [...prev, newStep]);
+      setIsStepPickerVisible(false);
+      showFeedback('success', `Added ${stepType.title} step`);
+    } catch (error) {
+      EventLogger.error('UI', 'Error adding step:', error as Error);
+      showFeedback('error', 'Failed to add step');
+    }
+  }, [triggerHaptic, showFeedback]);
 
-      const result = await createAutomation(automationData).unwrap();
-      console.log('Save result:', result);
+  const handleUpdateStep = useCallback((stepId: string, updates: Partial<AutomationStep>) => {
+    try {
+      setSteps(prev => prev.map(step => 
+        step.id === stepId ? { ...step, ...updates } : step
+      ));
       
-      Alert.alert(
-        'Success!',
-        'Your automation has been created successfully.',
-        [
-          {
-            text: 'View Details',
-            onPress: () => navigation.navigate('AutomationDetails', { automationId: result.id }),
-          },
-          {
-            text: 'Advanced Edit',
-            onPress: () => navigation.navigate('AutomationBuilder', { automationId: result.id }),
-          },
-          {
-            text: 'Create Another',
-            onPress: () => {
-              // Reset form for creating another automation
-              updateField('title', '');
-              updateField('steps', []);
-            },
-          },
-          {
-            text: 'Done',
-            style: 'cancel',
-          },
-        ],
-      );
-      
-      // Don't auto-reset form, let user choose via alert buttons
-    } catch (error: any) {
-      console.error('Failed to create automation:', error);
-      
-      let errorMessage = 'Failed to create automation';
-      let errorTitle = 'Save Error';
-      
-      if (error?.message) {
-        if (error.message.includes('network')) {
-          errorTitle = 'Connection Error';
-          errorMessage = 'Please check your internet connection and try again.';
-        } else if (error.message.includes('timeout')) {
-          errorTitle = 'Request Timeout';
-          errorMessage = 'The request is taking too long. Please try again.';
-        } else if (error.message.includes('unauthorized') || error.message.includes('auth')) {
-          errorTitle = 'Authentication Error';
-          errorMessage = 'Your session has expired. Please sign in again.';
-        } else {
-          errorMessage = error.message;
-        }
+      if (updates.enabled !== undefined) {
+        triggerHaptic('light');
+        showFeedback('success', updates.enabled ? 'Step enabled' : 'Step disabled');
       }
+    } catch (error) {
+      EventLogger.error('UI', 'Error updating step:', error as Error);
+      showFeedback('error', 'Failed to update step');
+    }
+  }, [triggerHaptic, showFeedback]);
+
+  const handleDeleteStep = useCallback((stepId: string) => {
+    try {
+      triggerHaptic('heavy');
       
-      Alert.alert(
-        errorTitle,
-        errorMessage,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Try Again',
-            onPress: () => handleSave(),
-          },
-        ]
-      );
+      setSteps(prev => prev.filter(step => step.id !== stepId));
+      showFeedback('success', 'Step removed');
+    } catch (error) {
+      EventLogger.error('UI', 'Error deleting step:', error as Error);
+      showFeedback('error', 'Failed to remove step');
     }
-  }, [formData.title, formData.steps, user, navigation, createAutomation, validateForm, updateField]);
+  }, [triggerHaptic, showFeedback]);
 
-  const removeStep = useCallback((stepId: string) => {
-    const stepIndex = formData.steps.findIndex(step => step.id === stepId);
-    if (stepIndex >= 0) {
-      formRemoveStep(stepIndex);
+  const handleConfigureStep = useCallback((step: AutomationStep) => {
+    try {
+      setSelectedStep(step);
+      setStepConfig(step.config || {});
+      setIsConfigModalVisible(true);
+      triggerHaptic('light');
+    } catch (error) {
+      EventLogger.error('UI', 'Error opening step config:', error as Error);
+      showFeedback('error', 'Failed to open step configuration');
     }
-  }, [formData.steps, formRemoveStep]);
+  }, [triggerHaptic, showFeedback]);
 
-  const duplicateStep = useCallback((step: AutomationStep) => {
-    // Find the step index
-    const stepIndex = formData.steps.findIndex(s => s.id === step.id);
-    if (stepIndex >= 0) {
-      // Add the step using form methods
-      formAddStep(step.type as any, { ...step.config });
+  const handleSaveStepConfig = useCallback(() => {
+    try {
+      if (!selectedStep) return;
+
+      handleUpdateStep(selectedStep.id, { config: stepConfig });
+      setIsConfigModalVisible(false);
+      setSelectedStep(null);
+      setStepConfig({});
+      showFeedback('success', 'Step configuration saved');
+    } catch (error) {
+      EventLogger.error('UI', 'Error saving step config:', error as Error);
+      showFeedback('error', 'Failed to save configuration');
     }
-  }, [formData.steps, formAddStep]);
+  }, [selectedStep, stepConfig, handleUpdateStep, showFeedback]);
 
-  const renderStep = useCallback(({ item, drag, isActive }: RenderItemParams<AutomationStep>) => {
+  const handleUseTemplate = useCallback((template: any) => {
+    try {
+      triggerHaptic('medium');
+      
+      const templateSteps = template.steps.map((stepData: any) => ({
+        id: uuidv4(),
+        type: stepData.type,
+        title: stepData.title,
+        icon: stepData.icon,
+        color: stepData.color,
+        config: stepData.config || {},
+        enabled: true,
+      }));
+
+      setSteps(templateSteps);
+      setAutomationName(template.name);
+      setAutomationDescription(template.description);
+      showFeedback('success', `Applied ${template.name} template`);
+    } catch (error) {
+      EventLogger.error('UI', 'Error applying template:', error as Error);
+      showFeedback('error', 'Failed to apply template');
+    }
+  }, [triggerHaptic, showFeedback]);
+
+  const handleTestAutomation = useCallback(async () => {
+    if (steps.length === 0) {
+      showFeedback('warning', 'Add some steps first');
+      return;
+    }
+
+    try {
+      triggerHaptic('medium');
+      setIsTesting(true);
+      setTestProgress(0);
+      
+      // Animate progress bar
+      if (FEATURE_FLAGS.ENHANCED_ANIMATIONS) {
+        Animated.timing(testProgressWidth, {
+          toValue: screenWidth - 40,
+          duration: 2000,
+          useNativeDriver: false,
+        }).start();
+      }
+
+      // Simulate testing steps
+      for (let i = 0; i < steps.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setTestProgress((i + 1) / steps.length);
+      }
+
+      showFeedback('success', 'Test completed successfully!');
+      triggerHaptic('heavy');
+    } catch (error) {
+      EventLogger.error('UI', 'Error testing automation:', error as Error);
+      showFeedback('error', 'Test failed');
+    } finally {
+      setIsTesting(false);
+      testProgressWidth.setValue(0);
+    }
+  }, [steps, triggerHaptic, showFeedback, testProgressWidth]);
+
+  const handleSaveAutomation = useCallback(async () => {
+    if (!automationName.trim()) {
+      showFeedback('warning', 'Please enter an automation name');
+      return;
+    }
+
+    if (steps.length === 0) {
+      showFeedback('warning', 'Add some steps first');
+      return;
+    }
+
+    try {
+      triggerHaptic('heavy');
+      
+      const automationData = {
+        name: automationName.trim(),
+        description: automationDescription.trim(),
+        steps: steps.map(({ id, ...step }) => step),
+        user_id: user?.id,
+        is_public: false,
+        created_at: new Date().toISOString(),
+      };
+
+      await createAutomation(automationData).unwrap();
+      
+      showFeedback('success', 'Automation saved successfully!');
+      
+      // Reset form
+      setSteps([]);
+      setAutomationName('');
+      setAutomationDescription('');
+      
+      // Navigate back or to automations list
+      navigation.goBack();
+    } catch (error) {
+      EventLogger.error('UI', 'Error saving automation:', error as Error);
+      showFeedback('error', 'Failed to save automation');
+    }
+  }, [automationName, automationDescription, steps, user?.id, createAutomation, triggerHaptic, showFeedback, navigation]);
+
+  const handleReorderSteps = useCallback((data: AutomationStep[]) => {
+    try {
+      setSteps(data);
+      triggerHaptic('light');
+    } catch (error) {
+      EventLogger.error('UI', 'Error reordering steps:', error as Error);
+      showFeedback('error', 'Failed to reorder steps');
+    }
+  }, [triggerHaptic, showFeedback]);
+
+  // Filter step types based on search and category
+  const filteredStepTypes = stepTypes.filter(stepType => {
+    const matchesSearch = stepType.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         stepType.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'All' || stepType.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  // Get unique categories
+  const categories = ['All', ...Array.from(new Set(stepTypes.map(step => step.category)))];
+
+  const renderStepCard = useCallback(({ item, index, drag, isActive }: RenderItemParams<AutomationStep>) => {
     return (
       <ScaleDecorator>
-        <TouchableOpacity
-          style={[
-            styles.stepCard,
-            { backgroundColor: theme.colors.surface },
-            isActive && styles.draggingCard,
-          ]}
-          onLongPress={drag}
-          onPress={() => setEditingStep(item)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.stepHandle}>
-            <MaterialCommunityIcons
-              name="drag"
-              size={24}
-              color={theme.colors.textSecondary}
-            />
-          </View>
-          <View
-            style={[
-              styles.stepIcon,
-              { backgroundColor: `${item.color}20` },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name={item.icon as any}
-              size={20}
-              color={item.color}
-            />
-          </View>
-          <View style={styles.stepContent}>
-            <Text style={[styles.stepTitle, { color: theme.colors.text }]}>
-              {item.title}
-            </Text>
-            <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>
-              Tap to configure
-            </Text>
-          </View>
-          <View style={styles.stepActions}>
-            <TouchableOpacity
-              onPress={() => duplicateStep(item)}
-              style={styles.actionButton}
-            >
-              <MaterialCommunityIcons
-                name="content-copy"
-                size={18}
-                color={theme.colors.textSecondary}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => removeStep(item.id)}
-              style={styles.actionButton}
-            >
-              <MaterialCommunityIcons
-                name="close-circle"
-                size={20}
-                color={theme.colors.error}
-              />
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+        <EnhancedStepCard
+          step={item}
+          index={index}
+          onConfigure={() => handleConfigureStep(item)}
+          onDelete={() => handleDeleteStep(item.id)}
+          onToggle={() => handleUpdateStep(item.id, { enabled: !item.enabled })}
+          onDrag={drag}
+          isActive={isActive}
+          theme={theme}
+          showConnectionLine={index < steps.length - 1}
+        />
       </ScaleDecorator>
     );
-  }, [theme, duplicateStep, removeStep, setEditingStep]);
+  }, [handleConfigureStep, handleDeleteStep, handleUpdateStep, steps.length, theme]);
 
-  const renderStepType = useCallback(({ item }: { item: typeof stepTypes[0] }) => (
+  const renderStepType = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity
-      style={[styles.stepTypeCard, { backgroundColor: theme.colors.surface }]}
-      onPress={() => addStep(item)}
-      activeOpacity={0.7}
+      style={styles.stepTypeItem}
+      onPress={() => handleAddStep(item)}
+      activeOpacity={0.8}
     >
-      <View
-        style={[
-          styles.stepTypeIcon,
-          { backgroundColor: `${item.color}20` },
-        ]}
+      <LinearGradient
+        colors={[`${item.color}15`, `${item.color}05`]}
+        style={styles.stepTypeItemGradient}
       >
-        <MaterialCommunityIcons
-          name={item.icon as any}
-          size={24}
-          color={item.color}
-        />
-      </View>
-      <Text style={[styles.stepTypeTitle, { color: theme.colors.text }]}>
-        {item.title}
-      </Text>
+        <View style={[styles.stepTypeIcon, { backgroundColor: item.color }]}>
+          <MaterialCommunityIcons name={item.icon as any} size={24} color="white" />
+        </View>
+        <View style={styles.stepTypeInfo}>
+          <Text style={[styles.stepTypeTitle, { color: theme.colors.onSurface }]}>
+            {item.title}
+          </Text>
+          <Text style={[styles.stepTypeCategory, { color: theme.colors.onSurfaceVariant }]}>
+            {item.category}
+          </Text>
+        </View>
+      </LinearGradient>
     </TouchableOpacity>
-  ), [theme, addStep]);
+  ), [handleAddStep, theme]);
+
+  const renderTemplate = useCallback(({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={styles.templateCard}
+      onPress={() => handleUseTemplate(item)}
+      activeOpacity={0.9}
+    >
+      <LinearGradient
+        colors={item.gradient}
+        style={styles.templateGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.templateHeader}>
+          <MaterialCommunityIcons name={item.icon as any} size={32} color="white" />
+          <View style={styles.templateStepCount}>
+            <Text style={styles.templateStepCountText}>
+              {item.steps.length} steps
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.templateName}>{item.name}</Text>
+        <Text style={styles.templateDescription}>{item.description}</Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  ), [handleUseTemplate]);
+
+  if (!user) {
+    return (
+      <ErrorState
+        title="Authentication Required"
+        description="Please sign in to create automations"
+        action={{
+          label: "Sign In",
+          onPress: () => navigation.navigate('Auth' as never),
+        }}
+      />
+    );
+  }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}
+    <ScreenErrorBoundary 
+      screenName="Automation Builder"
+      onError={(error, errorInfo) => {
+        EventLogger.error('BuildScreen', 'Screen-level error caught', error, {
+          componentStack: errorInfo.componentStack,
+          userId: user?.id,
+          automationStepsCount: automationSteps.length,
+        });
+      }}
+    >
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      {/* Animated Header */}
+      <Animated.View 
+        style={[
+          styles.header,
+          FEATURE_FLAGS.GRADIENT_HEADERS && {
+            opacity: headerAnimValue,
+            transform: [{ translateY: Animated.multiply(headerAnimValue, -20) }],
+          }
+        ]}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            accessibilityLabel="Go back"
-            accessibilityHint="Return to previous screen"
-            accessibilityRole="button"
-          >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={24}
-              color={theme.colors.text}
+        {FEATURE_FLAGS.GRADIENT_HEADERS ? (
+          <GradientHeader title="Build Automation" />
+        ) : (
+          <View style={styles.headerContent}>
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={() => navigation.goBack()}
+            >
+              <MaterialCommunityIcons 
+                name="arrow-left" 
+                size={24} 
+                color={theme.colors.onSurface} 
+              />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
+              Build Automation
+            </Text>
+            <View style={styles.headerRight} />
+          </View>
+        )}
+      </Animated.View>
+
+      {/* Feedback Toast */}
+      {feedback.visible && (
+        <FeedbackAnimation
+          type={feedback.type}
+          message={feedback.message}
+          visible={feedback.visible}
+        />
+      )}
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={FEATURE_FLAGS.ENHANCED_ANIMATIONS ? Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        ) : undefined}
+      >
+        {/* Automation Info */}
+        <View style={styles.section}>
+          <AnimatedSectionHeader title="Automation Details" />
+          <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+            <TextInput
+              style={[styles.input, { 
+                color: theme.colors.onSurface,
+                borderColor: theme.colors.outline 
+              }]}
+              placeholder="Automation Name"
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              value={automationName}
+              onChangeText={setAutomationName}
             />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            Build Automation
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              { opacity: isValid && !isLoading ? 1 : 0.5 },
-            ]}
-            disabled={!isValid || isLoading}
-            onPress={formHandleSubmit}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-            ) : (
-              <Text style={[styles.saveButtonText, { color: theme.colors.primary }]}>
-                Save
-              </Text>
-            )}
-          </TouchableOpacity>
+            <TextInput
+              style={[styles.textArea, { 
+                color: theme.colors.onSurface,
+                borderColor: theme.colors.outline 
+              }]}
+              placeholder="Description (optional)"
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              value={automationDescription}
+              onChangeText={setAutomationDescription}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Automation Name Input */}
-          <View style={styles.nameSection}>
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-              Automation Name
-            </Text>
-            <TextInput
-              style={[
-                styles.nameInput,
-                {
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-              placeholder="Enter automation name"
-              placeholderTextColor={theme.colors.textSecondary}
-              value={formData.title}
-              onChangeText={(text) => updateField('title', text)}
+        {/* Templates Section */}
+        {steps.length === 0 && (
+          <View style={styles.section}>
+            <AnimatedSectionHeader title="Quick Templates" />
+            <FlatList
+              data={templates}
+              renderItem={renderTemplate}
+              keyExtractor={item => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.templatesList}
             />
           </View>
+        )}
 
-          {/* Steps Section */}
-          <View style={styles.stepsSection}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Steps
-            </Text>
-            {formData.steps.length === 0 ? (
-              <EmptyState
-                type="getting-started"
-                title="Build Your Automation"
-                message="Start by adding steps that define what your automation will do."
-                onAction={() => setIsAddStepModalVisible(true)}
-                actionLabel="Add First Step"
-                showAction={true}
-              />
-            ) : (
-              <DraggableFlatList
-                data={stepRenderData}
-                renderItem={renderStep}
-                keyExtractor={(item) => item.id}
-                onDragEnd={({ data }) => {
-                  const reorderedSteps = data.map(item => ({
-                    id: item.id,
-                    type: item.type,
-                    title: item.title,
-                    icon: item.icon,
-                    color: item.color,
-                    config: item.config,
-                    enabled: item.enabled,
-                  }));
-                  updateField('steps', reorderedSteps);
-                }}
-                scrollEnabled={false}
-              />
-            )}
-          </View>
-
-          {/* Add Step Button */}
-          <TouchableOpacity
-            style={[styles.addStepButton, { backgroundColor: theme.colors.primary }]}
-            onPress={() => setIsAddStepModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
-            <Text style={styles.addStepText}>Add Step</Text>
-          </TouchableOpacity>
-
-          {/* Advanced Builder Link */}
-          <TouchableOpacity
-            style={styles.advancedBuilderLink}
-            onPress={() => navigation.navigate('AutomationBuilder')}
-          >
-            <MaterialCommunityIcons 
-              name="code-tags" 
-              size={20} 
-              color={theme.colors.primary} 
-            />
-            <Text style={[styles.advancedBuilderText, { color: theme.colors.primary }]}>
-              Need more features? Use Advanced Builder
-            </Text>
-          </TouchableOpacity>
-
-          {/* Test Run Button */}
-          {formData.steps.length > 0 && (
+        {/* Steps Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <AnimatedSectionHeader title="Steps" />
             <TouchableOpacity
-              style={[styles.testButton, { borderColor: theme.colors.primary }]}
-              activeOpacity={0.7}
-              onPress={handleTestRun}
+              style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+              onPress={() => setIsStepPickerVisible(true)}
             >
-              <MaterialCommunityIcons
-                name="play-circle-outline"
-                size={20}
-                color={theme.colors.primary}
-              />
+              <MaterialCommunityIcons name="plus" size={24} color={theme.colors.onPrimary} />
+            </TouchableOpacity>
+          </View>
+
+          {steps.length === 0 ? (
+            <EmptyState
+              icon="puzzle"
+              title="No Steps Yet"
+              description="Add your first step to get started"
+              action={{
+                label: "Add Step",
+                onPress: () => setIsStepPickerVisible(true),
+              }}
+            />
+          ) : (
+            <View style={styles.stepsContainer}>
+              {FEATURE_FLAGS.STAGGERED_ANIMATIONS ? (
+                <StaggeredContainer delay={100}>
+                  <DraggableFlatList
+                    data={steps}
+                    renderItem={renderStepCard}
+                    keyExtractor={item => item.id}
+                    onDragEnd={({ data }) => handleReorderSteps(data)}
+                    activationDistance={20}
+                  />
+                </StaggeredContainer>
+              ) : (
+                <DraggableFlatList
+                  data={steps}
+                  renderItem={renderStepCard}
+                  keyExtractor={item => item.id}
+                  onDragEnd={({ data }) => handleReorderSteps(data)}
+                  activationDistance={20}
+                />
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Stats */}
+        {steps.length > 0 && stepStats && (
+          <View style={styles.statsSection}>
+            <Text style={[styles.statsText, { color: theme.colors.onSurfaceVariant }]}>
+              {stepStats.total} steps • {stepStats.enabled} enabled • {stepStats.configured} configured
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Footer */}
+      {steps.length > 0 && (
+        <View style={[styles.footer, { backgroundColor: theme.colors.surface }]}>
+          {isTesting && (
+            <View style={styles.progressContainer}>
+              <View style={[styles.progressBar, { backgroundColor: theme.colors.surfaceVariant }]}>
+                {FEATURE_FLAGS.ENHANCED_ANIMATIONS ? (
+                  <Animated.View
+                    style={[
+                      styles.progressFill,
+                      {
+                        backgroundColor: theme.colors.primary,
+                        width: testProgressWidth,
+                      }
+                    ]}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        backgroundColor: theme.colors.primary,
+                        width: `${testProgress * 100}%`,
+                      }
+                    ]}
+                  />
+                )}
+              </View>
+              <Text style={[styles.progressText, { color: theme.colors.onSurface }]}>
+                Testing... {Math.round(testProgress * 100)}%
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.footerButtons}>
+            <TouchableOpacity
+              style={[
+                styles.testButton,
+                { 
+                  borderColor: theme.colors.primary,
+                  backgroundColor: 'transparent'
+                },
+                isTesting && styles.testButtonDisabled,
+              ]}
+              onPress={handleTestAutomation}
+              disabled={isTesting}
+              activeOpacity={0.8}
+            >
+              {isTesting ? (
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              ) : (
+                <MaterialCommunityIcons 
+                  name="play" 
+                  size={20} 
+                  color={theme.colors.primary} 
+                />
+              )}
               <Text style={[styles.testButtonText, { color: theme.colors.primary }]}>
-                Test Run
+                {isTesting ? 'Testing...' : 'Test'}
               </Text>
             </TouchableOpacity>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* Add Step Modal */}
+            <GradientButton
+              title={isSaving ? 'Saving...' : 'Save'}
+              onPress={handleSaveAutomation}
+              disabled={isSaving || !automationName.trim()}
+              loading={isSaving}
+              style={styles.saveButton}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Step Picker Modal */}
       <Modal
-        visible={isAddStepModalVisible}
+        visible={isStepPickerVisible}
         animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsAddStepModalVisible(false)}
+        presentationStyle="pageSheet"
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
+          {FEATURE_FLAGS.BLUR_EFFECTS ? (
+            <BlurView intensity={20} style={StyleSheet.absoluteFill} />
+          ) : null}
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                Choose Step Type
+              <Text style={[styles.modalTitle, { color: theme.colors.onSurface }]}>
+                Add Step
               </Text>
-              <TouchableOpacity onPress={() => setIsAddStepModalVisible(false)}>
-                <MaterialCommunityIcons
-                  name="close"
-                  size={24}
-                  color={theme.colors.text}
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => setIsStepPickerVisible(false)}
+              >
+                <MaterialCommunityIcons 
+                  name="close" 
+                  size={24} 
+                  color={theme.colors.onSurface} 
                 />
               </TouchableOpacity>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {getStepCategories().map((category) => (
-                <View key={category.name} style={styles.categorySection}>
-                  <Text style={[styles.categoryTitle, { color: theme.colors.textSecondary }]}>
-                    {category.name}
+
+            {/* Search */}
+            <View style={[styles.searchContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <MaterialCommunityIcons 
+                name="magnify" 
+                size={20} 
+                color={theme.colors.onSurfaceVariant} 
+              />
+              <TextInput
+                style={[styles.searchInput, { color: theme.colors.onSurface }]}
+                placeholder="Search steps..."
+                placeholderTextColor={theme.colors.onSurfaceVariant}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+
+            {/* Categories */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.categoryScroll}
+            >
+              {categories.map(category => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryChip,
+                    {
+                      backgroundColor: selectedCategory === category 
+                        ? theme.colors.primary 
+                        : theme.colors.surfaceVariant,
+                    }
+                  ]}
+                  onPress={() => setSelectedCategory(category)}
+                >
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      {
+                        color: selectedCategory === category 
+                          ? theme.colors.onPrimary 
+                          : theme.colors.onSurfaceVariant,
+                      }
+                    ]}
+                  >
+                    {category}
                   </Text>
-                  <View style={styles.categoryGrid}>
-                    {category.steps.map((stepType) => (
-                      <TouchableOpacity
-                        key={stepType.type}
-                        style={[styles.stepTypeCard, { backgroundColor: theme.colors.surface }]}
-                        onPress={() => addStep(stepType)}
-                        activeOpacity={0.7}
-                      >
-                        <View
-                          style={[
-                            styles.stepTypeIcon,
-                            { backgroundColor: `${stepType.color}20` },
-                          ]}
-                        >
-                          <MaterialCommunityIcons
-                            name={stepType.icon as any}
-                            size={24}
-                            color={stepType.color}
-                          />
-                        </View>
-                        <Text style={[styles.stepTypeTitle, { color: theme.colors.text }]}>
-                          {stepType.title}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {/* Step Types List */}
+            <FlatList
+              data={filteredStepTypes}
+              renderItem={renderStepType}
+              keyExtractor={item => item.type}
+              style={styles.stepTypesList}
+              showsVerticalScrollIndicator={false}
+            />
           </View>
         </View>
       </Modal>
 
-      {/* Step Configuration Modal */}
+      {/* Step Config Modal */}
       <Modal
-        visible={editingStep !== null}
-        transparent={true}
+        visible={isConfigModalVisible}
         animationType="slide"
-        onRequestClose={() => setEditingStep(null)}
+        presentationStyle="pageSheet"
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalContainer}
-        >
+        <View style={styles.modalOverlay}>
+          {FEATURE_FLAGS.BLUR_EFFECTS ? (
+            <BlurView intensity={20} style={StyleSheet.absoluteFill} />
+          ) : null}
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                Configure {editingStep?.title}
-              </Text>
-              <TouchableOpacity onPress={() => setEditingStep(null)}>
-                <MaterialCommunityIcons
-                  name="close"
-                  size={24}
-                  color={theme.colors.text}
+              <View style={styles.configHeaderInfo}>
+                {selectedStep && (
+                  <View style={[styles.configStepIcon, { backgroundColor: selectedStep.color }]}>
+                    <MaterialCommunityIcons 
+                      name={selectedStep.icon as any} 
+                      size={20} 
+                      color="white" 
+                    />
+                  </View>
+                )}
+                <Text style={[styles.modalTitle, { color: theme.colors.onSurface }]}>
+                  {selectedStep?.title || 'Configure Step'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => setIsConfigModalVisible(false)}
+              >
+                <MaterialCommunityIcons 
+                  name="close" 
+                  size={24} 
+                  color={theme.colors.onSurface} 
                 />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.configContent}>
-              {editingStep?.type === 'sms' && (
-                <>
-                  <Text style={[styles.configLabel, { color: theme.colors.text }]}>
-                    Phone Number
-                  </Text>
-                  <TextInput
-                    style={[styles.configInput, { 
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                    }]}
-                    placeholder="+1234567890"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={editingStep.config?.phoneNumber || ''}
-                    onChangeText={(text) => updateStepConfig({ phoneNumber: text })}
-                  />
-                  <Text style={[styles.configLabel, { color: theme.colors.text }]}>
-                    Message
-                  </Text>
-                  <TextInput
-                    style={[styles.configInput, styles.configTextArea, { 
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                    }]}
-                    placeholder="Enter message"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={editingStep.config?.message || ''}
-                    multiline
-                    numberOfLines={4}
-                    onChangeText={(text) => updateStepConfig({ message: text })}
-                  />
-                </>
+            <View style={styles.configContainer}>
+              {selectedStep && (
+                <ModernStepConfigRenderer
+                  step={selectedStep}
+                  config={stepConfig}
+                  onConfigChange={setStepConfig}
+                  theme={theme}
+                />
               )}
-
-              {editingStep?.type === 'email' && (
-                <>
-                  <Text style={[styles.configLabel, { color: theme.colors.text }]}>
-                    To Email
-                  </Text>
-                  <TextInput
-                    style={[styles.configInput, { 
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                    }]}
-                    placeholder="email@example.com"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    keyboardType="email-address"
-                    value={editingStep.config?.to || ''}
-                    onChangeText={(text) => updateStepConfig({ to: text })}
-                  />
-                  <Text style={[styles.configLabel, { color: theme.colors.text }]}>
-                    Subject
-                  </Text>
-                  <TextInput
-                    style={[styles.configInput, { 
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                    }]}
-                    placeholder="Email subject"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={editingStep.config?.subject || ''}
-                    onChangeText={(text) => updateStepConfig({ subject: text })}
-                  />
-                </>
-              )}
-
-              {editingStep?.type === 'webhook' && (
-                <>
-                  <Text style={[styles.configLabel, { color: theme.colors.text }]}>
-                    URL
-                  </Text>
-                  <TextInput
-                    style={[styles.configInput, { 
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                    }]}
-                    placeholder="https://example.com/webhook"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={editingStep.config?.url || ''}
-                    onChangeText={(text) => updateStepConfig({ url: text })}
-                  />
-                </>
-              )}
-
-              {editingStep?.type === 'delay' && (
-                <>
-                  <Text style={[styles.configLabel, { color: theme.colors.text }]}>
-                    Delay Duration (seconds)
-                  </Text>
-                  <TextInput
-                    style={[styles.configInput, { 
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                    }]}
-                    placeholder="60"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    keyboardType="numeric"
-                    value={editingStep.config?.delay?.toString() || editingStep.config?.duration?.toString() || ''}
-                    onChangeText={(text) => {
-                      const delay = parseInt(text) * 1000 || 0; // Convert to milliseconds
-                      updateStepConfig({ delay });
-                    }}
-                  />
-                </>
-              )}
-
-              {editingStep?.type === 'notification' && (
-                <>
-                  <Text style={[styles.configLabel, { color: theme.colors.text }]}>
-                    Notification Message
-                  </Text>
-                  <TextInput
-                    style={[styles.configInput, styles.configTextArea, { 
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                    }]}
-                    placeholder="Enter notification message"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={editingStep.config?.message || ''}
-                    multiline
-                    numberOfLines={3}
-                    onChangeText={(text) => updateStepConfig({ message: text })}
-                  />
-                </>
-              )}
-
-              {editingStep?.type === 'variable' && (
-                <>
-                  <Text style={[styles.configLabel, { color: theme.colors.text }]}>
-                    Variable Name
-                  </Text>
-                  <TextInput
-                    style={[styles.configInput, { 
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                    }]}
-                    placeholder="myVariable"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={editingStep.config?.name || ''}
-                    onChangeText={(text) => updateStepConfig({ name: text })}
-                  />
-                  <Text style={[styles.configLabel, { color: theme.colors.text }]}>
-                    Variable Value
-                  </Text>
-                  <TextInput
-                    style={[styles.configInput, { 
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                    }]}
-                    placeholder="Value or {{otherVariable}}"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={editingStep.config?.value || ''}
-                    onChangeText={(text) => updateStepConfig({ value: text })}
-                  />
-                </>
-              )}
-
-              {editingStep?.type === 'clipboard' && (
-                <>
-                  <Text style={[styles.configLabel, { color: theme.colors.text }]}>
-                    Text to Copy
-                  </Text>
-                  <TextInput
-                    style={[styles.configInput, styles.configTextArea, { 
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                    }]}
-                    placeholder="Enter text to copy to clipboard"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={editingStep.config?.text || ''}
-                    multiline
-                    numberOfLines={3}
-                    onChangeText={(text) => updateStepConfig({ text, action: 'copy' })}
-                  />
-                </>
-              )}
-
-              <TouchableOpacity
-                style={[styles.doneButton, { backgroundColor: theme.colors.primary }]}
-                onPress={() => setEditingStep(null)}
-              >
-                <Text style={styles.doneButtonText}>Done</Text>
-              </TouchableOpacity>
-            </ScrollView>
+              <View style={styles.configSaveWrapper}>
+                <GradientButton
+                  title="Save Configuration"
+                  onPress={handleSaveStepConfig}
+                />
+              </View>
+            </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenErrorBoundary>
   );
-};
+});
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-    },
-    keyboardAvoid: {
-      flex: 1,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.md,
-    },
-    backButton: {
-      width: 40,
-      height: 40,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    headerTitle: {
-      fontSize: theme.typography.h3.fontSize,
-      fontWeight: theme.typography.h3.fontWeight,
-    },
-    saveButton: {
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.sm,
-    },
-    saveButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    scrollContent: {
-      padding: theme.spacing.lg,
-    },
-    nameSection: {
-      marginBottom: theme.spacing.xl,
-    },
-    label: {
-      fontSize: 14,
-      marginBottom: theme.spacing.sm,
-    },
-    nameInput: {
-      height: 56,
-      borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing.md,
-      fontSize: 16,
-      borderWidth: 1,
-    },
-    stepsSection: {
-      marginBottom: theme.spacing.xl,
-    },
-    sectionTitle: {
-      fontSize: theme.typography.h3.fontSize,
-      fontWeight: theme.typography.h3.fontWeight,
-      marginBottom: theme.spacing.md,
-    },
-    emptyState: {
-      padding: theme.spacing.xl,
-      borderRadius: theme.borderRadius.lg,
-      alignItems: 'center',
-    },
-    emptyText: {
-      fontSize: 16,
-      fontWeight: '600',
-      marginTop: theme.spacing.md,
-    },
-    emptySubtext: {
-      fontSize: 14,
-      marginTop: theme.spacing.xs,
-    },
-    stepCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: theme.spacing.md,
-      borderRadius: theme.borderRadius.lg,
-      marginBottom: theme.spacing.sm,
-      shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 6,
-      elevation: 1,
-    },
-    draggingCard: {
-      opacity: 0.9,
-      shadowOpacity: 0.15,
-      shadowRadius: 10,
-      elevation: 5,
-    },
-    stepHandle: {
-      marginRight: theme.spacing.sm,
-    },
-    stepIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: theme.borderRadius.md,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: theme.spacing.md,
-    },
-    stepContent: {
-      flex: 1,
-    },
-    stepTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    stepSubtitle: {
-      fontSize: 13,
-      marginTop: 2,
-    },
-    deleteButton: {
-      padding: theme.spacing.sm,
-    },
-    stepActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing.xs,
-    },
-    actionButton: {
-      padding: theme.spacing.xs,
-    },
-    addStepButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: theme.spacing.md,
-      borderRadius: theme.borderRadius.lg,
-      marginBottom: theme.spacing.md,
-    },
-    addStepText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: '#FFFFFF',
-      marginLeft: theme.spacing.sm,
-    },
-    advancedBuilderLink: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: theme.spacing.md,
-      marginBottom: theme.spacing.md,
-    },
-    advancedBuilderText: {
-      fontSize: 14,
-      fontWeight: '500',
-      marginLeft: theme.spacing.sm,
-    },
-    testButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: theme.spacing.md,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1.5,
-    },
-    testButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
-      marginLeft: theme.spacing.sm,
-    },
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'flex-end',
-    },
-    modalContent: {
-      borderTopLeftRadius: theme.borderRadius.xl,
-      borderTopRightRadius: theme.borderRadius.xl,
-      paddingTop: theme.spacing.lg,
-      paddingBottom: theme.spacing.xxl,
-      maxHeight: '70%',
-    },
-    modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.lg,
-    },
-    modalTitle: {
-      fontSize: theme.typography.h3.fontSize,
-      fontWeight: theme.typography.h3.fontWeight,
-    },
-    stepTypeList: {
-      paddingHorizontal: theme.spacing.lg,
-    },
-    stepTypeRow: {
-      justifyContent: 'space-between',
-    },
-    stepTypeCard: {
-      flex: 0.48,
-      padding: theme.spacing.lg,
-      borderRadius: theme.borderRadius.lg,
-      alignItems: 'center',
-      marginBottom: theme.spacing.sm,
-      shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 6,
-      elevation: 1,
-    },
-    stepTypeIcon: {
-      width: 56,
-      height: 56,
-      borderRadius: theme.borderRadius.lg,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: theme.spacing.sm,
-    },
-    stepTypeTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      textAlign: 'center',
-    },
-    configContent: {
-      padding: theme.spacing.lg,
-    },
-    configLabel: {
-      fontSize: 14,
-      fontWeight: '600',
-      marginBottom: theme.spacing.sm,
-      marginTop: theme.spacing.md,
-    },
-    configInput: {
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.md,
-      fontSize: 16,
-    },
-    configTextArea: {
-      minHeight: 100,
-      textAlignVertical: 'top',
-    },
-    methodContainer: {
-      flexDirection: 'row',
-      gap: theme.spacing.sm,
-      marginTop: theme.spacing.sm,
-    },
-    methodButton: {
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.borderRadius.md,
-    },
-    methodText: {
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    doneButton: {
-      marginTop: theme.spacing.xl,
-      padding: theme.spacing.md,
-      borderRadius: theme.borderRadius.lg,
-      alignItems: 'center',
-    },
-    doneButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: '#FFFFFF',
-    },
-    categorySection: {
-      marginBottom: theme.spacing.lg,
-      paddingHorizontal: theme.spacing.lg,
-    },
-    categoryTitle: {
-      fontSize: 12,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: theme.spacing.sm,
-    },
-    categoryGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing.sm,
-    },
-  });
+BuildScreen.displayName = 'BuildScreen';
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  headerRight: {
+    width: 40,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  section: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  card: {
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 8,
+  },
+  input: {
+    fontSize: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    marginBottom: 16,
+  },
+  textArea: {
+    fontSize: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    textAlignVertical: 'top',
+    minHeight: 60,
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  templatesList: {
+    paddingLeft: 20,
+  },
+  templateCard: {
+    width: 200,
+    height: 140,
+    marginRight: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  templateGradient: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'space-between',
+  },
+  templateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  templateName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
+  },
+  templateDescription: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 12,
+  },
+  templateStepCount: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  templateStepCountText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  stepsContainer: {
+    marginTop: 8,
+  },
+  statsSection: {
+    marginHorizontal: 20,
+    alignItems: 'center',
+  },
+  statsText: {
+    fontSize: 12,
+  },
+  footer: {
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  progressContainer: {
+    marginBottom: 16,
+  },
+  progressBar: {
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  footerButtons: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  testButton: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    backgroundColor: 'transparent',
+    gap: 8,
+  },
+  testButtonDisabled: {
+    opacity: 0.5,
+  },
+  testButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButton: {
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 24,
+    maxHeight: '85%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  configHeaderInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  configStepIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalClose: {
+    padding: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+  },
+  categoryScroll: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  stepTypesList: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  stepTypeItem: {
+    marginBottom: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  stepTypeItemGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  stepTypeIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  stepTypeInfo: {
+    flex: 1,
+  },
+  stepTypeTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  stepTypeCategory: {
+    fontSize: 12,
+    marginTop: 2,
+    opacity: 0.7,
+  },
+  configContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  configSaveWrapper: {
+    marginTop: 20,
+  },
+});
 
 export default BuildScreen;

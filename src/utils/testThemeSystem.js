@@ -1,3 +1,4 @@
+import { EventLogger } from './/EventLogger';
 #!/usr/bin/env node
 
 /**
@@ -21,7 +22,7 @@ function checkImportInFile(filePath, importPattern) {
   }
 }
 
-console.log('🔍 Checking Theme System Integration...\n');
+EventLogger.debug('testThemeSystem', '🔍 Checking Theme System Integration...\n');
 
 // Check core theme files exist
 const coreFiles = [
@@ -31,14 +32,14 @@ const coreFiles = [
   'App.tsx'
 ];
 
-console.log('📁 Core Theme Files:');
+EventLogger.debug('testThemeSystem', '📁 Core Theme Files:');
 coreFiles.forEach(file => {
   const exists = checkFileExists(file);
   console.log(`  ${exists ? '✅' : '❌'} ${file}`);
 });
 
 // Check key integrations
-console.log('\n🔌 Theme Integration:');
+EventLogger.debug('testThemeSystem', '\n🔌 Theme Integration:');
 
 const integrations = [
   {
@@ -69,7 +70,7 @@ integrations.forEach(({ file, check, description }) => {
 });
 
 // Check for remaining old theme imports
-console.log('\n🔍 Checking for Old Theme Imports:');
+EventLogger.debug('testThemeSystem', '\n🔍 Checking for Old Theme Imports:');
 const testFiles = [
   'src/screens/modern/ModernHomeScreen.tsx',
   'src/screens/modern/BuildScreen.tsx',
@@ -81,24 +82,24 @@ testFiles.forEach(file => {
   const hasOld = checkImportInFile(file, "from '../contexts/ThemeContext'") || 
                  checkImportInFile(file, "from '../../contexts/ThemeContext'");
   if (hasOld) {
-    console.log(`  ⚠️  ${file} still has old ThemeContext import`);
+    EventLogger.debug('testThemeSystem', '  ⚠️  ${file} still has old ThemeContext import');
     hasOldImports = true;
   }
 });
 
 if (!hasOldImports) {
-  console.log('  ✅ No old ThemeContext imports found in key files');
+  EventLogger.debug('testThemeSystem', '  ✅ No old ThemeContext imports found in key files');
 }
 
-console.log('\n📋 Summary:');
-console.log('✅ UnifiedThemeProvider blocks render until loaded → Fixed');
-console.log('✅ Compatibility layer created for smooth migration');
-console.log('✅ PaperProvider integrated with unified theme');
-console.log('✅ Key navigation components updated');
-console.log('✅ Critical screen components migrated');
+EventLogger.debug('testThemeSystem', '\n📋 Summary:');
+EventLogger.debug('testThemeSystem', '✅ UnifiedThemeProvider blocks render until loaded → Fixed');
+EventLogger.debug('testThemeSystem', '✅ Compatibility layer created for smooth migration');
+EventLogger.debug('testThemeSystem', '✅ PaperProvider integrated with unified theme');
+EventLogger.debug('testThemeSystem', '✅ Key navigation components updated');
+EventLogger.debug('testThemeSystem', '✅ Critical screen components migrated');
 
-console.log('\n🚀 Ready to test app launch!');
-console.log('\nNext steps:');
-console.log('1. Run: npx expo start');
-console.log('2. Open Expo Go app on device');
-console.log('3. Scan QR code to test');
+EventLogger.debug('testThemeSystem', '\n🚀 Ready to test app launch!');
+EventLogger.debug('testThemeSystem', '\nNext steps:');
+EventLogger.debug('testThemeSystem', '1. Run: npx expo start');
+EventLogger.debug('testThemeSystem', '2. Open Expo Go app on device');
+EventLogger.debug('testThemeSystem', '3. Scan QR code to test');

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { Audio } from 'expo-av';
+import { EventLogger } from '../utils/EventLogger';
 
 type SoundType = 'success' | 'error' | 'tap' | 'notification' | 'swipe';
 
@@ -32,7 +33,7 @@ export const useSound = (enabled: boolean = true) => {
           staysActiveInBackground: false,
         });
       } catch (error) {
-        console.error('Failed to setup audio:', error);
+        EventLogger.error('useSound', 'Failed to setup audio:', error as Error);
       }
     };
     
@@ -44,7 +45,7 @@ export const useSound = (enabled: boolean = true) => {
         try {
           await sound.unloadAsync();
         } catch (error) {
-          console.error('Failed to unload sound:', error);
+          EventLogger.error('useSound', 'Failed to unload sound:', error as Error);
         }
       });
     };

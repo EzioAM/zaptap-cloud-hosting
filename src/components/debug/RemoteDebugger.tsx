@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, DeviceEventEmitter, Platform, NativeModules } from 'react-native';
 import { Button, Surface, Portal, Modal } from 'react-native-paper';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface LogEntry {
   id: string;
@@ -24,14 +25,14 @@ export const RemoteDebugger: React.FC = () => {
       try {
         // Method 1: Try DeviceEventEmitter for shake
         shakeListener = DeviceEventEmitter.addListener('shake', () => {
-          console.log('🤳 Shake detected via DeviceEventEmitter - opening debug console');
+          EventLogger.debug('RemoteDebugger', '🤳 Shake detected via DeviceEventEmitter - opening debug console');
           setShowDebugger(true);
         });
         
         // Method 2: Set up global touch counter for 4-finger tap
         const handleMultiTouch = () => {
           multiTapCount++;
-          console.log(`👆 Multi-tap count: ${multiTapCount}`);
+          EventLogger.debug('RemoteDebugger', '👆 Multi-tap count: ${multiTapCount}');
           
           clearTimeout(multiTapTimer);
           multiTapTimer = setTimeout(() => {
@@ -40,7 +41,7 @@ export const RemoteDebugger: React.FC = () => {
           
           // 4 taps in quick succession opens debug
           if (multiTapCount >= 4) {
-            console.log('👆👆👆👆 4-tap detected - opening debug console');
+            EventLogger.debug('RemoteDebugger', '👆👆👆👆 4-tap detected - opening debug console');
             setShowDebugger(true);
             multiTapCount = 0;
           }
@@ -51,10 +52,10 @@ export const RemoteDebugger: React.FC = () => {
           (global as any).__debugTapHandler = handleMultiTouch;
         }
         
-        console.log('🔧 Multi-method shake detection setup completed');
-        console.log('💡 Try: 1) Shake device, 2) 4 quick taps anywhere, 3) Long press 🐛 button');
+        EventLogger.debug('RemoteDebugger', '🔧 Multi-method shake detection setup completed');
+        EventLogger.debug('RemoteDebugger', '💡 Try: 1) Shake device, 2) 4 quick taps anywhere, 3) Long press 🐛 button');
       } catch (error) {
-        console.warn('Could not set up shake detection:', error);
+        EventLogger.warn('RemoteDebugger', 'Could not set up shake detection:', error);
       }
     };
 
@@ -115,7 +116,7 @@ export const RemoteDebugger: React.FC = () => {
   const clearLogs = () => setLogs([]);
 
   const testShake = () => {
-    console.log('🧪 Testing shake detection...');
+    EventLogger.debug('RemoteDebugger', '🧪 Testing shake detection...');
     addLog('info', 'Shake test triggered manually');
     setShowDebugger(true);
   };
@@ -137,11 +138,11 @@ export const RemoteDebugger: React.FC = () => {
       <TouchableOpacity
         style={styles.floatingButton}
         onPress={() => {
-          console.log('🐛 Debug button pressed - opening console');
+          EventLogger.debug('RemoteDebugger', '🐛 Debug button pressed - opening console');
           setShowDebugger(true);
         }}
         onLongPress={() => {
-          console.log('🐛 Debug button long pressed - testing');
+          EventLogger.debug('RemoteDebugger', '🐛 Debug button long pressed - testing');
           testShake();
         }}
       >

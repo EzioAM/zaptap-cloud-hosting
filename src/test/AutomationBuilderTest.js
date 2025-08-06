@@ -2,9 +2,10 @@
 // This script tests all available step types and their configurations
 
 import { AutomationEngine } from '../services/automation/AutomationEngine';
+import { EventLogger } from '../utils/EventLogger';
 
 export const testAutomationBuilder = async () => {
-  console.log('🧪 Starting Comprehensive Automation Builder Test...\n');
+  EventLogger.debug('Automation', '🧪 Starting Comprehensive Automation Builder Test...\n');
 
   // Test 1: Basic Step Types
   const basicAutomation = {
@@ -345,7 +346,7 @@ export const testAutomationBuilder = async () => {
   const engine = new AutomationEngine();
   const testResults = [];
 
-  console.log('📝 Test 1: Basic Step Types');
+  EventLogger.debug('Automation', '📝 Test 1: Basic Step Types');
   try {
     const result1 = await engine.execute(basicAutomation);
     testResults.push({
@@ -357,17 +358,17 @@ export const testAutomationBuilder = async () => {
       error: result1.error
     });
     console.log(`✅ Basic Steps: ${result1.success ? 'PASSED' : 'FAILED'}`);
-    if (result1.error) console.log(`   Error: ${result1.error}`);
+    if (result1.error) EventLogger.debug('Automation', '   Error: ${result1.error}');
   } catch (error) {
     testResults.push({
       name: 'Basic Steps',
       success: false,
       error: error.message
     });
-    console.log(`❌ Basic Steps: FAILED - ${error.message}`);
+    EventLogger.debug('Automation', '❌ Basic Steps: FAILED - ${error.message}');
   }
 
-  console.log('\n📞 Test 2: Communication Steps');
+  EventLogger.debug('Automation', '\n📞 Test 2: Communication Steps');
   try {
     const result2 = await engine.execute(communicationAutomation);
     testResults.push({
@@ -379,17 +380,17 @@ export const testAutomationBuilder = async () => {
       error: result2.error
     });
     console.log(`✅ Communication Steps: ${result2.success ? 'PASSED' : 'FAILED'}`);
-    if (result2.error) console.log(`   Error: ${result2.error}`);
+    if (result2.error) EventLogger.debug('Automation', '   Error: ${result2.error}');
   } catch (error) {
     testResults.push({
       name: 'Communication Steps',
       success: false,
       error: error.message
     });
-    console.log(`❌ Communication Steps: FAILED - ${error.message}`);
+    EventLogger.debug('Automation', '❌ Communication Steps: FAILED - ${error.message}');
   }
 
-  console.log('\n📍 Test 3: Location & Device Steps');
+  EventLogger.debug('Automation', '\n📍 Test 3: Location & Device Steps');
   try {
     const result3 = await engine.execute(locationAutomation);
     testResults.push({
@@ -401,17 +402,17 @@ export const testAutomationBuilder = async () => {
       error: result3.error
     });
     console.log(`✅ Location & Device Steps: ${result3.success ? 'PASSED' : 'FAILED'}`);
-    if (result3.error) console.log(`   Error: ${result3.error}`);
+    if (result3.error) EventLogger.debug('Automation', '   Error: ${result3.error}');
   } catch (error) {
     testResults.push({
       name: 'Location & Device Steps',
       success: false,
       error: error.message
     });
-    console.log(`❌ Location & Device Steps: FAILED - ${error.message}`);
+    EventLogger.debug('Automation', '❌ Location & Device Steps: FAILED - ${error.message}');
   }
 
-  console.log('\n🧠 Test 4: Logic & Processing Steps');
+  EventLogger.debug('Automation', '\n🧠 Test 4: Logic & Processing Steps');
   try {
     const result4 = await engine.execute(logicAutomation);
     testResults.push({
@@ -423,17 +424,17 @@ export const testAutomationBuilder = async () => {
       error: result4.error
     });
     console.log(`✅ Logic & Processing Steps: ${result4.success ? 'PASSED' : 'FAILED'}`);
-    if (result4.error) console.log(`   Error: ${result4.error}`);
+    if (result4.error) EventLogger.debug('Automation', '   Error: ${result4.error}');
   } catch (error) {
     testResults.push({
       name: 'Logic & Processing Steps',
       success: false,
       error: error.message
     });
-    console.log(`❌ Logic & Processing Steps: FAILED - ${error.message}`);
+    EventLogger.debug('Automation', '❌ Logic & Processing Steps: FAILED - ${error.message}');
   }
 
-  console.log('\n💬 Test 5: Interactive Steps');
+  EventLogger.debug('Automation', '\n💬 Test 5: Interactive Steps');
   try {
     const result5 = await engine.execute(interactiveAutomation);
     testResults.push({
@@ -445,19 +446,19 @@ export const testAutomationBuilder = async () => {
       error: result5.error
     });
     console.log(`✅ Interactive Steps: ${result5.success ? 'PASSED' : 'FAILED'}`);
-    if (result5.error) console.log(`   Error: ${result5.error}`);
+    if (result5.error) EventLogger.debug('Automation', '   Error: ${result5.error}');
   } catch (error) {
     testResults.push({
       name: 'Interactive Steps',
       success: false,
       error: error.message
     });
-    console.log(`❌ Interactive Steps: FAILED - ${error.message}`);
+    EventLogger.debug('Automation', '❌ Interactive Steps: FAILED - ${error.message}');
   }
 
   // Summary
-  console.log('\n🎯 TEST SUMMARY');
-  console.log('================');
+  EventLogger.debug('Automation', '\n🎯 TEST SUMMARY');
+  EventLogger.debug('Automation', '================');
   const passedTests = testResults.filter(t => t.success).length;
   const totalTests = testResults.length;
   
@@ -467,14 +468,14 @@ export const testAutomationBuilder = async () => {
     const steps = result.stepsCompleted && result.totalSteps ? 
       `${result.stepsCompleted}/${result.totalSteps} steps` : '';
     
-    console.log(`${status} ${result.name} ${time} ${steps}`);
+    EventLogger.debug('Automation', '${status} ${result.name} ${time} ${steps}');
     if (!result.success && result.error) {
-      console.log(`    └─ Error: ${result.error}`);
+      EventLogger.debug('Automation', '    └─ Error: ${result.error}');
     }
   });
   
-  console.log(`\n📊 Overall Result: ${passedTests}/${totalTests} tests passed`);
-  console.log(`📈 Success Rate: ${Math.round((passedTests / totalTests) * 100)}%`);
+  EventLogger.debug('Automation', '\n📊 Overall Result: ${passedTests}/${totalTests} tests passed');
+  EventLogger.debug('Automation', '📈 Success Rate: ${Math.round((passedTests / totalTests) * 100)}%');
 
   return {
     totalTests,

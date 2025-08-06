@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme as usePaperTheme } from 'react-native-paper';
+import { EventLogger } from '../../utils/EventLogger';
 
 // Safe theme hook that provides a fallback
 export const useSafeTheme = () => {
@@ -16,7 +17,7 @@ export const useSafeTheme = () => {
     }
   } catch (error) {
     // Fall back to Paper theme
-    console.log('🎨 Using Paper theme fallback');
+    EventLogger.debug('ThemeFallbackWrapper', '🎨 Using Paper theme fallback');
   }
   
   // Create a theme object that matches the expected structure
@@ -132,7 +133,7 @@ class ThemeErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('🎨 Theme Error:', error, errorInfo);
+    EventLogger.error('ThemeFallbackWrapper', '🎨 Theme Error:', error, errorInfo as Error);
   }
 
   render() {

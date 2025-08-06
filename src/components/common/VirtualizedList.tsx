@@ -9,7 +9,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useSafeTheme } from '../common/ThemeFallbackWrapper';
 import EnhancedLoadingSkeleton from './EnhancedLoadingSkeleton';
 import { EmptyState } from '../molecules';
 
@@ -72,7 +72,7 @@ function VirtualizedList<T>({
   removeClippedSubviews = true,
   getItemLayout,
 }: VirtualizedListProps<T>) {
-  const { theme } = useTheme();
+  const theme = useSafeTheme();
 
   // Memoized render item to prevent unnecessary re-renders
   const memoizedRenderItem = useCallback<ListRenderItem<T>>(
@@ -90,9 +90,9 @@ function VirtualizedList<T>({
       <View style={styles.loadingFooter}>
         <ActivityIndicator 
           size="small" 
-          color={theme.colors.primary}
+          color={theme.colors?.primary || '#6200ee'}
         />
-        <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+        <Text style={[styles.loadingText, { color: theme.colors?.text?.secondary || theme.colors?.onSurfaceVariant || '#666666' }]}>
           Loading more...
         </Text>
       </View>
@@ -129,8 +129,8 @@ function VirtualizedList<T>({
       <RefreshControl
         refreshing={refreshing}
         onRefresh={onRefresh}
-        tintColor={theme.colors.primary}
-        colors={[theme.colors.primary]}
+        tintColor={theme.colors?.primary || '#6200ee'}
+        colors={[theme.colors?.primary || '#6200ee']}
       />
     );
   }, [refreshing, onRefresh, theme.colors.primary]);

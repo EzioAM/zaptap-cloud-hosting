@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useSafeTheme } from '../common/ThemeFallbackWrapper';
 
 interface ToastProps {
   visible: boolean;
@@ -23,7 +23,7 @@ export const Toast: React.FC<ToastProps> = ({
   onHide,
   action,
 }) => {
-  const { theme } = useTheme();
+  const theme = useSafeTheme();
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const timeoutRef = useRef<NodeJS.Timeout>();
@@ -35,25 +35,25 @@ export const Toast: React.FC<ToastProps> = ({
       case 'success':
         return {
           icon: 'check-circle',
-          backgroundColor: theme.colors.success || '#4CAF50',
+          backgroundColor: theme.colors?.semantic?.success || '#4CAF50',
           textColor: '#FFFFFF',
         };
       case 'error':
         return {
           icon: 'alert-circle',
-          backgroundColor: theme.colors.error || '#F44336',
+          backgroundColor: theme.colors?.semantic?.error || theme.colors?.error || '#F44336',
           textColor: '#FFFFFF',
         };
       case 'warning':
         return {
           icon: 'alert',
-          backgroundColor: theme.colors.warning || '#FF9800',
+          backgroundColor: theme.colors?.semantic?.warning || '#FF9800',
           textColor: '#FFFFFF',
         };
       default:
         return {
           icon: 'information',
-          backgroundColor: theme.colors.primary,
+          backgroundColor: theme.colors?.primary || '#6200ee',
           textColor: '#FFFFFF',
         };
     }
@@ -172,13 +172,13 @@ const createStyles = (theme: any) =>
     container: {
       position: 'absolute',
       top: 60,
-      left: theme.spacing.md,
-      right: theme.spacing.md,
+      left: theme.spacing?.md || 16,
+      right: theme.spacing?.md || 16,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.borderRadius.lg,
+      paddingHorizontal: theme.spacing?.md || 16,
+      paddingVertical: theme.spacing?.sm || 8,
+      borderRadius: 12,
       shadowColor: '#000000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
@@ -194,20 +194,20 @@ const createStyles = (theme: any) =>
     message: {
       fontSize: 14,
       fontWeight: '500',
-      marginLeft: theme.spacing.sm,
+      marginLeft: theme.spacing?.sm || 8,
       flex: 1,
     },
     actionButton: {
-      marginLeft: theme.spacing.md,
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs,
+      marginLeft: theme.spacing?.md || 16,
+      paddingHorizontal: theme.spacing?.sm || 8,
+      paddingVertical: theme.spacing?.xs || 4,
     },
     actionText: {
       fontSize: 14,
       fontWeight: '600',
     },
     closeButton: {
-      marginLeft: theme.spacing.sm,
-      padding: theme.spacing.xs,
+      marginLeft: theme.spacing?.sm || 8,
+      padding: theme.spacing?.xs || 4,
     },
   });

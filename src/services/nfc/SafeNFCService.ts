@@ -1,6 +1,7 @@
 import { Alert } from 'react-native';
 import { PlatformUtils } from '../../utils/Platform';
 import { Logger } from '../../utils/Logger';
+import { EventLogger } from '../../utils/EventLogger';
 
 // Conditionally import NFC manager
 let NfcManager: any = null;
@@ -13,7 +14,7 @@ try {
     Ndef = nfcModule.Ndef;
   }
 } catch (error) {
-  console.log('NFC Manager not available, using fallback functionality');
+  EventLogger.debug('NFC', 'NFC Manager not available, using fallback functionality');
 }
 
 /**

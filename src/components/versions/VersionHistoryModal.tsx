@@ -21,6 +21,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { VersionHistoryService, AutomationVersion } from '../../services/versions/VersionHistoryService';
 import { AutomationData } from '../../types';
 import { FullScreenModal } from '../common/FullScreenModal';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface VersionHistoryModalProps {
   visible: boolean;
@@ -52,7 +53,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
       const data = await VersionHistoryService.getVersions(automation.id);
       setVersions(data);
     } catch (error) {
-      console.error('Failed to load versions:', error);
+      EventLogger.error('VersionHistoryModal', 'Failed to load versions:', error as Error);
     } finally {
       setLoading(false);
     }

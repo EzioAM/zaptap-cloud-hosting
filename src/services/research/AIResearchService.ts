@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { UIRedesignRequest, UIRedesignResponse, UIRedesignPromptService } from '../developer/UIRedesignPromptService';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface ResearchQuery {
   topic: string;
@@ -30,10 +31,10 @@ export class AIResearchService {
   async researchAppImprovements(query: ResearchQuery): Promise<ResearchResult[]> {
     const results: ResearchResult[] = [];
 
-    console.log('🔍 Starting AI research with keys:', {
+    EventLogger.debug('AIResearch', '🔍 Starting AI research with keys:', {
       hasClaudeKey: !!this.claudeApiKey && this.claudeApiKey.length > 10,
       hasOpenaiKey: !!this.openaiApiKey && this.openaiApiKey.length > 10,
-      claudeKeyPreview: this.claudeApiKey ? this.claudeApiKey.substring(0, 10) + '...' : 'Missing',
+      claudeKeyPreview: this.claudeApiKey ? this.claudeApiKey.substring(0, 10); + '...' : 'Missing',
       openaiKeyPreview: this.openaiApiKey ? this.openaiApiKey.substring(0, 10) + '...' : 'Missing'
     });
 
@@ -43,7 +44,7 @@ export class AIResearchService {
       this.queryChatGPTAPI(query)
     ]);
 
-    console.log('🤖 AI API Results:', {
+    EventLogger.debug('AIResearch', '🤖 AI API Results:', {
       claudeStatus: claudeResult.status,
       chatgptStatus: chatgptResult.status,
       claudeError: claudeResult.status === 'rejected' ? claudeResult.reason?.message : null,
@@ -51,20 +52,20 @@ export class AIResearchService {
     });
 
     if (claudeResult.status === 'fulfilled') {
-      console.log('✅ Claude API succeeded');
+      EventLogger.debug('AIResearch', '✅ Claude API succeeded');
       results.push(claudeResult.value);
     } else {
-      console.error('❌ Claude API failed:', claudeResult.reason);
+      EventLogger.error('AIResearch', '❌ Claude API failed:', claudeResult.reason as Error);
     }
 
     if (chatgptResult.status === 'fulfilled') {
-      console.log('✅ ChatGPT API succeeded');
+      EventLogger.debug('AIResearch', '✅ ChatGPT API succeeded');
       results.push(chatgptResult.value);
     } else {
-      console.error('❌ ChatGPT API failed:', chatgptResult.reason);
+      EventLogger.error('AIResearch', '❌ ChatGPT API failed:', chatgptResult.reason as Error);
     }
 
-    console.log(`📊 Final results: ${results.length} providers responded`);
+    EventLogger.debug('AIResearch', '📊 Final results: ${results.length} providers responded');
     return results;
   }
 
@@ -74,7 +75,7 @@ export class AIResearchService {
     }
 
     try {
-      console.log('🔮 Calling Claude API...');
+      EventLogger.debug('AIResearch', '🔮 Calling Claude API...');
       const response = await axios.post(
         'https://api.anthropic.com/v1/messages',
         {
@@ -94,10 +95,10 @@ export class AIResearchService {
         }
       );
 
-      console.log('✅ Claude API response received');
+      EventLogger.debug('AIResearch', '✅ Claude API response received');
       return this.parseAIResponse('claude', response.data.content[0].text);
     } catch (error) {
-      console.error('❌ Claude API error:', error?.response?.data || error?.message || error);
+      EventLogger.error('AIResearch', '❌ Claude API error:', error?.response?.data || error?.message || error as Error);
       throw error;
     }
   }
@@ -108,7 +109,7 @@ export class AIResearchService {
     }
 
     try {
-      console.log('🤖 Calling ChatGPT API...');
+      EventLogger.debug('AIResearch', '🤖 Calling ChatGPT API...');
       const response = await axios.post(
         'https://api.openai.com/v1/chat/completions',
         {
@@ -128,10 +129,10 @@ export class AIResearchService {
         }
       );
 
-      console.log('✅ ChatGPT API response received');
+      EventLogger.debug('AIResearch', '✅ ChatGPT API response received');
       return this.parseAIResponse('chatgpt', response.data.choices[0].message.content);
     } catch (error) {
-      console.error('❌ ChatGPT API error:', error?.response?.data || error?.message || error);
+      EventLogger.error('AIResearch', '❌ ChatGPT API error:', error?.response?.data || error?.message || error as Error);
       throw error;
     }
   }
@@ -212,7 +213,7 @@ Format your response with clear sections for insights, recommendations, and code
           const response = await this.queryClaudeForUIRedesign(prompt);
           aiResponse = response;
         } catch (error) {
-          console.warn('Claude API failed, using structured fallback:', error);
+          EventLogger.warn('AIResearch', 'Claude API failed, using structured fallback:', error);
           aiResponse = this.generateFallbackUIResponse(request);
         }
       } else {
@@ -221,7 +222,7 @@ Format your response with clear sections for insights, recommendations, and code
 
       return UIRedesignPromptService.parseRedesignResponse(aiResponse);
     } catch (error) {
-      console.error('UI redesign generation failed:', error);
+      EventLogger.error('AIResearch', 'UI redesign generation failed:', error as Error);
       // If parsing fails, return a basic fallback response
       return this.getFallbackUIRedesignResponse(request);
     }

@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { testConnection, supabase } from '../services/supabase/client';
 import NetInfo from '@react-native-community/netinfo';
 import { AppState, AppStateStatus } from 'react-native';
+import { logApiError } from '../store/api/networkAwareApi';
+import { EventLogger } from '../utils/EventLogger';
 
 interface ConnectionState {
   isConnected: boolean;
@@ -61,6 +63,11 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         details: result.details || 'unknown',
       });
     } catch (error: any) {
+      // Don't spam network errors
+      if (!error?.message?.includes('Network request failed')) {
+        logApiError(error, 'ConnectionContext.checkConnection');
+      }
+      
       setConnectionState({
         isConnected: false,
         isAuthenticated: false,
@@ -81,7 +88,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // MUCH longer delay to prevent blocking app startup completely
     const initialCheckTimer = setTimeout(() => {
       checkConnection().catch(error => {
-        console.warn('Initial connection check failed, app will continue offline:', error);
+        EventLogger.warn('ConnectionContext', 'Initial connection check failed, app will continue offline:', error);
       });
     }, 3000); // 3 second delay to let app fully initialize
 
@@ -91,7 +98,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         // Add delay to prevent blocking app resume
         setTimeout(() => {
           checkConnection().catch(error => {
-            console.warn('Connection check on app resume failed:', error);
+            EventLogger.warn('ConnectionContext', 'Connection check on app resume failed:', error);
           });
         }, 500);
       }
@@ -104,7 +111,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           // Delay connection check after network reconnects
           setTimeout(() => {
             checkConnection().catch(error => {
-              console.warn('Network reconnect check failed:', error);
+              EventLogger.warn('ConnectionContext', 'Network reconnect check failed:', error);
             });
           }, 1000);
         } else if (!state.isConnected) {
@@ -116,7 +123,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }));
         }
       } catch (error) {
-        console.warn('Network state change handler error:', error);
+        EventLogger.warn('ConnectionContext', 'Network state change handler error:', error);
       }
     });
 
@@ -129,7 +136,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             // Delay connection check to prevent blocking auth flow
             setTimeout(() => {
               checkConnection().catch(error => {
-                console.warn('Auth state change connection check failed:', error);
+                EventLogger.warn('ConnectionContext', 'Auth state change connection check failed:', error);
               });
             }, 1000);
           } else if (event === 'SIGNED_OUT') {
@@ -139,12 +146,12 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             }));
           }
         } catch (error) {
-          console.warn('Auth state change handler error:', error);
+          EventLogger.warn('ConnectionContext', 'Auth state change handler error:', error);
         }
       });
       authListener = data;
     } catch (error) {
-      console.warn('Failed to set up auth listener:', error);
+      EventLogger.warn('ConnectionContext', 'Failed to set up auth listener:', error);
     }
 
     return () => {
@@ -154,7 +161,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         unsubscribe();
         authListener?.subscription?.unsubscribe();
       } catch (error) {
-        console.warn('Cleanup error in ConnectionProvider:', error);
+        EventLogger.warn('ConnectionContext', 'Cleanup error in ConnectionProvider:', error);
       }
     };
   }, [checkConnection]);

@@ -2,10 +2,10 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
-import { useUnifiedTheme } from '../contexts/UnifiedThemeProvider';
+import { useUnifiedTheme } from '../contexts/ThemeCompatibilityShim';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Import screens
+// Import consolidated screens
 import ModernHomeScreen from '../screens/modern/ModernHomeScreen';
 import BuildScreen from '../screens/modern/BuildScreen';
 import DiscoverScreen from '../screens/modern/DiscoverScreen';
@@ -156,8 +156,8 @@ const styles = StyleSheet.create({
   },
   activeIndicator: {
     position: 'absolute',
-    bottom: -6,
-    width: 20,
+    bottom: -12,  // Move further down to avoid text overlap
+    width: 24,    // Slightly wider for better visibility
     height: 3,
     borderRadius: 2,
   },

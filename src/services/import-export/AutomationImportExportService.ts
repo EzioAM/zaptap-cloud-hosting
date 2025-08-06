@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { Alert } from 'react-native';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface ExportFormat {
   type: 'json' | 'shortcuts' | 'backup';
@@ -112,7 +113,7 @@ export class AutomationImportExportService {
       };
 
     } catch (error: any) {
-      console.error('Export failed:', error);
+      EventLogger.error('Automation', 'Export failed:', error as Error);
       return {
         success: false,
         error: error.message || 'Export failed',
@@ -180,7 +181,7 @@ export class AutomationImportExportService {
       };
 
     } catch (error: any) {
-      console.error('Import failed:', error);
+      EventLogger.error('Automation', 'Import failed:', error as Error);
       return {
         success: false,
         message: error.message || 'Import failed',

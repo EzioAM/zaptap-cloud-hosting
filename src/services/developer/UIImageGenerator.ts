@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface ImageGenerationRequest {
   prompt: string;
@@ -33,7 +34,7 @@ export class UIImageGenerator {
    */
   static async generateMockupImage(request: ImageGenerationRequest): Promise<GeneratedImage> {
     try {
-      console.log('🎨 Generating mockup image:', {
+      EventLogger.debug('UI', '🎨 Generating mockup image:', {
         style: request.style,
         screenType: request.screenType,
         hasApiKey: !!this.dalleApiKey,
@@ -42,20 +43,20 @@ export class UIImageGenerator {
       
       // Try AI generation first if API key is available
       if (this.dalleApiKey) {
-        console.log('🤖 Attempting DALL-E generation...');
+        EventLogger.debug('UI', '🤖 Attempting DALL-E generation...');
         return await this.generateWithDALLE(request);
       } else {
         // Fallback to sophisticated UI mockups
-        console.log('🖼️ Using placeholder generation (no API key)...');
+        EventLogger.debug('UI', '🖼️ Using placeholder generation (no API key)...');
         return this.generateAdvancedPlaceholder(request);
       }
     } catch (error) {
-      console.error('❌ Image generation failed, using fallback:', error);
-      console.error('Error details:', error.message, error.stack);
+      EventLogger.error('UI', '❌ Image generation failed, using fallback:', error as Error);
+      EventLogger.error('UI', 'Error details:', error.message, error.stack as Error);
       try {
         return this.generateAdvancedPlaceholder(request);
       } catch (fallbackError) {
-        console.error('❌ Fallback also failed:', fallbackError);
+        EventLogger.error('UI', '❌ Fallback also failed:', fallbackError as Error);
         // Return a basic error image
         return {
           url: 'https://via.placeholder.com/400x800/ff0000/ffffff?text=Error',
@@ -132,13 +133,13 @@ professional app mockup with ${screenContext?.styling || 'modern styling'}
     const { style, screenType, designGoals, screenContext } = request;
     
     try {
-      console.log('🎨 Generating placeholder mockup...');
+      EventLogger.debug('UI', '🎨 Generating placeholder mockup...');
       
       // For React Native, use a more reliable approach
       if (Platform.OS !== 'web') {
         // Use local assets or simpler placeholder that works reliably in React Native
         const mockupUrl = this.createReactNativeMockup(style, screenType, designGoals);
-        console.log('📱 React Native mockup URL:', mockupUrl);
+        EventLogger.debug('UI', '📱 React Native mockup URL:', mockupUrl);
         return {
           url: mockupUrl,
           prompt: request.prompt,
@@ -150,7 +151,7 @@ professional app mockup with ${screenContext?.styling || 'modern styling'}
       // For web, use the existing placeholder services
       const mockupUrl = this.createAdvancedMockupUrl(style, screenType, designGoals, screenContext);
       
-      console.log('✅ Placeholder URL generated:', mockupUrl);
+      EventLogger.debug('UI', '✅ Placeholder URL generated:', mockupUrl);
       
       return {
         url: mockupUrl,
@@ -159,14 +160,14 @@ professional app mockup with ${screenContext?.styling || 'modern styling'}
         isAIGenerated: false
       };
     } catch (error) {
-      console.error('❌ Error in generateAdvancedPlaceholder:', error);
+      EventLogger.error('UI', '❌ Error in generateAdvancedPlaceholder:', error as Error);
       throw error;
     }
   }
 
   private static createAdvancedMockupUrl(style: string, screenType: string, designGoals: string[], screenContext?: any): string {
     try {
-      console.log('🎯 Creating mockup URL for style:', style);
+      EventLogger.debug('UI', '🎯 Creating mockup URL for style:', style);
       
       // Select service based on style
       let selectedService;
@@ -185,10 +186,10 @@ professional app mockup with ${screenContext?.styling || 'modern styling'}
       }
 
       const url = selectedService.call(this, screenType, designGoals, style, screenContext);
-      console.log('📍 Generated URL:', url);
+      EventLogger.debug('UI', '📍 Generated URL:', url);
       return url;
     } catch (error) {
-      console.error('❌ Error in createAdvancedMockupUrl:', error);
+      EventLogger.error('UI', '❌ Error in createAdvancedMockupUrl:', error as Error);
       throw error;
     }
   }
@@ -204,7 +205,7 @@ professional app mockup with ${screenContext?.styling || 'modern styling'}
       
       return `${baseUrl}/${colors.background}/${colors.primary}?text=${encodeURIComponent(simpleText)}`;
     } catch (error) {
-      console.error('Error in createMaterialDesignMockup:', error);
+      EventLogger.error('UI', 'Error in createMaterialDesignMockup:', error as Error);
       // Return a basic fallback
       return 'https://via.placeholder.com/400x800/6200EE/FFFFFF?text=Material+Design';
     }
@@ -221,7 +222,7 @@ professional app mockup with ${screenContext?.styling || 'modern styling'}
       
       return `${baseUrl}/${colors.background}/${colors.primary}.png&text=${encodeURIComponent(simpleText)}`;
     } catch (error) {
-      console.error('Error in createFigmaStyleMockup:', error);
+      EventLogger.error('UI', 'Error in createFigmaStyleMockup:', error as Error);
       // Return a basic fallback
       return 'https://dummyimage.com/400x800/1976D2/FFFFFF.png&text=Figma+Style';
     }
@@ -238,7 +239,7 @@ professional app mockup with ${screenContext?.styling || 'modern styling'}
       // Use a service that supports more complex layouts
       return `https://fakeimg.pl/400x800/${colors.background}/${colors.primary}/?text=${encodeURIComponent(simpleText)}&font=arial`;
     } catch (error) {
-      console.error('Error in createSketchStyleMockup:', error);
+      EventLogger.error('UI', 'Error in createSketchStyleMockup:', error as Error);
       // Return a basic fallback
       return 'https://fakeimg.pl/400x800/9C27B0/FFFFFF/?text=Interactive&font=arial';
     }
@@ -409,7 +410,7 @@ professional app mockup with ${screenContext?.styling || 'modern styling'}
       // Return the first service URL
       return services[0];
     } catch (error) {
-      console.warn('Failed to generate external URL, using data URI fallback');
+      EventLogger.warn('UI', 'Failed to generate external URL, using data URI fallback');
       // If all else fails, return a data URI that will always work
       return this.createDataUriPlaceholder(style, screenType);
     }

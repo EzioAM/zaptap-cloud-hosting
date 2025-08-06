@@ -10,6 +10,7 @@ import { AutomationData } from '../../types';
 import { smartLinkService } from '../linking/SmartLinkService';
 import { automationSharingService } from '../sharing/AutomationSharingService';
 import { sharingAnalyticsService } from '../sharing/SharingAnalyticsService';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface NFCPayload {
   automationId: string;
@@ -40,7 +41,7 @@ export class NFCService {
     try {
       // Check if NFC Manager is available
       if (!NfcManager) {
-        console.log('NFC Manager not available');
+        EventLogger.debug('NFC', 'NFC Manager not available');
         this.isSupported = false;
         this.isInitialized = true;
         return false;
@@ -50,7 +51,7 @@ export class NFCService {
       const supported = await NfcManager.isSupported();
       
       if (!supported) {
-        console.log('NFC is not supported on this device');
+        EventLogger.debug('NFC', 'NFC is not supported on this device');
         this.isSupported = false;
         this.isInitialized = true;
         return false;
@@ -60,10 +61,10 @@ export class NFCService {
       this.isSupported = true;
       this.isInitialized = true;
       
-      console.log('NFC initialized successfully');
+      EventLogger.debug('NFC', 'NFC initialized successfully');
       return true;
     } catch (error) {
-      console.error('Failed to initialize NFC:', error);
+      EventLogger.error('NFC', 'Failed to initialize NFC:', error as Error);
       this.isSupported = false;
       this.isInitialized = true;
       return false;
@@ -94,7 +95,7 @@ export class NFCService {
 
       return true;
     } catch (error) {
-      console.error('Error checking NFC status:', error);
+      EventLogger.error('NFC', 'Error checking NFC status:', error as Error);
       return false;
     }
   }
@@ -114,23 +115,23 @@ export class NFCService {
       
       // For public automations, create a public share link
       if (automation.is_public) {
-        console.log('Creating public share link for NFC tag');
+        EventLogger.debug('NFC', 'Creating public share link for NFC tag');
         const shareResult = await automationSharingService.createPublicShareLink(automation);
         
         if (shareResult.success && shareResult.shareUrl) {
           smartUrl = shareResult.shareUrl;
-          console.log('Using public share URL for NFC:', smartUrl);
+          EventLogger.debug('NFC', 'Using public share URL for NFC:', smartUrl);
         } else {
           // Fallback to regular smart link
           const smartLink = smartLinkService.generateSmartLink(automation);
           smartUrl = smartLink.universalUrl;
-          console.warn('Failed to create public share, using regular link:', smartUrl);
+          EventLogger.warn('NFC', 'Failed to create public share, using regular link:', smartUrl);
         }
       } else {
         // For private automations, use regular smart link
         const smartLink = smartLinkService.generateSmartLink(automation);
         smartUrl = smartLink.universalUrl;
-        console.log('Using regular smart link for private automation:', smartUrl);
+        EventLogger.debug('NFC', 'Using regular smart link for private automation:', smartUrl);
       }
 
       // Create NDEF records for better app detection
@@ -203,7 +204,7 @@ export class NFCService {
       return true;
 
     } catch (error: any) {
-      console.error('NFC write error:', error);
+      EventLogger.error('NFC', 'NFC write error:', error as Error);
       
       let errorMessage = 'Failed to write to NFC tag';
       if (error.message?.includes('cancelled')) {
@@ -220,7 +221,7 @@ export class NFCService {
       try {
         await NfcManager.cancelTechnologyRequest();
       } catch (error) {
-        console.log('Error cancelling NFC request:', error);
+        EventLogger.debug('NFC', 'Error cancelling NFC request:', error);
       }
     }
   }
@@ -238,7 +239,7 @@ export class NFCService {
 
       // Register listener for NFC tag discovery
       const cleanupListener = NfcManager.setEventListener(NfcEvents.DiscoverTag, (tag: TagEvent) => {
-        console.log('NFC tag discovered:', tag);
+        EventLogger.debug('NFC', 'NFC tag discovered:', tag);
         this.handleNFCTagRead(tag, onAutomationFound);
       });
 
@@ -248,27 +249,27 @@ export class NFCService {
       return cleanupListener;
 
     } catch (error) {
-      console.error('Failed to start NFC reader:', error);
+      EventLogger.error('NFC', 'Failed to start NFC reader:', error as Error);
       Alert.alert('NFC Error', 'Failed to start NFC reading');
     }
   }
 
   private async handleNFCTagRead(tag: TagEvent, onAutomationFound: (automationId: string, metadata: any) => void): Promise<void> {
     try {
-      console.log('Parsing NFC tag with', tag.ndefMessage?.length, 'records');
+      EventLogger.debug('NFC', 'Parsing NFC tag with', tag.ndefMessage?.length, 'records');
       
       // Parse NDEF messages from the tag
       if (tag.ndefMessage && tag.ndefMessage.length > 0) {
         for (let i = 0; i < tag.ndefMessage.length; i++) {
           const record = tag.ndefMessage[i];
-          console.log(`Record ${i}:`, {
+          EventLogger.debug('NFC', 'Record ${i}:', {
             type: record.type,
             tnf: record.tnf,
             payloadLength: record.payload?.length
           });
           
           const payload = this.parseNDEFRecord(record);
-          console.log(`Parsed payload ${i}:`, payload);
+          EventLogger.debug('NFC', 'Parsed payload ${i}:', payload);
           
           if (payload) {
             // Check for app scheme URLs
@@ -278,14 +279,14 @@ export class NFCService {
                 const automationId = url.pathname.replace('/automation/', '');
                 const params = Object.fromEntries(url.searchParams);
                 
-                console.log('Found automation in NFC tag:', { automationId, params });
+                EventLogger.debug('NFC', 'Found automation in NFC tag:', { automationId, params });
                 
                 // Stop scanning and callback
                 await this.stopNFCReader();
                 onAutomationFound(automationId, params);
                 return;
               } catch (urlError) {
-                console.error('Error parsing app scheme URL:', urlError);
+                EventLogger.error('NFC', 'Error parsing app scheme URL:', urlError as Error);
               }
             }
             
@@ -293,7 +294,7 @@ export class NFCService {
             if (payload.startsWith('http')) {
               try {
                 const url = new URL(payload);
-                console.log('Found web URL:', url.href);
+                EventLogger.debug('NFC', 'Found web URL:', url.href);
                 
                 // Check if it's a zaptap.cloud, zaptap.app or shortcutslike.app link (with or without www)
                 const validHostnames = ['zaptap.cloud', 'www.zaptap.cloud', 'zaptap.app', 'www.zaptap.app', 'shortcutslike.app', 'www.shortcutslike.app'];
@@ -304,7 +305,7 @@ export class NFCService {
                   const match = url.pathname.match(/\/(automation|share|link|run)\/([^/?]+)/);
                   if (match) {
                     const automationId = match[2];
-                    console.log('Found automation in web URL:', automationId);
+                    EventLogger.debug('NFC', 'Found automation in web URL:', automationId);
                     
                     // Stop scanning and callback
                     await this.stopNFCReader();
@@ -313,21 +314,21 @@ export class NFCService {
                   }
                 }
               } catch (urlError) {
-                console.error('Error parsing web URL:', urlError);
+                EventLogger.error('NFC', 'Error parsing web URL:', urlError as Error);
               }
             }
           }
         }
       }
 
-      console.log('No valid automation found in NFC tag');
+      EventLogger.debug('NFC', 'No valid automation found in NFC tag');
       Alert.alert(
         'Invalid NFC Tag',
         'This NFC tag does not contain a Zaptap automation.'
       );
 
     } catch (error) {
-      console.error('Error parsing NFC tag:', error);
+      EventLogger.error('NFC', 'Error parsing NFC tag:', error as Error);
       Alert.alert('NFC Read Error', 'Failed to read NFC tag data');
     }
   }
@@ -341,11 +342,11 @@ export class NFCService {
       const typeArray = Array.from(record.type);
       const payloadArray = Array.from(record.payload);
       
-      console.log('Parsing record type:', typeArray, 'payload length:', payloadArray.length);
+      EventLogger.debug('NFC', 'Parsing record type:', typeArray, 'payload length:', payloadArray.length);
 
       // Handle URI records (TNF = 1, type = 'U')
       if (record.tnf === 1 && typeArray.length === 1 && typeArray[0] === 0x55) {
-        console.log('Found URI record');
+        EventLogger.debug('NFC', 'Found URI record');
         
         if (payloadArray.length === 0) return null;
         
@@ -400,13 +401,13 @@ export class NFCService {
           uriString = uriPrefixes[uriIdentifier] + uriString;
         }
         
-        console.log('Parsed URI:', uriString);
+        EventLogger.debug('NFC', 'Parsed URI:', uriString);
         return uriString;
       }
       
       // Handle text records (TNF = 1, type = 'T')
       if (record.tnf === 1 && typeArray.length === 1 && typeArray[0] === 0x54) {
-        console.log('Found text record');
+        EventLogger.debug('NFC', 'Found text record');
         
         if (payloadArray.length === 0) return null;
         
@@ -421,12 +422,12 @@ export class NFCService {
         if (isUTF16) {
           // Handle UTF-16 (pairs of bytes)
           const textString = String.fromCharCode(...textData);
-          console.log('Parsed UTF-16 text:', textString);
+          EventLogger.debug('NFC', 'Parsed UTF-16 text:', textString);
           return textString;
         } else {
           // Handle UTF-8
           const textString = String.fromCharCode(...textData);
-          console.log('Parsed UTF-8 text:', textString);
+          EventLogger.debug('NFC', 'Parsed UTF-8 text:', textString);
           return textString;
         }
       }
@@ -434,11 +435,11 @@ export class NFCService {
       // Handle well-known types
       if (record.tnf === 1) {
         const typeString = String.fromCharCode(...typeArray);
-        console.log('Well-known type:', typeString);
+        EventLogger.debug('NFC', 'Well-known type:', typeString);
         
         // Try to parse as raw text if other methods fail
         const rawText = String.fromCharCode(...payloadArray);
-        console.log('Raw payload as text:', rawText);
+        EventLogger.debug('NFC', 'Raw payload as text:', rawText);
         
         // Check if it looks like a URL
         if (rawText.includes('http') || rawText.includes('zaptap') || rawText.includes('shortcuts-like')) {
@@ -447,7 +448,7 @@ export class NFCService {
       }
       
     } catch (error) {
-      console.error('Error parsing NDEF record:', error);
+      EventLogger.error('NFC', 'Error parsing NDEF record:', error as Error);
     }
     return null;
   }
@@ -457,7 +458,7 @@ export class NFCService {
       await NfcManager.unregisterTagEvent();
       NfcManager.setEventListener(NfcEvents.DiscoverTag, null);
     } catch (error) {
-      console.error('Error stopping NFC reader:', error);
+      EventLogger.error('NFC', 'Error stopping NFC reader:', error as Error);
     }
   }
 
@@ -466,7 +467,7 @@ export class NFCService {
       await this.stopNFCReader();
       await NfcManager.cancelTechnologyRequest();
     } catch (error) {
-      console.error('Error during NFC cleanup:', error);
+      EventLogger.error('NFC', 'Error during NFC cleanup:', error as Error);
     }
   }
 

@@ -11,7 +11,7 @@ import Animated, {
   withSpring,
   interpolate,
 } from 'react-native-reanimated';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { theme } from '../../../theme';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { styles } from './Card.styles';
@@ -45,8 +45,8 @@ export const Card: React.FC<CardProps> = ({
   elevation = 'md',
   ...pressableProps
 }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  const theme = useSafeTheme();
+  const colors = theme.colors;
   const { trigger } = useHaptic();
   const scale = useSharedValue(1);
   const shadowScale = useSharedValue(1);

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { EventLogger } from '../utils/EventLogger';
 
 export type CleanupFunction = () => void;
 
@@ -38,7 +39,7 @@ export function useCleanup() {
       try {
         cleanupFn();
       } catch (error) {
-        console.error('Error running cleanup function:', error);
+        EventLogger.error('useCleanup', 'Error running cleanup function:', error as Error);
       }
     });
     cleanupFunctions.current.clear();
@@ -54,7 +55,7 @@ export function useCleanup() {
         try {
           cleanupFn();
         } catch (error) {
-          console.error('Error during component cleanup:', error);
+          EventLogger.error('useCleanup', 'Error during component cleanup:', error as Error);
         }
       });
       
@@ -84,7 +85,7 @@ export function useSubscription() {
       unsubscribeFn: (subscription: T) => void
     ) => {
       if (!isMounted) {
-        console.warn('Attempting to subscribe after component unmounted');
+        EventLogger.warn('useCleanup', 'Attempting to subscribe after component unmounted');
         return;
       }
 
@@ -94,7 +95,7 @@ export function useSubscription() {
         try {
           unsubscribeFn(subscription);
         } catch (error) {
-          console.error('Error unsubscribing:', error);
+          EventLogger.error('useCleanup', 'Error unsubscribing:', error as Error);
         }
       };
 

@@ -49,7 +49,7 @@ export class MockCodeImplementationService {
 
     try {
       this.isImplementing = true;
-      console.log('🔨 Simulating implementation for:', topic);
+      EventLogger.debug('MockCodeImplementation', '🔨 Simulating implementation for:', topic);
 
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -92,7 +92,7 @@ export class MockCodeImplementationService {
    * Simulate deployment
    */
   static async executeDeployment(result: ImplementationResult): Promise<DeploymentResult> {
-    console.log('🚀 Simulating deployment...');
+    EventLogger.debug('MockCodeImplementation', '🚀 Simulating deployment...');
     
     // Simulate deployment time
     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -118,7 +118,7 @@ export class MockCodeImplementationService {
    * Simulate rollback
    */
   static async rollbackLastImplementation(): Promise<{ success: boolean; message: string }> {
-    console.log('⏪ Simulating rollback...');
+    EventLogger.debug('MockCodeImplementation', '⏪ Simulating rollback...');
     
     // Simulate rollback time
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -175,6 +175,7 @@ export class MockCodeImplementationService {
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { EventLogger } from '../../utils/EventLogger';
 
 export const ${topic.replace(/[^a-zA-Z0-9]/g, '')}Component = () => {
   // TODO: Implement ${recommendation}

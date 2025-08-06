@@ -33,8 +33,8 @@ export class ImprovedAIResearchService {
       (this.openaiApiKey && this.openaiApiKey.length > 10)
     );
 
-    console.log('🔧 AI Research Service initialized:', {
-      hasClaudeKey: !!(this.claudeApiKey && this.claudeApiKey.length > 10),
+    EventLogger.debug('ImprovedAIResearch', '🔧 AI Research Service initialized:', {
+      hasClaudeKey: !!(this.claudeApiKey && this.claudeApiKey.length > 10);,
       hasOpenAIKey: !!(this.openaiApiKey && this.openaiApiKey.length > 10),
       isConfigured: this.isConfigured
     });
@@ -60,7 +60,7 @@ export class ImprovedAIResearchService {
       ? { topic: query }
       : query;
 
-    console.log('🔍 Starting research for:', normalizedQuery.topic);
+    EventLogger.debug('ImprovedAIResearch', '🔍 Starting research for:', normalizedQuery.topic);
 
     // Always try enhanced local research first
     try {
@@ -69,7 +69,7 @@ export class ImprovedAIResearchService {
         results.push(enhancedLocal);
       }
     } catch (error) {
-      console.error('Enhanced local research failed:', error);
+      EventLogger.error('ImprovedAIResearch', 'Enhanced local research failed:', error as Error);
     }
 
     // Try API-based research if configured
@@ -78,7 +78,7 @@ export class ImprovedAIResearchService {
         const apiResults = await this.performAPIResearch(normalizedQuery);
         results.push(...apiResults);
       } catch (error) {
-        console.error('API research failed:', error);
+        EventLogger.error('ImprovedAIResearch', 'API research failed:', error as Error);
       }
     }
 
@@ -89,7 +89,7 @@ export class ImprovedAIResearchService {
         results.push(localResult);
       }
     } catch (error) {
-      console.error('Basic local research failed:', error);
+      EventLogger.error('ImprovedAIResearch', 'Basic local research failed:', error as Error);
     }
 
     // If no results, generate a helpful response
@@ -97,7 +97,7 @@ export class ImprovedAIResearchService {
       results.push(this.generateHelpfulFallback(normalizedQuery));
     }
 
-    console.log(`📊 Research complete: ${results.length} results from ${results.map(r => r.provider).join(', ')}`);
+    EventLogger.debug('ImprovedAIResearch', '📊 Research complete: ${results.length} results from ${results.map(r => r.provider).join(', ');}`);
     return results;
   }
 
@@ -159,7 +159,7 @@ export class ImprovedAIResearchService {
         confidence: 0.8
       };
     } catch (error) {
-      console.error('Enhanced local research error:', error);
+      EventLogger.error('ImprovedAIResearch', 'Enhanced local research error:', error as Error);
       return null;
     }
   }
@@ -170,7 +170,7 @@ export class ImprovedAIResearchService {
   private async performAPIResearch(query: ResearchQuery): Promise<ResearchResult[]> {
     // In a production app, you would implement actual API calls here
     // For now, return empty array to indicate API research is not available
-    console.log('⚠️ API research not implemented in React Native environment');
+    EventLogger.debug('ImprovedAIResearch', '⚠️ API research not implemented in React Native environment');
     return [];
   }
 
@@ -247,6 +247,7 @@ export class ImprovedAIResearchService {
       `// Example ${query.topic} implementation
 import React from 'react';
 import { View, Text } from 'react-native';
+import { EventLogger } from '../../utils/EventLogger';
 
 export const ${query.topic.replace(/\s+/g, '')}Component = () => {
   // Implementation would go here

@@ -34,6 +34,16 @@ export default {
         {
           photosPermission: "Allow Zaptap to access your photos for automations"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          // icon: "./assets/notification-icon.png", // Temporarily disabled - file too large
+          color: "#8B5CF6",
+          defaultChannel: "default",
+          // sounds: ["./assets/sounds/notification.wav"],
+          mode: "production"
+        }
       ]
     ],
     ios: {
@@ -51,6 +61,7 @@ export default {
         NSPhotoLibraryUsageDescription: "This app needs access to your photos to select images for automations.",
         NFCReaderUsageDescription: "This app uses NFC to read and write automation tags.",
         NSFaceIDUsageDescription: "This app uses Face ID for secure automation access.",
+        NSUserNotificationsUsageDescription: "This app sends push notifications to keep you updated on your automations.",
         "com.apple.developer.nfc.readersession.iso7816.select-identifiers": ["*"],
         "com.apple.developer.nfc.readersession.iso14443.select-identifiers": ["*"],
         ITSAppUsesNonExemptEncryption: false

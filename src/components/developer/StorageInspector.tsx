@@ -20,6 +20,7 @@ import {
 } from 'react-native-paper';
 import { DeveloperService } from '../../services/developer/DeveloperService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface StorageItem {
   key: string;
@@ -154,7 +155,7 @@ export const StorageInspector: React.FC = () => {
         data: Object.fromEntries(items.filter(([k, v]) => k && v)),
       };
       
-      console.log('STORAGE_EXPORT:', exportData);
+      EventLogger.debug('Storage', 'STORAGE_EXPORT:', exportData);
       Alert.alert('Success', 'Storage data exported to console logs');
     } catch (error) {
       Alert.alert('Error', 'Failed to export storage');
@@ -236,7 +237,7 @@ export const StorageInspector: React.FC = () => {
                 icon="content-copy"
                 size={16}
                 onPress={() => {
-                  console.log(`STORAGE_ITEM_${selectedItem.key}:`, selectedItem.value);
+                  EventLogger.debug('Storage', 'STORAGE_ITEM_${selectedItem.key}:', selectedItem.value);
                   Alert.alert('Copied', 'Value copied to console');
                 }}
               />

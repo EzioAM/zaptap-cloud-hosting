@@ -1,4 +1,5 @@
 import { AutomationData } from '../../types';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface SmartLinkOptions {
   webDomain?: string;
@@ -330,10 +331,10 @@ export class SmartLinkService {
                 }
                 
                 if (result.incompatibleSteps.length > 0) {
-                    console.warn('Some steps were not compatible with web execution:', result.incompatibleSteps);
+                    EventLogger.warn('SmartLink', 'Some steps were not compatible with web execution:', result.incompatibleSteps);
                 }
             } catch (error) {
-                console.error('Web engine execution failed:', error);
+                EventLogger.error('SmartLink', 'Web engine execution failed:', error as Error);
                 showResults('❌ Automation failed: ' + error.message);
                 executeLegacySteps();
             }

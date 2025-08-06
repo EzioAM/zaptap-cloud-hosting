@@ -3,6 +3,7 @@ import { smartLinkService } from '../linking/SmartLinkService';
 import { Share } from 'react-native';
 import { supabase } from '../supabase/client';
 import { sharingAnalyticsService } from './SharingAnalyticsService';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface SharingOptions {
   includeQR?: boolean;
@@ -98,7 +99,7 @@ export class AutomationSharingService {
       };
 
     } catch (error: any) {
-      console.error('Failed to share automation:', error);
+      EventLogger.error('Automation', 'Failed to share automation:', error as Error);
       return {
         success: false,
         error: error.message || 'Failed to share automation',
@@ -144,8 +145,8 @@ export class AutomationSharingService {
       const publicId = this.generatePublicId();
 
       // Store in database for public access
-      console.log('Creating public share with ID:', publicId);
-      console.log('Automation data:', automation);
+      EventLogger.debug('Automation', 'Creating public share with ID:', publicId);
+      EventLogger.debug('Automation', 'Automation data:', automation);
       
       const { data, error } = await supabase
         .from('public_shares')
@@ -162,7 +163,7 @@ export class AutomationSharingService {
         .select()
         .single();
       
-      console.log('Public share creation result:', { data, error });
+      EventLogger.debug('Automation', 'Public share creation result:', { data, error });
 
       if (error) {
         throw new Error(`Failed to create public share: ${error.message}`);
@@ -175,7 +176,7 @@ export class AutomationSharingService {
       };
 
     } catch (error: any) {
-      console.error('Failed to create public share link:', error);
+      EventLogger.error('Automation', 'Failed to create public share link:', error as Error);
       return {
         success: false,
         error: error.message || 'Failed to create public share link',
@@ -273,7 +274,7 @@ export class AutomationSharingService {
       };
 
     } catch (error) {
-      console.error('Failed to get sharing analytics:', error);
+      EventLogger.error('Automation', 'Failed to get sharing analytics:', error as Error);
       return {
         totalShares: 0,
         totalViews: 0,
@@ -401,10 +402,10 @@ export class AutomationSharingService {
         });
 
       if (error) {
-        console.error('Failed to log sharing activity:', error);
+        EventLogger.error('Automation', 'Failed to log sharing activity:', error as Error);
       }
     } catch (error) {
-      console.error('Failed to log sharing activity:', error);
+      EventLogger.error('Automation', 'Failed to log sharing activity:', error as Error);
     }
   }
 }

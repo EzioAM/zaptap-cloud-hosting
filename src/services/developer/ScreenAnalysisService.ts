@@ -1,5 +1,6 @@
 // React Native service for analyzing screen contents
 
+import { EventLogger } from '../../utils/EventLogger';
 export interface ScreenAnalysis {
   components: string[];
   layout: string;
@@ -24,7 +25,7 @@ export class ScreenAnalysisService {
       const analysis = await this.getScreenAnalysis(screenName);
       return this.formatAnalysisForAI(screenName, analysis);
     } catch (error) {
-      console.error(`Failed to analyze ${screenName}:`, error);
+      EventLogger.error('Analysis', 'Failed to analyze ${screenName}:', error as Error);
       return this.getFallbackDescription(screenName);
     }
   }

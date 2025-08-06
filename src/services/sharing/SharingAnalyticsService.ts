@@ -1,4 +1,5 @@
 import { supabase } from '../supabase/client';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface ShareAnalytics {
   automationId: string;
@@ -86,10 +87,10 @@ export class SharingAnalyticsService {
         });
 
       if (error) {
-        console.error('Failed to track share event:', error);
+        EventLogger.error('Analytics', 'Failed to track share event:', error as Error);
       }
     } catch (error) {
-      console.error('Error tracking share event:', error);
+      EventLogger.error('Analytics', 'Error tracking share event:', error as Error);
     }
   }
 
@@ -111,10 +112,10 @@ export class SharingAnalyticsService {
         });
 
       if (error && !error.message.includes('does not exist')) {
-        console.error('Failed to track view event:', error);
+        EventLogger.error('Analytics', 'Failed to track view event:', error as Error);
       }
     } catch (error) {
-      console.error('Error tracking view event:', error);
+      EventLogger.error('Analytics', 'Error tracking view event:', error as Error);
     }
   }
 
@@ -193,7 +194,7 @@ export class SharingAnalyticsService {
       };
 
     } catch (error) {
-      console.error('Failed to get automation analytics:', error);
+      EventLogger.error('Analytics', 'Failed to get automation analytics:', error as Error);
       return this.getEmptyAnalytics(automationId);
     }
   }
@@ -288,7 +289,7 @@ export class SharingAnalyticsService {
       };
 
     } catch (error) {
-      console.error('Failed to get user sharing analytics:', error);
+      EventLogger.error('Analytics', 'Failed to get user sharing analytics:', error as Error);
       return {
         totalShares: 0,
         totalViews: 0,
@@ -335,7 +336,7 @@ export class SharingAnalyticsService {
       };
 
     } catch (error) {
-      console.error('Failed to get share performance:', error);
+      EventLogger.error('Analytics', 'Failed to get share performance:', error as Error);
       return {
         views: 0,
         executions: 0,
@@ -421,7 +422,7 @@ export class SharingAnalyticsService {
         .sort((a, b) => a.date.localeCompare(b.date));
 
     } catch (error) {
-      console.error('Failed to calculate daily stats:', error);
+      EventLogger.error('Analytics', 'Failed to calculate daily stats:', error as Error);
       return [];
     }
   }

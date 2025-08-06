@@ -14,12 +14,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useUnifiedTheme as useTheme } from '../../contexts/UnifiedThemeProvider';
+import { useUnifiedTheme as useTheme } from '../../contexts/ThemeCompatibilityShim';
 import { useNavigation } from '@react-navigation/native';
 import { useConnection } from '../../contexts/ConnectionContext';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { supabase } from '../../services/supabase/client';
+import { DEFAULT_AVATAR } from '../../constants/defaults';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface Comment {
   id: string;
@@ -90,7 +92,7 @@ const ModernCommentsScreen = () => {
             id: comment.id,
             user_id: comment.user_id,
             user_name: comment.users?.name || 'Anonymous',
-            user_avatar: comment.users?.avatar_url,
+            user_avatar: comment.users?.avatar_url || DEFAULT_AVATAR,
             content: comment.content,
             parent_id: comment.parent_id,
             automation_id: comment.automation_id,
@@ -107,7 +109,7 @@ const ModernCommentsScreen = () => {
 
       setComments(commentsWithReplies);
     } catch (error) {
-      console.error('Error loading comments:', error);
+      EventLogger.error('ModernComments', 'Error loading comments:', error as Error);
       Alert.alert('Error', 'Failed to load comments');
     } finally {
       setIsLoading(false);
@@ -138,7 +140,7 @@ const ModernCommentsScreen = () => {
           return {
             ...reply,
             user_name: reply.users?.name || 'Anonymous',
-            user_avatar: reply.users?.avatar_url,
+            user_avatar: reply.users?.avatar_url || DEFAULT_AVATAR,
             likes_count: reply.likes_count || 0,
             user_has_liked: false,
             replies: nestedReplies,
@@ -149,7 +151,7 @@ const ModernCommentsScreen = () => {
 
       return replies;
     } catch (error) {
-      console.error('Error loading replies:', error);
+      EventLogger.error('ModernComments', 'Error loading replies:', error as Error);
       return [];
     }
   };
@@ -167,7 +169,7 @@ const ModernCommentsScreen = () => {
 
   const handleSubmitComment = async () => {
     if (!isAuthenticated) {
-      Alert.alert('Sign In Required', 'Please sign in to comment');
+      navigation.navigate('SignIn' as never);
       return;
     }
 
@@ -196,7 +198,7 @@ const ModernCommentsScreen = () => {
       const newCommentObj: Comment = {
         ...data,
         user_name: user!.name,
-        user_avatar: user!.avatar_url,
+        user_avatar: user?.avatar_url || DEFAULT_AVATAR,
         likes_count: 0,
         user_has_liked: false,
         replies: [],
@@ -214,7 +216,7 @@ const ModernCommentsScreen = () => {
       setNewComment('');
       setReplyingTo(null);
     } catch (error) {
-      console.error('Error posting comment:', error);
+      EventLogger.error('ModernComments', 'Error posting comment:', error as Error);
       Alert.alert('Error', 'Failed to post comment');
     }
   };
@@ -242,7 +244,7 @@ const ModernCommentsScreen = () => {
 
   const handleLikeComment = async (commentId: string) => {
     if (!isAuthenticated) {
-      Alert.alert('Sign In Required', 'Please sign in to like comments');
+      navigation.navigate('SignIn' as never);
       return;
     }
 
@@ -265,7 +267,7 @@ const ModernCommentsScreen = () => {
       // Update local state
       setComments(prev => updateCommentLike(prev, commentId));
     } catch (error) {
-      console.error('Error liking comment:', error);
+      EventLogger.error('ModernComments', 'Error liking comment:', error as Error);
     }
   };
 
@@ -415,7 +417,7 @@ const ModernCommentsScreen = () => {
               // Remove from local state
               setComments(prev => removeComment(prev, commentId));
             } catch (error) {
-              console.error('Error deleting comment:', error);
+              EventLogger.error('ModernComments', 'Error deleting comment:', error as Error);
               Alert.alert('Error', 'Failed to delete comment');
             }
           }

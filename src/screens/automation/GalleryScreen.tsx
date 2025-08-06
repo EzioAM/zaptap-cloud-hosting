@@ -28,6 +28,7 @@ import Constants from 'expo-constants';
 import { AutomationFilters, FilterOptions } from '../../components/filtering/AutomationFilters';
 import { automationFilterService } from '../../services/filtering/AutomationFilterService';
 import { AutomationCard } from '../../components/automation/AutomationCard';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface GalleryScreenProps {
   navigation: any;
@@ -103,7 +104,7 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
       setAvailableCategories(mappedCategories);
       setAvailableTags(filterData.tags);
     } catch (error) {
-      console.error('Failed to load filter options:', error);
+      EventLogger.error('Automation', 'Failed to load filter options:', error as Error);
     }
   };
 
@@ -120,9 +121,9 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
       setAutomations(result.automations);
       setTotalCount(result.totalCount);
     } catch (error: any) {
-      console.error('Error loading gallery automations:', {
+      EventLogger.error('Automation', 'Error loading gallery automations:', {
         message: error.message,
-        details: error.stack || error.toString(),
+        details: error.stack || error.toString( as Error);,
         url: Constants.expoConfig?.extra?.supabaseUrl
       });
       Alert.alert('Error', `Failed to load automations: ${error.message || 'Unknown error'}`);

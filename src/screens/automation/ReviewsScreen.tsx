@@ -20,6 +20,7 @@ import RatingInput from '../../components/reviews/RatingInput';
 import ReviewDisplay from '../../components/reviews/ReviewDisplay';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
+import { EventLogger } from '../../utils/EventLogger';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Reviews'>;
 
@@ -58,7 +59,7 @@ const ReviewsScreen: React.FC<Props> = ({ navigation, route }) => {
       setReviews(reviewsResult.reviews);
       setRatingStats(statsResult);
     } catch (error: any) {
-      console.error('Failed to load reviews:', error);
+      EventLogger.error('Automation', 'Failed to load reviews:', error as Error);
       showMessage('Failed to load reviews');
     } finally {
       setIsLoading(false);
@@ -73,7 +74,7 @@ const ReviewsScreen: React.FC<Props> = ({ navigation, route }) => {
       const review = await reviewService.getUserReview(automation.id, user.id);
       setUserReview(review);
     } catch (error: any) {
-      console.error('Failed to load user review:', error);
+      EventLogger.error('Automation', 'Failed to load user review:', error as Error);
     }
   };
 
@@ -89,7 +90,7 @@ const ReviewsScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleSubmitReview = async (rating: number, reviewText?: string) => {
     if (!user) {
-      Alert.alert('Sign In Required', 'Please sign in to submit a review.');
+      navigation.navigate('SignIn');
       return;
     }
 

@@ -20,6 +20,7 @@ import { sharingAnalyticsService } from '../../services/sharing/SharingAnalytics
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface ShareAutomationModalProps {
   visible: boolean;
@@ -58,7 +59,7 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
       const analyticsData = await sharingAnalyticsService.getAutomationAnalytics(automation.id);
       setAnalytics(analyticsData);
     } catch (error) {
-      console.error('Failed to load analytics:', error);
+      EventLogger.error('Automation', 'Failed to load analytics:', error as Error);
     } finally {
       setLoadingAnalytics(false);
     }
@@ -187,7 +188,7 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
         });
       }
     } catch (error: any) {
-      console.error('QR share error:', error);
+      EventLogger.error('Automation', 'QR share error:', error as Error);
       if (!error.message?.includes('cancel')) {
         Alert.alert(
           'Share Failed',
@@ -247,7 +248,7 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
         success: true,
       });
     } catch (error: any) {
-      console.error('Save QR error:', error);
+      EventLogger.error('Automation', 'Save QR error:', error as Error);
       Alert.alert(
         'Save Failed',
         'Could not save QR code. Please try again.',
@@ -413,7 +414,7 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
                     setQrError(false);
                   }}
                   onError={(error: any) => {
-                    console.error('QR Code generation error:', error);
+                    EventLogger.error('Automation', 'QR Code generation error:', error as Error);
                     setQrError(true);
                   }}
                 />
@@ -462,7 +463,7 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
       </ScrollView>
     );
     } catch (error) {
-      console.error('Error rendering QR tab:', error);
+      EventLogger.error('Automation', 'Error rendering QR tab:', error as Error);
       return (
         <ScrollView style={styles.tabContent}>
           <View style={styles.section}>

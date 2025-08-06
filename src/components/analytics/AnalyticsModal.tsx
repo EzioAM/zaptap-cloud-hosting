@@ -22,6 +22,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AnalyticsService, AnalyticsData } from '../../services/analytics/AnalyticsService';
 import { AutomationData } from '../../types';
 import { FullScreenModal } from '../common/FullScreenModal';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface AnalyticsModalProps {
   visible: boolean;
@@ -75,7 +76,7 @@ export const AnalyticsModal: React.FC<AnalyticsModalProps> = ({
       );
       setAnalytics(data);
     } catch (error) {
-      console.error('Failed to load analytics:', error);
+      EventLogger.error('Analytics', 'Failed to load analytics:', error as Error);
     } finally {
       setLoading(false);
     }

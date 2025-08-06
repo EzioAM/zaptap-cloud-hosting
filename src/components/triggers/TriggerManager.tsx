@@ -21,6 +21,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationTrigger, LocationTriggerConfig, TriggerType } from '../../types';
 import LocationTriggerConfigModal from './LocationTriggerConfig';
 import { locationTriggerService } from '../../services/triggers/LocationTriggerService';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface TriggerManagerProps {
   triggers: AutomationTrigger[];
@@ -39,7 +40,7 @@ const TriggerManager: React.FC<TriggerManagerProps> = ({
   const [selectedTriggerType, setSelectedTriggerType] = useState<TriggerType>('location_enter');
   const [isModalTransitioning, setIsModalTransitioning] = useState(false);
 
-  console.log('TriggerManager render - showLocationConfig:', showLocationConfig, 'selectedTriggerType:', selectedTriggerType);
+  EventLogger.debug('Trigger', 'TriggerManager render - showLocationConfig:', showLocationConfig, 'selectedTriggerType:', selectedTriggerType);
 
   const getTriggerIcon = (type: TriggerType): string => {
     switch (type) {
@@ -119,12 +120,12 @@ const TriggerManager: React.FC<TriggerManagerProps> = ({
   };
 
   const handleTriggerTypeSelected = () => {
-    console.log('TriggerManager handleTriggerTypeSelected - selectedTriggerType:', selectedTriggerType);
+    EventLogger.debug('Trigger', 'TriggerManager handleTriggerTypeSelected - selectedTriggerType:', selectedTriggerType);
     setIsModalTransitioning(true);
     setShowTriggerPicker(false);
     
     if (selectedTriggerType === 'location_enter' || selectedTriggerType === 'location_exit') {
-      console.log('TriggerManager opening location config modal for type:', selectedTriggerType);
+      EventLogger.debug('Trigger', 'TriggerManager opening location config modal for type:', selectedTriggerType);
       // Use setTimeout to ensure state updates are complete
       setTimeout(() => {
         setShowLocationConfig(true);
@@ -138,7 +139,7 @@ const TriggerManager: React.FC<TriggerManagerProps> = ({
   };
 
   const handleLocationTriggerSaved = (trigger: AutomationTrigger) => {
-    console.log('Saving location trigger:', trigger);
+    EventLogger.debug('Trigger', 'Saving location trigger:', trigger);
     let updatedTriggers;
     
     if (editingTrigger) {
@@ -146,11 +147,11 @@ const TriggerManager: React.FC<TriggerManagerProps> = ({
       updatedTriggers = triggers.map(t => 
         t.id === editingTrigger.id ? trigger : t
       );
-      console.log('Updated existing trigger');
+      EventLogger.debug('Trigger', 'Updated existing trigger');
     } else {
       // Add new trigger
       updatedTriggers = [...triggers, trigger];
-      console.log('Added new trigger, total triggers:', updatedTriggers.length);
+      EventLogger.debug('Trigger', 'Added new trigger, total triggers:', updatedTriggers.length);
     }
     
     onTriggersChange(updatedTriggers);
@@ -269,13 +270,13 @@ const TriggerManager: React.FC<TriggerManagerProps> = ({
                   left={() => <Icon name="login" size={24} color="#6200ee" />}
                   right={() => <Icon name="chevron-right" size={24} color="#ccc" />}
                   onPress={() => {
-                    console.log('Location - Arrive pressed');
+                    EventLogger.debug('Trigger', 'Location - Arrive pressed');
                     setSelectedTriggerType('location_enter');
                     setIsModalTransitioning(true);
                     setShowTriggerPicker(false);
                     // Longer delay to ensure trigger picker closes first
                     setTimeout(() => {
-                      console.log('Setting showLocationConfig to true after delay');
+                      EventLogger.debug('Trigger', 'Setting showLocationConfig to true after delay');
                       setShowLocationConfig(true);
                       setIsModalTransitioning(false);
                     }, 400);
@@ -291,13 +292,13 @@ const TriggerManager: React.FC<TriggerManagerProps> = ({
                   left={() => <Icon name="logout" size={24} color="#6200ee" />}
                   right={() => <Icon name="chevron-right" size={24} color="#ccc" />}
                   onPress={() => {
-                    console.log('Location - Leave pressed');
+                    EventLogger.debug('Trigger', 'Location - Leave pressed');
                     setSelectedTriggerType('location_exit');
                     setIsModalTransitioning(true);
                     setShowTriggerPicker(false);
                     // Longer delay to ensure trigger picker closes first
                     setTimeout(() => {
-                      console.log('Setting showLocationConfig to true after delay');
+                      EventLogger.debug('Trigger', 'Setting showLocationConfig to true after delay');
                       setShowLocationConfig(true);
                       setIsModalTransitioning(false);
                     }, 400);
@@ -347,7 +348,7 @@ const TriggerManager: React.FC<TriggerManagerProps> = ({
         initialTriggerType={selectedTriggerType as 'location_enter' | 'location_exit'}
         onSave={handleLocationTriggerSaved}
         onCancel={() => {
-          console.log('LocationTriggerConfig onCancel called');
+          EventLogger.debug('Trigger', 'LocationTriggerConfig onCancel called');
           setShowLocationConfig(false);
           setEditingTrigger(undefined);
           setSelectedTriggerType('location_enter'); // Reset to default

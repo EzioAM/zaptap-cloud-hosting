@@ -7,51 +7,53 @@ import { SupabaseTestComponent } from '../components/test/SupabaseTestComponent'
 import { ThemeTestComponent } from '../components/test/ThemeTestComponent';
 import { ScreenLoaderTest } from '../components/test/ScreenLoaderTest';
 import { ThemeFallbackWrapper } from '../components/common/ThemeFallbackWrapper';
+import { EventLogger } from '../utils/EventLogger';
 
-console.log('🚨 EmergencyBottomTabNavigator loading...');
+EventLogger.debug('Navigation', '🚨 EmergencyBottomTabNavigator loading...');
 
 const Tab = createBottomTabNavigator();
 
-// Try to load the real screens
-let ModernHomeScreenSafe: any = null;
-let BuildScreenSafe: any = null;
-let DiscoverScreenSafe: any = null;
-let LibraryScreenSafe: any = null;
-let ModernProfileScreenSafe: any = null;
+// Try to load the consolidated screens
+let ModernHomeScreen: any = null;
+let BuildScreen: any = null;
+let DiscoverScreen: any = null;
+let LibraryScreen: any = null;
+let ModernProfileScreen: any = null;
 
 try {
-  ModernHomeScreenSafe = require('../screens/modern/ModernHomeScreenSafe').default;
-  console.log('✅ ModernHomeScreenSafe loaded successfully');
+  ModernHomeScreen = require('../screens/modern/ModernHomeScreen').default;
+  EventLogger.debug('Navigation', '✅ ModernHomeScreen loaded successfully');
 } catch (error) {
-  console.error('❌ Failed to load ModernHomeScreenSafe:', error);
+  EventLogger.error('Navigation', '❌ Failed to load ModernHomeScreen:', error as Error);
 }
 
 try {
-  BuildScreenSafe = require('../screens/modern/BuildScreenSafe').default;
-  console.log('✅ BuildScreenSafe loaded successfully');
+  BuildScreen = require('../screens/modern/BuildScreen').default;
+  EventLogger.debug('Navigation', '✅ BuildScreen loaded successfully');
 } catch (error) {
-  console.error('❌ Failed to load BuildScreenSafe:', error);
+  EventLogger.error('Navigation', '❌ Failed to load BuildScreen:', error as Error);
 }
 
 try {
-  DiscoverScreenSafe = require('../screens/modern/DiscoverScreenSafe').default;
-  console.log('✅ DiscoverScreenSafe loaded successfully');
+  DiscoverScreen = require('../screens/modern/DiscoverScreen').default;
+  EventLogger.debug('Navigation', '✅ DiscoverScreen loaded successfully');
 } catch (error) {
-  console.error('❌ Failed to load DiscoverScreenSafe:', error);
+  EventLogger.error('Navigation', '❌ Failed to load DiscoverScreen:', error as Error);
 }
 
 try {
-  LibraryScreenSafe = require('../screens/modern/LibraryScreenSafe').default;
-  console.log('✅ LibraryScreenSafe loaded successfully');
+  LibraryScreen = require('../screens/modern/LibraryScreen').default;
+  EventLogger.debug('Navigation', '✅ LibraryScreen loaded successfully');
 } catch (error) {
-  console.error('❌ Failed to load LibraryScreenSafe:', error);
+  EventLogger.error('Navigation', '❌ Failed to load LibraryScreen:', error as Error);
 }
 
 try {
-  ModernProfileScreenSafe = require('../screens/modern/ModernProfileScreenSafe').default;
-  console.log('✅ ModernProfileScreenSafe loaded successfully');
+  ModernProfileScreen = require('../screens/modern/ModernProfileScreen').default;
+  EventLogger.debug('Navigation', '✅ ModernProfileScreen loaded successfully');
 } catch (error) {
-  console.error('❌ Failed to load ModernProfileScreenSafe:', error);
+  EventLogger.error('Navigation', '❌ Failed to load ModernProfileScreen:', error as Error);
+  }
 }
 
 // Emergency screens
@@ -67,7 +69,7 @@ const EmergencyScreen = ({ title }: { title: string }) => (
 const TestDashboard = () => {
   const [showRealHome, setShowRealHome] = useState(false);
   
-  if (showRealHome && ModernHomeScreenSafe) {
+  if (showRealHome && ModernHomeScreen) {
     return (
       <ThemeFallbackWrapper 
         fallback={
@@ -77,7 +79,7 @@ const TestDashboard = () => {
           </View>
         }
       >
-        <ModernHomeScreenSafe />
+        <ModernHomeScreen />
       </ThemeFallbackWrapper>
     );
   }
@@ -88,7 +90,7 @@ const TestDashboard = () => {
         <Text style={styles.headerTitle}>🚨 System Recovery Dashboard</Text>
         <Text style={styles.headerSubtitle}>Testing core systems...</Text>
         
-        {ModernHomeScreenSafe && (
+        {ModernHomeScreen && (
           <View style={styles.toggleContainer}>
             <Text style={styles.toggleLabel}>Show Real HomeScreen:</Text>
             <Switch 
@@ -117,7 +119,7 @@ const TestDashboard = () => {
 
 // Use real HomeScreen with fallback
 const HomeScreen = () => {
-  if (ModernHomeScreenSafe) {
+  if (ModernHomeScreen) {
     return (
       <ThemeFallbackWrapper 
         fallback={
@@ -127,59 +129,59 @@ const HomeScreen = () => {
           </View>
         }
       >
-        <ModernHomeScreenSafe />
+        <ModernHomeScreen />
       </ThemeFallbackWrapper>
     );
   }
   return <TestDashboard />;
 };
 
-const BuildScreen = () => {
-  if (BuildScreenSafe) {
+const BuildScreenComponent = () => {
+  if (BuildScreen) {
     return (
       <ThemeFallbackWrapper 
         fallback={<EmergencyScreen title="Build" />}
       >
-        <BuildScreenSafe />
+        <BuildScreen />
       </ThemeFallbackWrapper>
     );
   }
   return <EmergencyScreen title="Build" />;
 };
 
-const DiscoverScreen = () => {
-  if (DiscoverScreenSafe) {
+const DiscoverScreenComponent = () => {
+  if (DiscoverScreen) {
     return (
       <ThemeFallbackWrapper 
         fallback={<EmergencyScreen title="Discover" />}
       >
-        <DiscoverScreenSafe />
+        <DiscoverScreen />
       </ThemeFallbackWrapper>
     );
   }
   return <EmergencyScreen title="Discover" />;
 };
 
-const LibraryScreen = () => {
-  if (LibraryScreenSafe) {
+const LibraryScreenComponent = () => {
+  if (LibraryScreen) {
     return (
       <ThemeFallbackWrapper 
         fallback={<EmergencyScreen title="Library" />}
       >
-        <LibraryScreenSafe />
+        <LibraryScreen />
       </ThemeFallbackWrapper>
     );
   }
   return <EmergencyScreen title="Library" />;
 };
 
-const ProfileScreen = () => {
-  if (ModernProfileScreenSafe) {
+const ProfileScreenComponent = () => {
+  if (ModernProfileScreen) {
     return (
       <ThemeFallbackWrapper 
         fallback={<EmergencyScreen title="Profile" />}
       >
-        <ModernProfileScreenSafe />
+        <ModernProfileScreen />
       </ThemeFallbackWrapper>
     );
   }
@@ -187,7 +189,7 @@ const ProfileScreen = () => {
 };
 
 export const ModernBottomTabNavigator = () => {
-  console.log('🚨 EmergencyBottomTabNavigator rendering...');
+  EventLogger.debug('Navigation', '🚨 EmergencyBottomTabNavigator rendering...');
   
   return (
     <Tab.Navigator
@@ -247,7 +249,7 @@ export const ModernBottomTabNavigator = () => {
       />
       <Tab.Screen 
         name="BuildTab" 
-        component={BuildScreen}
+        component={BuildScreenComponent}
         options={{ 
           title: 'Build',
           headerTitle: 'Build'
@@ -255,7 +257,7 @@ export const ModernBottomTabNavigator = () => {
       />
       <Tab.Screen 
         name="DiscoverTab" 
-        component={DiscoverScreen}
+        component={DiscoverScreenComponent}
         options={{ 
           title: 'Discover',
           headerTitle: 'Discover'
@@ -263,7 +265,7 @@ export const ModernBottomTabNavigator = () => {
       />
       <Tab.Screen 
         name="LibraryTab" 
-        component={LibraryScreen}
+        component={LibraryScreenComponent}
         options={{ 
           title: 'Library',
           headerTitle: 'My Library'
@@ -271,7 +273,7 @@ export const ModernBottomTabNavigator = () => {
       />
       <Tab.Screen 
         name="ProfileTab" 
-        component={ProfileScreen}
+        component={ProfileScreenComponent}
         options={{ 
           title: 'Profile',
           headerTitle: 'Profile'

@@ -15,6 +15,7 @@ import {
 } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import NFCService from '../../services/nfc/NFCService';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface NFCScannerProps {
   onScan: (automationId: string, metadata: any) => void;
@@ -63,7 +64,7 @@ const NFCScanner: React.FC<NFCScannerProps> = ({ onScan, onClose }) => {
         startScanning();
       }
     } catch (error) {
-      console.error('Error checking NFC support:', error);
+      EventLogger.error('NFC', 'Error checking NFC support:', error as Error);
       setIsSupported(false);
     }
   };
@@ -122,7 +123,7 @@ const NFCScanner: React.FC<NFCScannerProps> = ({ onScan, onClose }) => {
       });
       
     } catch (error) {
-      console.error('Failed to start NFC scanning:', error);
+      EventLogger.error('NFC', 'Failed to start NFC scanning:', error as Error);
       setScanning(false);
       Alert.alert('NFC Error', 'Failed to start NFC scanning');
     }
@@ -133,7 +134,7 @@ const NFCScanner: React.FC<NFCScannerProps> = ({ onScan, onClose }) => {
       await NFCService.stopNFCReader();
       setScanning(false);
     } catch (error) {
-      console.error('Failed to stop NFC scanning:', error);
+      EventLogger.error('NFC', 'Failed to stop NFC scanning:', error as Error);
     }
   };
 

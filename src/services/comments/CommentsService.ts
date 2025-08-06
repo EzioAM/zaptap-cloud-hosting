@@ -1,4 +1,5 @@
 import { supabase } from '../supabase/client';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface AutomationComment {
   id: string;
@@ -90,7 +91,7 @@ export class CommentsService {
 
       return rootComments;
     } catch (error) {
-      console.error('Failed to get comments:', error);
+      EventLogger.error('Comments', 'Failed to get comments:', error as Error);
       return [];
     }
   }
@@ -134,7 +135,7 @@ export class CommentsService {
 
       markLikes(comments);
     } catch (error) {
-      console.error('Failed to mark user likes:', error);
+      EventLogger.error('Comments', 'Failed to mark user likes:', error as Error);
     }
   }
 
@@ -165,7 +166,7 @@ export class CommentsService {
         .single();
       
       if (automationError) {
-        console.error('Automation check error:', automationError);
+        EventLogger.error('Comments', 'Automation check error:', automationError as Error);
         throw new Error('Could not verify automation. It might not exist.');
       }
       
@@ -180,7 +181,7 @@ export class CommentsService {
         content: content.trim(),
       };
 
-      console.log('Attempting to insert comment:', commentData);
+      EventLogger.debug('Comments', 'Attempting to insert comment:', commentData);
 
       const { data, error } = await supabase
         .from('automation_comments')
@@ -192,7 +193,7 @@ export class CommentsService {
         .single();
 
       if (error) {
-        console.error('Insert error details:', error);
+        EventLogger.error('Comments', 'Insert error details:', error as Error);
         
         if (error.code === '42P01') {
           throw new Error('Comments table does not exist. Please run the database setup script.');
@@ -216,7 +217,7 @@ export class CommentsService {
         is_liked_by_user: false,
       };
     } catch (error: any) {
-      console.error('Failed to add comment:', error);
+      EventLogger.error('Comments', 'Failed to add comment:', error as Error);
       throw error; // Re-throw to let the UI handle it
     }
   }
@@ -242,7 +243,7 @@ export class CommentsService {
       if (error) throw error;
       return true;
     } catch (error) {
-      console.error('Failed to update comment:', error);
+      EventLogger.error('Comments', 'Failed to update comment:', error as Error);
       return false;
     }
   }
@@ -264,7 +265,7 @@ export class CommentsService {
       if (error) throw error;
       return true;
     } catch (error) {
-      console.error('Failed to delete comment:', error);
+      EventLogger.error('Comments', 'Failed to delete comment:', error as Error);
       return false;
     }
   }
@@ -308,7 +309,7 @@ export class CommentsService {
         return true; // Liked
       }
     } catch (error) {
-      console.error('Failed to toggle comment like:', error);
+      EventLogger.error('Comments', 'Failed to toggle comment like:', error as Error);
       return false;
     }
   }
@@ -350,7 +351,7 @@ export class CommentsService {
       if (error) throw error;
       return !comment.is_pinned;
     } catch (error) {
-      console.error('Failed to toggle comment pin:', error);
+      EventLogger.error('Comments', 'Failed to toggle comment pin:', error as Error);
       return false;
     }
   }
@@ -414,7 +415,7 @@ export class CommentsService {
         recent_activity: recentActivity,
       };
     } catch (error) {
-      console.error('Failed to get comment stats:', error);
+      EventLogger.error('Comments', 'Failed to get comment stats:', error as Error);
       return {
         total_comments: 0,
         total_replies: 0,
@@ -435,12 +436,12 @@ export class CommentsService {
       if (!user) throw new Error('User not authenticated');
 
       // Log the report (you might want a separate reports table)
-      console.log('Comment reported:', { commentId, reason, reportedBy: user.id });
+      EventLogger.debug('Comments', 'Comment reported:', { commentId, reason, reportedBy: user.id });
       
       // For now, just log it. In a real app, you'd insert into a reports table
       return true;
     } catch (error) {
-      console.error('Failed to report comment:', error);
+      EventLogger.error('Comments', 'Failed to report comment:', error as Error);
       return false;
     }
   }

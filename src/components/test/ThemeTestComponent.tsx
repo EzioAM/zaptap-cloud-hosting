@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
 import { useTheme as usePaperTheme } from 'react-native-paper';
+import { EventLogger } from '../../utils/EventLogger';
 
 export const ThemeTestComponent = () => {
   const [themeStatus, setThemeStatus] = useState('🔍 Testing theme...');
@@ -18,20 +19,20 @@ export const ThemeTestComponent = () => {
     if (themeHookResult && themeHookResult.theme) {
       unifiedThemeStatus = '✅ UnifiedTheme Working (Compatibility Mode)';
       unifiedTheme = themeHookResult.theme;
-      console.log('✅ Unified theme loaded (compat):', themeHookResult);
+      EventLogger.debug('ThemeTest', '✅ Unified theme loaded (compat):', themeHookResult);
     } else {
       unifiedThemeStatus = '⚠️ UnifiedTheme returned null';
     }
   } catch (error: any) {
     unifiedThemeStatus = '❌ UnifiedTheme Not Available';
-    console.log('⚠️ UnifiedTheme not available, using Paper theme fallback');
+    EventLogger.debug('ThemeTest', '⚠️ UnifiedTheme not available, using Paper theme fallback');
   }
   
   // Test Paper theme
   React.useEffect(() => {
     if (paperTheme && paperTheme.colors) {
       setThemeStatus('✅ Paper Theme Working');
-      console.log('✅ Paper theme loaded:', paperTheme);
+      EventLogger.debug('ThemeTest', '✅ Paper theme loaded:', paperTheme);
     } else {
       setThemeStatus('❌ Paper Theme Error');
     }

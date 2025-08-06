@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, Modal, TouchableOpacity, Pressable } from
 import { Text, Button, IconButton, useTheme, MD3Theme } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { EventLogger } from '../../utils/EventLogger';
 
 const ICON_MAP = {
   sms: 'message-text',
@@ -50,7 +51,7 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
   useEffect(() => {
     if (__DEV__) {
       // eslint-disable-next-line no-console
-      console.log('StepConfigModal:', { visible, stepType, stepTitle });
+      EventLogger.debug('Automation', 'StepConfigModal:', { visible, stepType, stepTitle });
     }
   }, [visible, stepType, stepTitle]);
 
@@ -72,12 +73,12 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
   try {
     formNode = typeof renderConfigForm === 'function' ? renderConfigForm() : null;
     if (__DEV__) {
-      console.log('Form node generated:', { formNode, stepType, stepTitle });
+      EventLogger.debug('Automation', 'Form node generated:', { formNode, stepType, stepTitle });
     }
   } catch (e) {
     formNode = <Text style={{ color: theme.colors.error }}>Error loading form: {e.message}</Text>;
     if (__DEV__) {
-      console.error('renderConfigForm error:', e);
+      EventLogger.error('Automation', 'renderConfigForm error:', e as Error);
     }
   }
 

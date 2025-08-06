@@ -1,231 +1,595 @@
-// Sample automations for new users
-export const sampleAutomations = [
+/**
+ * Sample Automations Data for Onboarding
+ * These are pre-built automation templates that new users can explore during onboarding
+ */
+
+export interface SampleAutomationStep {
+  id: string;
+  type: string;
+  title: string;
+  icon: string;
+  color: string;
+  config: any;
+  description: string;
+}
+
+export interface SampleAutomation {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  gradient: string[];
+  category: 'productivity' | 'lifestyle' | 'communication' | 'device' | 'fun';
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedTime: string; // e.g., "< 1 min", "2-3 mins"
+  useCase: string;
+  steps: SampleAutomationStep[];
+  shareUrl?: string;
+  tags: string[];
+  isPopular?: boolean;
+  isFeatured?: boolean;
+}
+
+export const sampleAutomations: SampleAutomation[] = [
   {
-    title: 'Good Morning Routine',
-    description: 'Start your day right with automated notifications and reminders',
-    category: 'morning-routine',
-    is_public: true,
-    is_template: true,
+    id: 'morning-routine',
+    name: 'Perfect Morning',
+    description: 'Start your day with automated morning routine',
     icon: 'weather-sunny',
-    color: '#FFA726',
-    tags: ['morning', 'routine', 'daily'],
+    color: '#FF9800',
+    gradient: ['#FF9800', '#FFC107'],
+    category: 'lifestyle',
+    difficulty: 'beginner',
+    estimatedTime: '< 1 min',
+    useCase: 'Wake up refreshed with automated device settings and weather updates',
+    tags: ['morning', 'routine', 'productivity', 'wellness'],
+    isPopular: true,
+    isFeatured: true,
     steps: [
       {
+        id: '1',
         type: 'notification',
+        title: 'Good Morning!',
+        icon: 'weather-sunny',
+        color: '#FF9800',
+        description: 'Show energizing morning greeting',
         config: {
           title: 'Good Morning! ☀️',
-          message: 'Time to start your day!',
-          sound: true,
-          vibrate: true
+          message: 'Ready to make today amazing?',
+          sound: 'default',
         },
-        order_index: 0
       },
       {
-        type: 'delay',
+        id: '2',
+        type: 'wifi',
+        title: 'Enable WiFi',
+        icon: 'wifi',
+        color: '#2196F3',
+        description: 'Turn on WiFi for connectivity',
         config: {
-          seconds: 3
+          enabled: true,
         },
-        order_index: 1
       },
       {
-        type: 'text',
+        id: '3',
+        type: 'brightness',
+        title: 'Set Brightness',
+        icon: 'brightness-6',
+        color: '#FFC107',
+        description: 'Comfortable morning brightness',
         config: {
-          action: 'speak',
-          text: 'Good morning! Here is your daily motivation: You can do anything you set your mind to!'
+          level: 75,
         },
-        order_index: 2
-      }
-    ]
+      },
+      {
+        id: '4',
+        type: 'http',
+        title: 'Get Weather',
+        icon: 'weather-partly-cloudy',
+        color: '#00BCD4',
+        description: 'Fetch current weather information',
+        config: {
+          method: 'GET',
+          url: 'https://api.openweathermap.org/data/2.5/weather',
+          showResponse: true,
+        },
+      },
+    ],
   },
   {
-    title: 'Emergency Alert',
-    description: 'Quick emergency notification to your contacts',
-    category: 'emergency',
-    is_public: true,
-    is_template: true,
-    icon: 'alert-circle',
-    color: '#F44336',
-    tags: ['emergency', 'alert', 'safety'],
-    steps: [
-      {
-        type: 'location',
-        config: {
-          action: 'get'
-        },
-        order_index: 0
-      },
-      {
-        type: 'sms',
-        config: {
-          phoneNumber: '',
-          message: 'EMERGENCY: I need help! My location is: {{location}}'
-        },
-        order_index: 1
-      },
-      {
-        type: 'notification',
-        config: {
-          title: '🚨 Emergency Alert Sent',
-          message: 'Your emergency contact has been notified',
-          sound: true,
-          vibrate: true
-        },
-        order_index: 2
-      }
-    ]
-  },
-  {
-    title: 'Meeting Reminder',
-    description: 'Get reminded 15 minutes before your meetings',
+    id: 'meeting-mode',
+    name: 'Meeting Mode',
+    description: 'Instantly prepare your device for important meetings',
+    icon: 'account-group',
+    color: '#3F51B5',
+    gradient: ['#3F51B5', '#5C6BC0'],
     category: 'productivity',
-    is_public: true,
-    is_template: true,
-    icon: 'calendar-clock',
-    color: '#2196F3',
-    tags: ['productivity', 'reminder', 'work'],
+    difficulty: 'beginner',
+    estimatedTime: '< 30 sec',
+    useCase: 'Quickly silence device and send auto-reply messages',
+    tags: ['meeting', 'work', 'professional', 'silence'],
+    isPopular: true,
     steps: [
       {
-        type: 'notification',
+        id: '1',
+        type: 'volume',
+        title: 'Silent Mode',
+        icon: 'volume-off',
+        color: '#9E9E9E',
+        description: 'Set device to silent mode',
         config: {
-          title: '📅 Meeting in 15 minutes',
-          message: 'Your meeting is coming up soon',
-          sound: true
+          level: 0,
+          vibrate: true,
         },
-        order_index: 0
       },
       {
-        type: 'delay',
+        id: '2',
+        type: 'notification',
+        title: 'Meeting Alert',
+        icon: 'account-group',
+        color: '#3F51B5',
+        description: 'Show meeting mode confirmation',
         config: {
-          seconds: 300 // 5 minutes
+          title: 'Meeting Mode Active',
+          message: 'Device is now silent. Focus on your meeting! 🤝',
+          silent: true,
         },
-        order_index: 1
       },
       {
-        type: 'notification',
+        id: '3',
+        type: 'sms',
+        title: 'Auto Reply SMS',
+        icon: 'message-reply-text',
+        color: '#4CAF50',
+        description: 'Send auto-reply to last message',
         config: {
-          title: '⏰ Meeting in 10 minutes',
-          message: 'Time to wrap up and prepare',
-          sound: true,
-          vibrate: true
+          message: 'Currently in a meeting. Will get back to you shortly! 📞',
+          autoReply: true,
         },
-        order_index: 2
-      }
-    ]
+      },
+    ],
   },
   {
-    title: 'Water Reminder',
-    description: 'Stay hydrated with hourly water reminders',
-    category: 'health',
-    is_public: true,
-    is_template: true,
-    icon: 'water',
-    color: '#00BCD4',
-    tags: ['health', 'hydration', 'wellness'],
+    id: 'bedtime-routine',
+    name: 'Sleep Well',
+    description: 'Wind down with a relaxing bedtime routine',
+    icon: 'weather-night',
+    color: '#673AB7',
+    gradient: ['#673AB7', '#9C27B0'],
+    category: 'lifestyle',
+    difficulty: 'beginner',
+    estimatedTime: '1 min',
+    useCase: 'Prepare your device and environment for restful sleep',
+    tags: ['sleep', 'bedtime', 'wellness', 'night'],
+    isPopular: true,
     steps: [
       {
-        type: 'notification',
+        id: '1',
+        type: 'brightness',
+        title: 'Dim Screen',
+        icon: 'brightness-4',
+        color: '#FF9800',
+        description: 'Reduce screen brightness for comfort',
         config: {
-          title: '💧 Time to Hydrate',
-          message: 'Drink a glass of water to stay healthy!',
-          sound: false,
-          vibrate: true
+          level: 20,
         },
-        order_index: 0
-      }
-    ]
+      },
+      {
+        id: '2',
+        type: 'wifi',
+        title: 'Disable WiFi',
+        icon: 'wifi-off',
+        color: '#9E9E9E',
+        description: 'Turn off WiFi to reduce distractions',
+        config: {
+          enabled: false,
+        },
+      },
+      {
+        id: '3',
+        type: 'volume',
+        title: 'Low Volume',
+        icon: 'volume-low',
+        color: '#607D8B',
+        description: 'Set comfortable volume for sleep',
+        config: {
+          level: 30,
+        },
+      },
+      {
+        id: '4',
+        type: 'notification',
+        title: 'Sleep Time',
+        icon: 'weather-night',
+        color: '#673AB7',
+        description: 'Sweet dreams notification',
+        config: {
+          title: 'Sweet Dreams! 🌙',
+          message: 'Your device is ready for rest. Sleep well!',
+          sound: 'soft',
+        },
+      },
+    ],
   },
   {
-    title: 'Quick Math Calculator',
-    description: 'Perform quick calculations with variables',
-    category: 'utility',
-    is_public: true,
-    is_template: true,
-    icon: 'calculator',
-    color: '#9C27B0',
-    tags: ['utility', 'calculator', 'math'],
+    id: 'workout-prep',
+    name: 'Workout Ready',
+    description: 'Get pumped up for your fitness session',
+    icon: 'dumbbell',
+    color: '#F44336',
+    gradient: ['#F44336', '#FF5722'],
+    category: 'lifestyle',
+    difficulty: 'intermediate',
+    estimatedTime: '45 sec',
+    useCase: 'Optimize your device settings for workout sessions',
+    tags: ['fitness', 'workout', 'motivation', 'health'],
     steps: [
       {
-        type: 'variable',
+        id: '1',
+        type: 'volume',
+        title: 'Max Volume',
+        icon: 'volume-high',
+        color: '#F44336',
+        description: 'Pump up the volume for motivation',
         config: {
-          name: 'number1',
-          value: '10',
-          operation: 'set'
+          level: 85,
         },
-        order_index: 0
       },
       {
-        type: 'variable',
+        id: '2',
+        type: 'brightness',
+        title: 'Bright Screen',
+        icon: 'brightness-7',
+        color: '#FFC107',
+        description: 'Increase brightness for outdoor visibility',
         config: {
-          name: 'number2',
-          value: '5',
-          operation: 'set'
+          level: 90,
         },
-        order_index: 1
       },
       {
-        type: 'math',
+        id: '3',
+        type: 'open-app',
+        title: 'Open Music App',
+        icon: 'music',
+        color: '#E91E63',
+        description: 'Launch your favorite music app',
         config: {
-          expression: '{{number1}} + {{number2}}',
-          resultVariable: 'result'
+          appName: 'Music',
+          playlist: 'Workout Mix',
         },
-        order_index: 2
       },
       {
+        id: '4',
         type: 'notification',
+        title: 'Let\'s Go!',
+        icon: 'dumbbell',
+        color: '#F44336',
+        description: 'Motivational workout message',
         config: {
-          title: '🧮 Calculation Result',
-          message: 'The result is: {{result}}',
-          sound: false
+          title: 'Workout Time! 💪',
+          message: 'You\'ve got this! Time to crush your goals!',
+          sound: 'energetic',
         },
-        order_index: 3
-      }
-    ]
+      },
+    ],
   },
   {
-    title: 'Welcome Message',
-    description: 'A friendly welcome for new app users',
-    category: 'social',
-    is_public: true,
-    is_template: true,
-    icon: 'hand-wave',
-    color: '#4CAF50',
-    tags: ['welcome', 'greeting', 'social'],
+    id: 'commute-helper',
+    name: 'Smart Commute',
+    description: 'Optimize your daily commute experience',
+    icon: 'car',
+    color: '#009688',
+    gradient: ['#009688', '#4DB6AC'],
+    category: 'productivity',
+    difficulty: 'intermediate',
+    estimatedTime: '1-2 mins',
+    useCase: 'Get traffic updates, play music, and send arrival ETAs',
+    tags: ['commute', 'travel', 'navigation', 'productivity'],
     steps: [
       {
+        id: '1',
+        type: 'location',
+        title: 'Get Location',
+        icon: 'map-marker',
+        color: '#F44336',
+        description: 'Get current location for navigation',
+        config: {
+          accuracy: 'high',
+        },
+      },
+      {
+        id: '2',
+        type: 'http',
+        title: 'Traffic Update',
+        icon: 'traffic-light',
+        color: '#FF9800',
+        description: 'Check current traffic conditions',
+        config: {
+          method: 'GET',
+          url: 'https://api.traffic.com/conditions',
+          showResponse: true,
+        },
+      },
+      {
+        id: '3',
+        type: 'sms',
+        title: 'Send ETA',
+        icon: 'message-text',
+        color: '#4CAF50',
+        description: 'Send arrival time to family',
+        config: {
+          message: 'On my way! Should arrive in about 25 minutes 🚗',
+          contact: 'Family',
+        },
+      },
+      {
+        id: '4',
+        type: 'open-app',
+        title: 'Navigation App',
+        icon: 'navigation',
+        color: '#2196F3',
+        description: 'Open maps for navigation',
+        config: {
+          appName: 'Maps',
+          destination: 'Work',
+        },
+      },
+    ],
+  },
+  {
+    id: 'focus-time',
+    name: 'Deep Focus',
+    description: 'Eliminate distractions for productive work sessions',
+    icon: 'target',
+    color: '#795548',
+    gradient: ['#795548', '#8D6E63'],
+    category: 'productivity',
+    difficulty: 'advanced',
+    estimatedTime: '30 sec',
+    useCase: 'Block notifications and create optimal environment for focus',
+    tags: ['focus', 'productivity', 'work', 'concentration'],
+    steps: [
+      {
+        id: '1',
+        type: 'volume',
+        title: 'Mute Notifications',
+        icon: 'bell-off',
+        color: '#9E9E9E',
+        description: 'Silence all notification sounds',
+        config: {
+          level: 0,
+          notifications: false,
+        },
+      },
+      {
+        id: '2',
+        type: 'condition',
+        title: 'If Work Hours',
+        icon: 'clock',
+        color: '#FF9800',
+        description: 'Only during work hours',
+        config: {
+          condition: 'time_between',
+          startTime: '09:00',
+          endTime: '17:00',
+        },
+      },
+      {
+        id: '3',
         type: 'notification',
+        title: 'Focus Mode On',
+        icon: 'target',
+        color: '#795548',
+        description: 'Confirm focus mode activation',
         config: {
-          title: '👋 Welcome to Zaptap!',
-          message: 'Tap to explore amazing automations',
-          sound: true
+          title: 'Focus Mode Active 🎯',
+          message: 'Deep work time! All distractions blocked.',
+          silent: true,
         },
-        order_index: 0
+      },
+    ],
+  },
+  {
+    id: 'date-night',
+    name: 'Date Night',
+    description: 'Set the perfect mood for a romantic evening',
+    icon: 'heart',
+    color: '#E91E63',
+    gradient: ['#E91E63', '#F06292'],
+    category: 'lifestyle',
+    difficulty: 'beginner',
+    estimatedTime: '45 sec',
+    useCase: 'Prepare device settings for a romantic date',
+    tags: ['date', 'romance', 'evening', 'mood'],
+    isFeatured: true,
+    steps: [
+      {
+        id: '1',
+        type: 'brightness',
+        title: 'Mood Lighting',
+        icon: 'brightness-5',
+        color: '#FF9800',
+        description: 'Set romantic dim lighting',
+        config: {
+          level: 40,
+        },
       },
       {
-        type: 'delay',
+        id: '2',
+        type: 'volume',
+        title: 'Soft Volume',
+        icon: 'volume-medium',
+        color: '#9C27B0',
+        description: 'Perfect volume for conversation',
         config: {
-          seconds: 2
+          level: 50,
         },
-        order_index: 1
       },
       {
-        type: 'text',
+        id: '3',
+        type: 'sms',
+        title: 'Sweet Message',
+        icon: 'heart',
+        color: '#E91E63',
+        description: 'Send romantic message to partner',
         config: {
-          action: 'speak',
-          text: 'Welcome to Zaptap! Let us help you automate your world.'
+          message: 'Looking forward to our special evening together! ❤️',
+          contact: 'Partner',
         },
-        order_index: 2
-      }
-    ]
-  }
+      },
+    ],
+  },
+  {
+    id: 'study-session',
+    name: 'Study Mode',
+    description: 'Create the perfect learning environment',
+    icon: 'book-open-variant',
+    color: '#3F51B5',
+    gradient: ['#3F51B5', '#7986CB'],
+    category: 'productivity',
+    difficulty: 'intermediate',
+    estimatedTime: '1 min',
+    useCase: 'Optimize device and environment for effective studying',
+    tags: ['study', 'learning', 'education', 'focus'],
+    steps: [
+      {
+        id: '1',
+        type: 'volume',
+        title: 'Study Volume',
+        icon: 'volume-low',
+        color: '#607D8B',
+        description: 'Set optimal volume for concentration',
+        config: {
+          level: 25,
+        },
+      },
+      {
+        id: '2',
+        type: 'brightness',
+        title: 'Reading Brightness',
+        icon: 'brightness-6',
+        color: '#FFC107',
+        description: 'Comfortable brightness for reading',
+        config: {
+          level: 70,
+        },
+      },
+      {
+        id: '3',
+        type: 'wait',
+        title: 'Study Timer',
+        icon: 'timer',
+        color: '#795548',
+        description: 'Pomodoro-style study session',
+        config: {
+          duration: 25,
+          unit: 'minutes',
+        },
+      },
+      {
+        id: '4',
+        type: 'notification',
+        title: 'Break Time',
+        icon: 'coffee',
+        color: '#8BC34A',
+        description: 'Remind to take study break',
+        config: {
+          title: 'Study Break! ☕',
+          message: 'Great job! Time for a 5-minute break.',
+          delay: 1500,
+        },
+      },
+    ],
+  },
 ];
 
-// Function to get sample automations for database insertion
-export function getSampleAutomationsForUser(userId: string) {
-  return sampleAutomations.map(automation => ({
-    ...automation,
-    user_id: userId,
-    steps: JSON.stringify(automation.steps),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }));
-}
+/**
+ * Get featured sample automations for onboarding
+ */
+export const getFeaturedAutomations = (): SampleAutomation[] => {
+  return sampleAutomations.filter(automation => automation.isFeatured);
+};
+
+/**
+ * Get popular sample automations
+ */
+export const getPopularAutomations = (): SampleAutomation[] => {
+  return sampleAutomations.filter(automation => automation.isPopular);
+};
+
+/**
+ * Get automations by category
+ */
+export const getAutomationsByCategory = (category: SampleAutomation['category']): SampleAutomation[] => {
+  return sampleAutomations.filter(automation => automation.category === category);
+};
+
+/**
+ * Get beginner-friendly automations for new users
+ */
+export const getBeginnerAutomations = (): SampleAutomation[] => {
+  return sampleAutomations.filter(automation => automation.difficulty === 'beginner');
+};
+
+/**
+ * Get automation by ID
+ */
+export const getAutomationById = (id: string): SampleAutomation | undefined => {
+  return sampleAutomations.find(automation => automation.id === id);
+};
+
+/**
+ * Generate share URL for automation
+ */
+export const generateShareUrl = (automationId: string): string => {
+  return `https://www.zaptap.cloud/share/${automationId}`;
+};
+
+/**
+ * Sample automation categories with metadata
+ */
+export const automationCategories = [
+  {
+    id: 'productivity',
+    name: 'Productivity',
+    description: 'Boost your efficiency with smart workflows',
+    icon: 'briefcase',
+    color: '#2196F3',
+    count: sampleAutomations.filter(a => a.category === 'productivity').length,
+  },
+  {
+    id: 'lifestyle',
+    name: 'Lifestyle',
+    description: 'Enhance your daily routines and habits',
+    icon: 'home',
+    color: '#4CAF50',
+    count: sampleAutomations.filter(a => a.category === 'lifestyle').length,
+  },
+  {
+    id: 'communication',
+    name: 'Communication',
+    description: 'Stay connected with smart messaging',
+    icon: 'message',
+    color: '#FF9800',
+    count: sampleAutomations.filter(a => a.category === 'communication').length,
+  },
+  {
+    id: 'device',
+    name: 'Device Control',
+    description: 'Automate your device settings',
+    icon: 'cellphone',
+    color: '#9C27B0',
+    count: sampleAutomations.filter(a => a.category === 'device').length,
+  },
+  {
+    id: 'fun',
+    name: 'Fun & Creative',
+    description: 'Playful automations for entertainment',
+    icon: 'palette',
+    color: '#E91E63',
+    count: sampleAutomations.filter(a => a.category === 'fun').length,
+  },
+];
+
+export default sampleAutomations;

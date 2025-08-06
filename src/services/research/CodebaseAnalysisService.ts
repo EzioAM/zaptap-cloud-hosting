@@ -1,3 +1,4 @@
+import { EventLogger } from '../../utils/EventLogger';
 export interface CodebaseInsight {
   category: 'performance' | 'security' | 'architecture' | 'ui-ux' | 'features' | 'testing' | 'dependencies';
   priority: 'high' | 'medium' | 'low';
@@ -60,7 +61,7 @@ export class CodebaseAnalysisService {
         suggestedResearchTopics
       };
     } catch (error) {
-      console.error('Codebase analysis failed:', error);
+      EventLogger.error('CodebaseAnalysis', 'Codebase analysis failed:', error as Error);
       return this.getFallbackAnalysis();
     }
   }

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface CodeChange {
   id: string;
@@ -52,7 +53,7 @@ class ChangeHistoryService {
         await FileSystem.makeDirectoryAsync(this.BACKUP_DIR, { intermediates: true });
       }
     } catch (error) {
-      console.error('Failed to create backup directory:', error);
+      EventLogger.error('ChangeHistory', 'Failed to create backup directory:', error as Error);
     }
   }
 
@@ -97,7 +98,7 @@ class ChangeHistoryService {
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(history));
       return newEntry.id;
     } catch (error) {
-      console.error('Failed to record change:', error);
+      EventLogger.error('ChangeHistory', 'Failed to record change:', error as Error);
       throw error;
     }
   }
@@ -115,7 +116,7 @@ class ChangeHistoryService {
         return backupKey;
       }
     } catch (error) {
-      console.error('Failed to create backup:', error);
+      EventLogger.error('ChangeHistory', 'Failed to create backup:', error as Error);
     }
     return undefined;
   }
@@ -123,7 +124,7 @@ class ChangeHistoryService {
   private async readFileContent(filepath: string): Promise<string | null> {
     // This is a placeholder - in a real implementation, you'd read the actual file
     // For React Native, this would require platform-specific code or a file system library
-    console.log('Reading file content for:', filepath);
+    EventLogger.debug('ChangeHistory', 'Reading file content for:', filepath);
     return null;
   }
 
@@ -134,7 +135,7 @@ class ChangeHistoryService {
           try {
             await AsyncStorage.removeItem(change.backupPath);
           } catch (error) {
-            console.error('Failed to cleanup backup:', error);
+            EventLogger.error('ChangeHistory', 'Failed to cleanup backup:', error as Error);
           }
         }
       }
@@ -146,7 +147,7 @@ class ChangeHistoryService {
       const data = await AsyncStorage.getItem(this.STORAGE_KEY);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Failed to get history:', error);
+      EventLogger.error('ChangeHistory', 'Failed to get history:', error as Error);
       return [];
     }
   }
@@ -199,7 +200,7 @@ class ChangeHistoryService {
       
       return true;
     } catch (error) {
-      console.error('Failed to revert change:', error);
+      EventLogger.error('ChangeHistory', 'Failed to revert change:', error as Error);
       return false;
     } finally {
       this.activeOperations.delete(id);
@@ -215,7 +216,7 @@ class ChangeHistoryService {
         switch (change.type) {
           case 'file_created':
             // In a real implementation, delete the file
-            console.log(`Would delete file: ${change.filepath}`);
+            EventLogger.debug('ChangeHistory', 'Would delete file: ${change.filepath}');
             results.set(change.filepath, true);
             break;
             
@@ -224,13 +225,13 @@ class ChangeHistoryService {
               // Restore from backup
               const backupContent = await AsyncStorage.getItem(change.backupPath);
               if (backupContent) {
-                console.log(`Would restore file: ${change.filepath} from backup`);
+                EventLogger.debug('ChangeHistory', 'Would restore file: ${change.filepath} from backup');
                 results.set(change.filepath, true);
               } else {
                 results.set(change.filepath, false);
               }
             } else if (change.previousContent) {
-              console.log(`Would restore file: ${change.filepath} with previous content`);
+              EventLogger.debug('ChangeHistory', 'Would restore file: ${change.filepath} with previous content');
               results.set(change.filepath, true);
             } else {
               results.set(change.filepath, false);
@@ -239,7 +240,7 @@ class ChangeHistoryService {
             
           case 'file_deleted':
             if (change.backupPath || change.previousContent) {
-              console.log(`Would recreate file: ${change.filepath}`);
+              EventLogger.debug('ChangeHistory', 'Would recreate file: ${change.filepath}');
               results.set(change.filepath, true);
             } else {
               results.set(change.filepath, false);
@@ -247,17 +248,17 @@ class ChangeHistoryService {
             break;
             
           case 'dependency_added':
-            console.log(`Would remove dependency: ${change.description}`);
+            EventLogger.debug('ChangeHistory', 'Would remove dependency: ${change.description}');
             results.set(change.description, true);
             break;
             
           case 'config_changed':
-            console.log(`Would restore config: ${change.description}`);
+            EventLogger.debug('ChangeHistory', 'Would restore config: ${change.description}');
             results.set(change.description, true);
             break;
         }
       } catch (error) {
-        console.error(`Failed to revert ${change.type} for ${change.filepath}:`, error);
+        EventLogger.error('ChangeHistory', 'Failed to revert ${change.type} for ${change.filepath}:', error as Error);
         results.set(change.filepath, false);
       }
     }
@@ -266,10 +267,10 @@ class ChangeHistoryService {
   }
 
   private generateRevertReport(entry: ChangeHistoryEntry, results: Map<string, boolean>): void {
-    console.log('\n=== REVERT REPORT ===');
-    console.log(`Feature: ${entry.feature}`);
-    console.log(`Description: ${entry.description}`);
-    console.log(`Total Changes: ${entry.changes.length}`);
+    EventLogger.debug('ChangeHistory', '\n=== REVERT REPORT ===');
+    EventLogger.debug('ChangeHistory', 'Feature: ${entry.feature}');
+    EventLogger.debug('ChangeHistory', 'Description: ${entry.description}');
+    EventLogger.debug('ChangeHistory', 'Total Changes: ${entry.changes.length}');
     
     let successCount = 0;
     let failureCount = 0;
@@ -277,15 +278,15 @@ class ChangeHistoryService {
     results.forEach((success, item) => {
       if (success) {
         successCount++;
-        console.log(`✅ ${item}`);
+        EventLogger.debug('ChangeHistory', '✅ ${item}');
       } else {
         failureCount++;
-        console.log(`❌ ${item}`);
+        EventLogger.debug('ChangeHistory', '❌ ${item}');
       }
     });
     
-    console.log(`\nSummary: ${successCount} successful, ${failureCount} failed`);
-    console.log('=== END REVERT REPORT ===\n');
+    EventLogger.debug('ChangeHistory', '\nSummary: ${successCount} successful, ${failureCount} failed');
+    EventLogger.debug('ChangeHistory', '=== END REVERT REPORT ===\n');
   }
 
   // Create a snapshot of current state before making changes
@@ -312,12 +313,12 @@ class ChangeHistoryService {
       }
       
       const snapshot = JSON.parse(snapshotData);
-      console.log(`Restoring snapshot: ${snapshot.description}`);
+      EventLogger.debug('ChangeHistory', 'Restoring snapshot: ${snapshot.description}');
       
       // In a real implementation, restore the files
       return true;
     } catch (error) {
-      console.error('Failed to restore snapshot:', error);
+      EventLogger.error('ChangeHistory', 'Failed to restore snapshot:', error as Error);
       return false;
     }
   }
@@ -326,7 +327,7 @@ class ChangeHistoryService {
     try {
       await AsyncStorage.removeItem(this.STORAGE_KEY);
     } catch (error) {
-      console.error('Failed to clear history:', error);
+      EventLogger.error('ChangeHistory', 'Failed to clear history:', error as Error);
     }
   }
 
@@ -344,7 +345,7 @@ class ChangeHistoryService {
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(history));
       return true;
     } catch (error) {
-      console.error('Failed to import history:', error);
+      EventLogger.error('ChangeHistory', 'Failed to import history:', error as Error);
       return false;
     }
   }

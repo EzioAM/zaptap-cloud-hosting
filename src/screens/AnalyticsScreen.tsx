@@ -20,7 +20,7 @@ try {
   VictoryAxis = victory.VictoryAxis;
   VictoryTheme = victory.VictoryTheme;
 } catch (error) {
-  console.warn('Victory Native failed to load, charts will be disabled:', error);
+  EventLogger.warn('Analytics', 'Victory Native failed to load, charts will be disabled:', error);
   // Fallback components
   const FallbackChart = () => (
     <View style={{ padding: 20, alignItems: 'center' }}>
@@ -38,6 +38,7 @@ import { theme } from '../theme';
 import { useGetAnalyticsQuery } from '../store/api/analyticsApi';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { formatDistanceToNow } from 'date-fns';
+import { EventLogger } from '../utils/EventLogger';
 
 const { width } = Dimensions.get('window');
 const chartWidth = width - theme.spacing.md * 2;

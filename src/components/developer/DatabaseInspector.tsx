@@ -20,6 +20,7 @@ import {
 } from 'react-native-paper';
 import { DeveloperService } from '../../services/developer/DeveloperService';
 import { supabase } from '../../services/supabase/client';
+import { EventLogger } from '../../utils/EventLogger';
 
 export const DatabaseInspector: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -68,7 +69,7 @@ export const DatabaseInspector: React.FC = () => {
       setTableData(data || []);
       setPage(0);
     } catch (error) {
-      console.error('Failed to load table data:', error);
+      EventLogger.error('Database', 'Failed to load table data:', error as Error);
       Alert.alert('Error', `Failed to load data from ${tableName}`);
       setTableData([]);
     } finally {
@@ -94,7 +95,7 @@ export const DatabaseInspector: React.FC = () => {
         {
           text: 'Export to Console',
           onPress: () => {
-            console.log(`EXPORT_${selectedTable.toUpperCase()}:`, exportData);
+            EventLogger.debug('Database', 'EXPORT_${selectedTable.toUpperCase()}:', exportData);
             Alert.alert('Success', 'Data exported to console logs');
           },
         },
@@ -260,7 +261,7 @@ export const DatabaseInspector: React.FC = () => {
             onPress={async () => {
               try {
                 const bundle = await DeveloperService.exportDebugBundle();
-                console.log('DATABASE_DEBUG_BUNDLE:', bundle);
+                EventLogger.debug('Database', 'DATABASE_DEBUG_BUNDLE:', bundle);
                 Alert.alert('Success', 'Database debug bundle exported to console');
               } catch (error) {
                 Alert.alert('Error', 'Failed to export debug bundle');

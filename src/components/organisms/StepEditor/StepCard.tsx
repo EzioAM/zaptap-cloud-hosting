@@ -15,7 +15,7 @@ import Animated, {
 import { Card } from '../../atoms/Card';
 import { IconButton } from '../../atoms/IconButton';
 import { Badge } from '../../atoms/Badge';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { theme } from '../../../theme';
 import { AutomationStep, StepType } from '../../../types';
 import { useHaptic } from '../../../hooks/useHaptic';
@@ -131,12 +131,12 @@ export const StepCard: React.FC<StepCardProps> = ({
   onDelete,
   readonly = false,
 }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  const theme = useSafeTheme();
+  const colors = theme.colors;
   const { trigger } = useHaptic();
   
   const icon = stepIcons[step.type] || 'help-circle';
-  const color = stepColors[step.type] || colors.brand.primary;
+  const color = stepColors[step.type] || colors?.brand?.primary || colors?.primary || '#6200ee';
   const label = stepLabels[step.type] || 'Unknown Step';
   
   const animatedStyle = useAnimatedStyle(() => {
@@ -205,7 +205,7 @@ export const StepCard: React.FC<StepCardProps> = ({
               </View>
               <View style={styles.stepInfo}>
                 <View style={styles.headerRow}>
-                  <Text style={[styles.stepLabel, { color: colors.text.primary }]}>
+                  <Text style={[styles.stepLabel, { color: colors?.text?.primary || colors?.onSurface || '#333333' }]}>
                     {label}
                   </Text>
                   <Badge variant="info" size="small">

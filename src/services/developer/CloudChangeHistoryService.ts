@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../supabase/client';
 import ChangeHistoryService, { ChangeHistoryEntry, CodeChange } from './ChangeHistoryService';
+import { EventLogger } from '../../utils/EventLogger';
 
 export class CloudChangeHistoryService extends ChangeHistoryService {
   private static cloudInstance: CloudChangeHistoryService;
@@ -35,7 +36,7 @@ export class CloudChangeHistoryService extends ChangeHistoryService {
         .single();
 
       if (historyError) {
-        console.error('Failed to sync change history to cloud:', historyError);
+        EventLogger.error('CloudChangeHistory', 'Failed to sync change history to cloud:', historyError as Error);
         // Continue with local storage even if cloud sync fails
         return localId;
       }
@@ -57,7 +58,7 @@ export class CloudChangeHistoryService extends ChangeHistoryService {
           .insert(codeChanges);
 
         if (changesError) {
-          console.error('Failed to sync code changes to cloud:', changesError);
+          EventLogger.error('CloudChangeHistory', 'Failed to sync code changes to cloud:', changesError as Error);
         }
       }
 
@@ -66,7 +67,7 @@ export class CloudChangeHistoryService extends ChangeHistoryService {
 
       return localId;
     } catch (error) {
-      console.error('Failed to record change in cloud:', error);
+      EventLogger.error('CloudChangeHistory', 'Failed to record change in cloud:', error as Error);
       // Fall back to local storage
       return super.recordChange(entry);
     }
@@ -77,11 +78,11 @@ export class CloudChangeHistoryService extends ChangeHistoryService {
     
     try {
       this.syncInProgress = true;
-      console.log('Starting cloud sync...');
+      EventLogger.debug('CloudChangeHistory', 'Starting cloud sync...');
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No authenticated user, skipping sync');
+        EventLogger.debug('CloudChangeHistory', 'No authenticated user, skipping sync');
         return;
       }
 
@@ -92,7 +93,7 @@ export class CloudChangeHistoryService extends ChangeHistoryService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Failed to fetch cloud history:', error);
+        EventLogger.error('CloudChangeHistory', 'Failed to fetch cloud history:', error as Error);
         return;
       }
 
@@ -122,9 +123,9 @@ export class CloudChangeHistoryService extends ChangeHistoryService {
       // Save merged history locally
       await AsyncStorage.setItem('@change_history', JSON.stringify(mergedHistory));
 
-      console.log('Cloud sync completed successfully');
+      EventLogger.debug('CloudChangeHistory', 'Cloud sync completed successfully');
     } catch (error) {
-      console.error('Cloud sync failed:', error);
+      EventLogger.error('CloudChangeHistory', 'Cloud sync failed:', error as Error);
     } finally {
       this.syncInProgress = false;
     }
@@ -144,14 +145,14 @@ export class CloudChangeHistoryService extends ChangeHistoryService {
         });
 
         if (error) {
-          console.error('Failed to revert in cloud:', error);
+          EventLogger.error('CloudChangeHistory', 'Failed to revert in cloud:', error as Error);
           // Continue even if cloud sync fails
         }
       }
 
       return true;
     } catch (error) {
-      console.error('Failed to revert change:', error);
+      EventLogger.error('CloudChangeHistory', 'Failed to revert change:', error as Error);
       return false;
     }
   }
@@ -174,7 +175,7 @@ export class CloudChangeHistoryService extends ChangeHistoryService {
         };
       }
     } catch (error) {
-      console.error('Failed to get cloud statistics:', error);
+      EventLogger.error('CloudChangeHistory', 'Failed to get cloud statistics:', error as Error);
     }
 
     // Fall back to local statistics

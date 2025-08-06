@@ -1,12 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Card, CardHeader, CardBody } from '../../atoms/Card';
-import { Shimmer } from '../../atoms/Shimmer';
-import { useTheme } from '../../../contexts/ThemeContext';
-import { theme } from '../../../theme';
-import { useGetRecentExecutionsQuery } from '../../../store/api/automationApi';
-import Animated, { FadeInRight } from 'react-native-reanimated';
+import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
+import { useGetRecentActivityQuery } from '../../../store/api/dashboardApi';
+import { useNavigation } from '@react-navigation/native';
+import EnhancedLoadingSkeleton from '../../common/EnhancedLoadingSkeleton';
 // Simple date formatting function
 const formatTime = (dateString: string) => {
   const date = new Date(dateString);
@@ -30,33 +28,36 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({
   duration,
   delay = 0 
 }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  const theme = useSafeTheme();
 
   const statusConfig = {
     success: {
       icon: 'check-circle' as const,
-      color: colors.semantic.success,
+      color: '#4CAF50',
       label: 'Success',
     },
     failed: {
       icon: 'alert-circle' as const,
-      color: colors.semantic.error,
+      color: '#ff4444',
       label: 'Failed',
     },
     running: {
       icon: 'timer-sand' as const,
-      color: colors.brand.primary,
+      color: theme.colors?.primary || '#6200ee',
       label: 'Running',
+    },
+    cancelled: {
+      icon: 'cancel' as const,
+      color: '#999',
+      label: 'Cancelled',
     },
   };
 
   const config = statusConfig[status];
 
   return (
-    <Animated.View
-      entering={FadeInRight.delay(delay).springify()}
-      style={[styles.executionItem, { borderBottomColor: colors.border.light }]}
+    <View
+      style={[styles.executionItem, { borderBottomColor: '#e0e0e0' }]}
     >
       <View style={[styles.statusIcon, { backgroundColor: `${config.color}15` }]}>
         <MaterialCommunityIcons
@@ -66,17 +67,17 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({
         />
       </View>
       <View style={styles.executionInfo}>
-        <Text style={[styles.executionTitle, { color: colors.text.primary }]} numberOfLines={1}>
+        <Text style={[styles.executionTitle, { color: theme.colors?.text || '#000' }]} numberOfLines={1}>
           {title}
         </Text>
         <View style={styles.executionMeta}>
-          <Text style={[styles.executionTime, { color: colors.text.tertiary }]}>
+          <Text style={[styles.executionTime, { color: theme.colors?.textSecondary || '#666' }]}>
             {formatTime(timestamp)}
           </Text>
           {duration && (
             <>
-              <Text style={[styles.dot, { color: colors.text.tertiary }]}>•</Text>
-              <Text style={[styles.executionTime, { color: colors.text.tertiary }]}>
+              <Text style={[styles.dot, { color: theme.colors?.textSecondary || '#666' }]}>•</Text>
+              <Text style={[styles.executionTime, { color: theme.colors?.textSecondary || '#666' }]}>
                 {duration < 1000 ? `${duration}ms` : `${(duration / 1000).toFixed(1)}s`}
               </Text>
             </>
@@ -86,99 +87,125 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({
       <Text style={[styles.statusLabel, { color: config.color }]}>
         {config.label}
       </Text>
-    </Animated.View>
+    </View>
   );
 };
 
 export const RecentActivityWidget: React.FC = () => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
-  const { data: executions = [], isLoading } = useGetRecentExecutionsQuery({ limit: 5 });
-
-  const viewAllAction = (
-    <MaterialCommunityIcons
-      name="chevron-right"
-      size={24}
-      color={colors.text.secondary}
-    />
-  );
+  const theme = useSafeTheme();
+  const navigation = useNavigation();
+  const { data: activities = [], isLoading, error } = useGetRecentActivityQuery();
 
   if (isLoading) {
     return (
-      <Card variant="elevated" style={styles.container}>
-        <CardHeader title="Recent Activity" action={viewAllAction} />
-        <CardBody>
-          {[1, 2, 3].map((i) => (
-            <View key={i} style={[styles.executionItem, { borderBottomColor: colors.border.light }]}>
-              <Shimmer width={36} height={36} borderRadius={18} style={{ marginRight: theme.spacing.sm }} />
-              <View style={styles.executionInfo}>
-                <Shimmer width={120} height={16} style={{ marginBottom: theme.spacing.xs }} />
-                <Shimmer width={80} height={12} />
-              </View>
-              <Shimmer width={60} height={20} borderRadius={theme.tokens.borderRadius.full} />
-            </View>
-          ))}
-        </CardBody>
-      </Card>
+      <View style={[styles.container, { backgroundColor: theme.colors?.surface || '#fff' }]}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: theme.colors?.text || '#000' }]}>
+            Recent Activity
+          </Text>
+          <Text style={[styles.viewAll, { color: theme.colors?.primary || '#6200ee' }]}>
+            View All
+          </Text>
+        </View>
+        <EnhancedLoadingSkeleton 
+          variant="list" 
+          count={3} 
+          showAnimation={true}
+        />
+      </View>
     );
   }
 
-  if (executions.length === 0) {
+  if (error || activities.length === 0) {
     return (
-      <Card variant="elevated" style={styles.container}>
-        <CardHeader title="Recent Activity" />
-        <CardBody>
-          <View style={styles.emptyState}>
-            <MaterialCommunityIcons
-              name="history"
-              size={48}
-              color={colors.text.tertiary}
-            />
-            <Text style={[styles.emptyText, { color: colors.text.secondary }]}>
-              No recent activity
-            </Text>
-            <Text style={[styles.emptySubtext, { color: colors.text.tertiary }]}>
-              Run an automation to see it here
-            </Text>
-          </View>
-        </CardBody>
-      </Card>
+      <View style={[styles.container, { backgroundColor: theme.colors?.surface || '#fff' }]}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: theme.colors?.text || '#000' }]}>
+            Recent Activity
+          </Text>
+        </View>
+        <View style={styles.emptyState}>
+          <MaterialCommunityIcons
+            name="history"
+            size={48}
+            color={theme.colors?.textSecondary || '#666'}
+          />
+          <Text style={[styles.emptyText, { color: theme.colors?.textSecondary || '#666' }]}>
+            No recent activity
+          </Text>
+          <Text style={[styles.emptySubtext, { color: theme.colors?.textSecondary || '#999' }]}>
+            Run an automation to see it here
+          </Text>
+        </View>
+      </View>
     );
   }
 
   return (
-    <Card variant="elevated" style={styles.container} elevation="md">
-      <CardHeader 
-        title="Recent Activity" 
-        subtitle="Last 5 executions"
-        action={viewAllAction} 
-      />
-      <CardBody noPadding>
-        <ScrollView 
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
+    <View style={[styles.container, { backgroundColor: theme.colors?.surface || '#fff' }]}>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: theme.colors?.text || '#000' }]}>
+          Recent Activity
+        </Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ExecutionHistory' as never)}
         >
-          {executions.map((execution: any, index: number) => (
-            <ExecutionItem
-              key={execution.id}
-              title={execution.automation?.title || 'Unknown Automation'}
-              status={execution.status}
-              timestamp={execution.created_at}
-              duration={execution.duration_ms}
-              delay={index * 50}
-            />
-          ))}
-        </ScrollView>
-      </CardBody>
-    </Card>
+          <Text style={[styles.viewAll, { color: theme.colors?.primary || '#6200ee' }]}>
+            View All
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
+        {activities.slice(0, 5).map((activity: any, index: number) => (
+          <ExecutionItem
+            key={activity.id}
+            title={activity.automation?.title || 'Unknown Automation'}
+            status={activity.status}
+            timestamp={activity.createdAt}
+            duration={activity.executionTime}
+            delay={index * 50}
+          />
+        ))}
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    margin: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     maxHeight: 320,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  viewAll: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     maxHeight: 250,
@@ -186,24 +213,24 @@ const styles = StyleSheet.create({
   executionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    borderBottomWidth: theme.constants.borderWidth,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
   },
   statusIcon: {
     width: 36,
     height: 36,
-    borderRadius: theme.tokens.borderRadius.md,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.sm,
+    marginRight: 12,
   },
   executionInfo: {
     flex: 1,
-    marginRight: theme.spacing.sm,
+    marginRight: 8,
   },
   executionTitle: {
-    ...theme.typography.bodyMedium,
+    fontSize: 14,
+    fontWeight: '500',
     marginBottom: 2,
   },
   executionMeta: {
@@ -211,26 +238,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   executionTime: {
-    ...theme.typography.caption,
+    fontSize: 12,
   },
   dot: {
-    marginHorizontal: theme.spacing.xs,
-    ...theme.typography.caption,
+    marginHorizontal: 4,
+    fontSize: 12,
   },
   statusLabel: {
-    ...theme.typography.labelSmall,
-    fontWeight: theme.tokens.typography.fontWeight.medium,
+    fontSize: 12,
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.xl,
+    paddingVertical: 32,
   },
   emptyText: {
-    ...theme.typography.bodyLarge,
-    marginTop: theme.spacing.md,
+    fontSize: 16,
+    marginTop: 16,
   },
   emptySubtext: {
-    ...theme.typography.bodySmall,
-    marginTop: theme.spacing.xs,
+    fontSize: 14,
+    marginTop: 4,
   },
 });
+
+export default RecentActivityWidget;

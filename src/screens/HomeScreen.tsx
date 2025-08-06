@@ -18,10 +18,11 @@ import { VersionInfo } from '../components/common/VersionInfo';
 import { AppIcon } from '../components/common/AppIcon';
 import { SupabaseTestComponent } from '../components/debug/SupabaseTestComponent';
 import { AutomationTestComponent } from '../components/debug/AutomationTestComponent';
+import { EventLogger } from '../utils/EventLogger';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
-export function HomeScreen({ navigation }: HomeScreenProps) {
+export const HomeScreen = React.memo<HomeScreenProps>(({ navigation }) => {
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
   const [refreshing, setRefreshing] = React.useState(false);
   const [hasDeveloperAccess, setHasDeveloperAccess] = React.useState(false);
@@ -48,7 +49,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
       const access = await RoleService.hasDeveloperAccess();
       setHasDeveloperAccess(access);
     } catch (error) {
-      console.error('Error checking developer access:', error);
+      EventLogger.error('Home', 'Error checking developer access:', error as Error);
       setHasDeveloperAccess(false);
     }
   };
@@ -100,7 +101,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
           
           <Pressable 
             style={styles.featureCard}
-            onPress={() => navigation.navigate('Gallery')}
+            onPress={() => navigation.navigate('DiscoverTab')}
           >
             <AppIcon name="gallery" size={48} color="#FF9800" style={styles.featureIcon} />
             <Text style={styles.featureTitle}>Gallery</Text>
@@ -212,7 +213,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
       </ScrollView>
     </SafeAreaView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

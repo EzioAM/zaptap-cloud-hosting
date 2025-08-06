@@ -40,9 +40,9 @@ export const DeveloperSection: React.FC<DeveloperSectionProps> = ({ navigation, 
         <MaterialCommunityIcons
           name="shield-crown"
           size={24}
-          color={theme.colors.primary}
+          color={theme?.colors?.primary || '#6200ee'}
         />
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+        <Text style={[styles.sectionTitle, { color: theme?.colors?.text || '#000' }]}>
           Developer Tools
         </Text>
       </View>
@@ -50,23 +50,23 @@ export const DeveloperSection: React.FC<DeveloperSectionProps> = ({ navigation, 
       {developerTools.map((tool) => (
         <TouchableOpacity
           key={tool.id}
-          style={[styles.toolItem, { backgroundColor: theme.colors.surface }]}
+          style={[styles.toolItem, { backgroundColor: theme?.colors?.surface || '#fff' }]}
           onPress={tool.onPress}
           activeOpacity={0.7}
         >
           <View style={styles.toolItemLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary + '20' }]}>
+            <View style={[styles.iconContainer, { backgroundColor: (theme?.colors?.primary || '#6200ee') + '20' }]}>
               <MaterialCommunityIcons
                 name={tool.icon as any}
                 size={24}
-                color={theme.colors.primary}
+                color="#FFFFFF"
               />
             </View>
             <View style={styles.toolInfo}>
-              <Text style={[styles.toolTitle, { color: theme.colors.text }]}>
+              <Text style={[styles.toolTitle, { color: theme?.colors?.text || '#000' }]}>
                 {tool.title}
               </Text>
-              <Text style={[styles.toolDescription, { color: theme.colors.textSecondary }]}>
+              <Text style={[styles.toolDescription, { color: theme?.colors?.textSecondary || '#666' }]}>
                 {tool.description}
               </Text>
             </View>
@@ -74,13 +74,13 @@ export const DeveloperSection: React.FC<DeveloperSectionProps> = ({ navigation, 
           <MaterialCommunityIcons
             name="chevron-right"
             size={24}
-            color={theme.colors.textSecondary}
+            color={theme?.colors?.textSecondary || '#666'}
           />
         </TouchableOpacity>
       ))}
       
-      <View style={[styles.badge, { backgroundColor: theme.colors.primary + '10' }]}>
-        <Text style={[styles.badgeText, { color: theme.colors.primary }]}>
+      <View style={[styles.badge, { backgroundColor: (theme?.colors?.primary || '#6200ee') + '10' }]}>
+        <Text style={[styles.badgeText, { color: theme?.colors?.primary || '#6200ee' }]}>
           Developer Mode Active
         </Text>
       </View>
@@ -91,27 +91,27 @@ export const DeveloperSection: React.FC<DeveloperSectionProps> = ({ navigation, 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.xl,
+      paddingHorizontal: theme?.spacing?.lg || 24,
+      marginBottom: theme?.spacing?.xl || 32,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: theme.spacing.md,
+      marginBottom: theme?.spacing?.md || 16,
     },
     sectionTitle: {
-      fontSize: theme.typography.h3.fontSize,
-      fontWeight: theme.typography.h3.fontWeight,
-      marginLeft: theme.spacing.sm,
+      fontSize: theme?.typography?.h3?.fontSize || 24,
+      fontWeight: theme?.typography?.h3?.fontWeight || 'bold',
+      marginLeft: theme?.spacing?.sm || 8,
     },
     toolItem: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: theme.spacing.md,
-      borderRadius: theme.borderRadius.lg,
-      marginBottom: theme.spacing.sm,
-      shadowColor: theme.colors.cardShadow,
+      padding: theme?.spacing?.md || 16,
+      borderRadius: theme?.borderRadius?.lg || 12,
+      marginBottom: theme?.spacing?.sm || 8,
+      shadowColor: theme?.colors?.cardShadow || '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.05,
       shadowRadius: 6,
@@ -125,10 +125,10 @@ const createStyles = (theme: any) =>
     iconContainer: {
       width: 48,
       height: 48,
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme?.borderRadius?.md || 8,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: theme.spacing.md,
+      marginRight: theme?.spacing?.md || 16,
     },
     toolInfo: {
       flex: 1,
@@ -143,10 +143,10 @@ const createStyles = (theme: any) =>
     },
     badge: {
       alignSelf: 'center',
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.xs,
-      borderRadius: theme.borderRadius.round,
-      marginTop: theme.spacing.md,
+      paddingHorizontal: theme?.spacing?.md || 16,
+      paddingVertical: theme?.spacing?.xs || 4,
+      borderRadius: theme?.borderRadius?.round || 20,
+      marginTop: theme?.spacing?.md || 16,
     },
     badgeText: {
       fontSize: 12,

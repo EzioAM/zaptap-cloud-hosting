@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { EventLogger } from '../../utils/EventLogger';
   import { supabase } from '../../services/supabase/client';
   import { OnboardingService } from '../../services/onboarding/OnboardingService';
+  import { DEFAULT_AVATAR } from '../../constants/defaults';
 
   interface User {
     id: string;
@@ -45,6 +47,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
           id: data.user.id,
           email: data.user.email!,
           name: data.user.user_metadata?.name || 'User',
+          avatar_url: data.user.user_metadata?.avatar_url || DEFAULT_AVATAR,
         },
         accessToken: data.session.access_token,
         refreshToken: data.session.refresh_token,
@@ -77,14 +80,14 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
         });
 
         if (profileError) {
-          console.warn('Profile creation failed:', profileError);
+          EventLogger.warn('Authentication', 'Profile creation failed:', profileError);
         }
         
         // Create sample automations for new user
         try {
           await OnboardingService.initializeNewUser(data.user.id);
         } catch (error) {
-          console.warn('Failed to create sample automations:', error);
+          EventLogger.warn('Authentication', 'Failed to create sample automations:', error);
         }
       }
 
@@ -93,6 +96,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
           id: data.user!.id,
           email: data.user!.email!,
           name,
+          avatar_url: DEFAULT_AVATAR,
         },
         accessToken: data.session?.access_token || null,
         refreshToken: data.session?.refresh_token || null,
@@ -105,12 +109,12 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
     'auth/signOut',
     async (_, { dispatch, rejectWithValue }) => {
       try {
-        console.log('🔄 Starting sign out process...');
+        EventLogger.debug('Authentication', '🔄 Starting sign out process...');
         
         // Sign out from Supabase
         const { error } = await supabase.auth.signOut();
         if (error) {
-          console.error('⚠️ Supabase sign out error:', error);
+          EventLogger.error('Authentication', '⚠️ Supabase sign out error:', error as Error);
           // Continue with local cleanup even if server sign out fails
         }
         
@@ -124,24 +128,24 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
           dispatch(automationApi.util.resetApiState());
           dispatch(analyticsApi.util.resetApiState());
           
-          console.log('✅ API caches cleared');
+          EventLogger.debug('Authentication', '✅ API caches cleared');
         } catch (apiError) {
-          console.warn('⚠️ Failed to clear API caches:', apiError);
+          EventLogger.warn('Authentication', '⚠️ Failed to clear API caches:', apiError);
         }
         
         // Clear all persisted data
         try {
           const { clearPersistedData } = await import('../index');
           await clearPersistedData();
-          console.log('✅ Persisted data cleared');
+          EventLogger.debug('Authentication', '✅ Persisted data cleared');
         } catch (storageError) {
-          console.warn('⚠️ Failed to clear persisted data:', storageError);
+          EventLogger.warn('Authentication', '⚠️ Failed to clear persisted data:', storageError);
         }
         
-        console.log('✅ Sign out completed successfully');
+        EventLogger.debug('Authentication', '✅ Sign out completed successfully');
         return true;
       } catch (error: any) {
-        console.error('❌ Sign out process failed:', error);
+        EventLogger.error('Authentication', '❌ Sign out process failed:', error as Error);
         // Even if everything fails, we should clear local state
         // Don't reject - this ensures reducers still clear local state
         return true;
@@ -158,11 +162,11 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError || !session?.user) {
-          console.warn('No valid session found during profile refresh');
+          EventLogger.warn('Authentication', 'No valid session found during profile refresh');
           return rejectWithValue('No valid session');
         }
         
-        console.log('🔄 Refreshing profile for user:', session.user.email);
+        EventLogger.debug('Authentication', '🔄 Refreshing profile for user:', session.user.email);
         
         // Fetch latest profile data from database with timeout
         const profilePromise = supabase
@@ -178,7 +182,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
         const { data: profile, error } = await Promise.race([profilePromise, timeoutPromise]) as any;
         
         if (error) {
-          console.error('Profile fetch error:', error);
+          EventLogger.error('Authentication', 'Profile fetch error:', error as Error);
           
           // For JWT errors, don't retry here - let auth initializer handle it
           if (error.message?.includes('JWT') || error.code === 'PGRST301') {
@@ -190,7 +194,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
             id: session.user.id,
             email: session.user.email!,
             name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-            avatar_url: session.user.user_metadata?.avatar_url,
+            avatar_url: session.user.user_metadata?.avatar_url || DEFAULT_AVATAR,
             role: session.user.user_metadata?.role || 'user',
             created_at: session.user.created_at
           };
@@ -200,12 +204,12 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
           id: session.user.id,
           email: session.user.email!,
           name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-          avatar_url: session.user.user_metadata?.avatar_url,
+          avatar_url: session.user.user_metadata?.avatar_url || DEFAULT_AVATAR,
           role: session.user.user_metadata?.role || 'user',
           created_at: session.user.created_at
         };
       } catch (error: any) {
-        console.error('❌ Profile refresh failed:', error);
+        EventLogger.error('Authentication', '❌ Profile refresh failed:', error as Error);
         
         if (error.message === 'Profile fetch timeout') {
           return rejectWithValue('Request timeout - please try again');
@@ -253,17 +257,17 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
         state.isAuthenticated = true;
         state.isLoading = false;
         state.error = null;
-        console.log('📝 Session restored for user:', action.payload.user.email);
+        EventLogger.debug('Authentication', '📝 Session restored for user:', action.payload.user.email);
       },
       updateTokens: (state, action: PayloadAction<{ accessToken: string; refreshToken: string }>) => {
         state.accessToken = action.payload.accessToken;
         state.refreshToken = action.payload.refreshToken;
-        console.log('🔄 Tokens updated successfully');
+        EventLogger.debug('Authentication', '🔄 Tokens updated successfully');
       },
       updateProfile: (state, action: PayloadAction<Partial<User>>) => {
         if (state.user) {
           state.user = { ...state.user, ...action.payload };
-          console.log('👤 Profile updated:', action.payload);
+          EventLogger.debug('Authentication', '👤 Profile updated:', action.payload);
         }
       },
       signOutSuccess: (state) => {
@@ -341,13 +345,13 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
               ...state.user,
               ...action.payload,
             };
-            console.log('✅ Profile refreshed successfully');
+            EventLogger.debug('Authentication', '✅ Profile refreshed successfully');
           }
         })
         .addCase(refreshProfile.rejected, (state, action) => {
           state.isLoading = false;
           state.error = action.payload as string || 'Failed to refresh profile';
-          console.error('❌ Profile refresh failed:', state.error);
+          EventLogger.error('Authentication', '❌ Profile refresh failed:', state.error as Error);
         })
         // Reset Password
         .addCase(resetPassword.pending, (state) => {

@@ -115,6 +115,10 @@ const createMinimalTheme = (isDark: boolean) => {
       },
     },
     tokens: {},
+    getColors: (mode?: 'light' | 'dark' | 'oled-dark') => {
+      // Return the current theme colors
+      return baseTheme.colors;
+    },
   };
 };
 
@@ -128,7 +132,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeCompatibilityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ThemeCompatibilityProvider: React.FC<{ children: React.ReactNode }> = React.memo(({ children }) => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   
@@ -147,7 +151,7 @@ export const ThemeCompatibilityProvider: React.FC<{ children: React.ReactNode }>
       {children}
     </ThemeContext.Provider>
   );
-};
+});
 
 // Export compatibility hooks that match the UnifiedThemeProvider interface
 export const useUnifiedTheme = () => {

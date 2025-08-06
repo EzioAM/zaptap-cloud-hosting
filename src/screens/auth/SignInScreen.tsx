@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { EventLogger } from '../../utils/EventLogger';
   import {
     View,
     StyleSheet,
@@ -43,7 +44,7 @@ import React, { useState, useEffect } from 'react';
         await dispatch(signIn({ email: email.trim(), password })).unwrap();
         // Auto-navigation will handle the redirect via useEffect
       } catch (error: any) {
-        console.error('Sign in error:', error);
+        EventLogger.error('Authentication', 'Sign in error:', error as Error);
         Alert.alert('Sign In Failed', error.message || 'Invalid email or password');
       }
     };

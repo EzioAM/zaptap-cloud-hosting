@@ -19,6 +19,7 @@ import {
 } from 'react-native-paper';
 import { AIResearchService } from '../../services/research/AIResearchService';
 import { LocalResearchService, ResearchTopic } from '../../services/research/LocalResearchService';
+import { EventLogger } from '../../utils/EventLogger';
 
 export const ResearchDashboard: React.FC = () => {
   const [researchTopic, setResearchTopic] = useState('');
@@ -52,7 +53,7 @@ export const ResearchDashboard: React.FC = () => {
       //   process.env.OPENAI_API_KEY!
       // );
     } catch (error) {
-      console.error('Research failed:', error);
+      EventLogger.error('ResearchDashboard', 'Research failed:', error as Error);
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { LocalResearchService, ResearchTopic } from './LocalResearchService';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface ResearchQuery {
   topic: string;
@@ -47,10 +48,10 @@ export class CollaborativeAIResearchService {
     this.claudeApiKey = this.getApiKey('claudeApiKey', 'CLAUDE_API_KEY');
     this.openaiApiKey = this.getApiKey('openaiApiKey', 'OPENAI_API_KEY');
     
-    console.log('🤝 Collaborative AI Service initialized:', {
+    EventLogger.debug('CollaborativeAIResearch', '🤝 Collaborative AI Service initialized:', {
       hasClaudeKey: !!this.claudeApiKey,
       hasOpenAIKey: !!this.openaiApiKey,
-      canCollaborate: !!(this.claudeApiKey && this.openaiApiKey)
+      canCollaborate: !!(this.claudeApiKey && this.openaiApiKey);
     });
   }
 
@@ -65,7 +66,7 @@ export class CollaborativeAIResearchService {
    * Main collaborative research method where AIs bounce ideas off each other
    */
   async collaborativeResearch(query: ResearchQuery): Promise<CollaborativeResult> {
-    console.log('🧠 Starting collaborative AI research for:', query.topic);
+    EventLogger.debug('CollaborativeAIResearch', '🧠 Starting collaborative AI research for:', query.topic);
     
     const rounds: CollaborationRound[] = [];
     const collaborativeResult: CollaborativeResult = {
@@ -110,7 +111,7 @@ export class CollaborativeAIResearchService {
       collaborativeResult.confidence = this.calculateConfidence(rounds);
 
     } catch (error) {
-      console.error('Collaborative research error:', error);
+      EventLogger.error('CollaborativeAIResearch', 'Collaborative research error:', error as Error);
       // Fallback to enhanced local research if collaboration fails
       return this.getFallbackCollaborativeResult(query);
     }
@@ -126,7 +127,7 @@ export class CollaborativeAIResearchService {
     question: string, 
     previousRound: CollaborationRound | null
   ): Promise<CollaborationRound> {
-    console.log(`🔄 Round ${roundNumber}: ${question.substring(0, 100)}...`);
+    EventLogger.debug('CollaborativeAIResearch', '🔄 Round ${roundNumber}: ${question.substring(0, 100)}...');
     
     const round: CollaborationRound = {
       round: roundNumber,
@@ -143,7 +144,7 @@ export class CollaborativeAIResearchService {
         
         round.claudeResponse = await this.queryClaudeAPI(claudePrompt);
       } catch (error) {
-        console.error('Claude API error in round', roundNumber, error);
+        EventLogger.error('CollaborativeAIResearch', 'Claude API error in round', roundNumber, error as Error);
       }
     }
 
@@ -156,7 +157,7 @@ export class CollaborativeAIResearchService {
         
         round.chatgptResponse = await this.queryChatGPTAPI(chatgptPrompt);
       } catch (error) {
-        console.error('ChatGPT API error in round', roundNumber, error);
+        EventLogger.error('CollaborativeAIResearch', 'ChatGPT API error in round', roundNumber, error as Error);
       }
     }
 

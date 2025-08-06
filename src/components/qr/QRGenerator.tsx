@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { EventLogger } from '../../utils/EventLogger';
   import {
     View,
     StyleSheet,
@@ -114,17 +115,17 @@ import React, { useState, useRef } from 'react';
         if (result.action === Share.sharedAction) {
           if (result.activityType) {
             // Shared via activity type (iOS)
-            console.log('Shared via', result.activityType);
+            EventLogger.debug('QRCode', 'Shared via', result.activityType);
           } else {
             // Shared (Android)
-            console.log('QR code shared successfully');
+            EventLogger.debug('QRCode', 'QR code shared successfully');
           }
         } else if (result.action === Share.dismissedAction) {
           // Dismissed (iOS) or cancelled (Android)
-          console.log('Share dismissed');
+          EventLogger.debug('QRCode', 'Share dismissed');
         }
       } catch (error: any) {
-        console.error('Share error:', error);
+        EventLogger.error('QRCode', 'Share error:', error as Error);
         
         // Provide more specific error messages
         if (error.code === 'ENOENT') {
@@ -193,7 +194,7 @@ import React, { useState, useRef } from 'react';
           ]
         );
       } catch (error: any) {
-        console.error('Save error:', error);
+        EventLogger.error('QRCode', 'Save error:', error as Error);
         Alert.alert(
           'Save Failed',
           'Could not save QR code. Please try again.',

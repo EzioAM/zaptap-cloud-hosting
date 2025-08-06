@@ -8,7 +8,7 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 
 export interface ShimmerProps {
   width?: number | string;
@@ -27,7 +27,7 @@ export const Shimmer: React.FC<ShimmerProps> = ({
   duration = 1500,
   children,
 }) => {
-  const { theme } = useTheme();
+  const theme = useSafeTheme();
   const translateX = useSharedValue(-1);
 
   useEffect(() => {
@@ -57,8 +57,8 @@ export const Shimmer: React.FC<ShimmerProps> = ({
   const baseStyle: ViewStyle = {
     width,
     height,
-    borderRadius: borderRadius ?? theme.borderRadius.md,
-    backgroundColor: theme.colors.surfaceVariant,
+    borderRadius: borderRadius ?? 8,
+    backgroundColor: theme.colors?.surface || theme.colors?.surfaceVariant || '#f5f5f5',
     overflow: 'hidden',
   };
 
@@ -111,14 +111,14 @@ export const ShimmerCard: React.FC<{
   showAvatar = true,
   showActions = false,
 }) => {
-  const { theme } = useTheme();
+  const theme = useSafeTheme();
 
   return (
     <View
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: theme.colors?.surface || '#ffffff',
           height,
         },
       ]}

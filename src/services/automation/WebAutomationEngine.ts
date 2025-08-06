@@ -1,4 +1,5 @@
 import { AutomationData, AutomationStep } from '../../types';
+import { EventLogger } from '../../utils/EventLogger';
 
 export interface WebExecutionResult {
   success: boolean;
@@ -278,14 +279,14 @@ export class WebAutomationEngine {
 
     for (const step of automation.steps) {
       if (!step.enabled) {
-        console.log(`⏭️ Skipping disabled step: ${step.title}`);
+        EventLogger.debug('Automation', '⏭️ Skipping disabled step: ${step.title}');
         continue;
       }
 
       const executor = this.stepExecutors.get(step.type);
       
       if (!executor) {
-        console.warn(`❌ No executor found for step type: ${step.type}`);
+        EventLogger.warn('Automation', '❌ No executor found for step type: ${step.type}');
         result.incompatibleSteps.push(step.type);
         result.stepResults.push({
           stepId: step.id,
@@ -296,7 +297,7 @@ export class WebAutomationEngine {
       }
 
       if (!executor.canExecute(step)) {
-        console.warn(`❌ Step cannot be executed in web: ${step.title}`);
+        EventLogger.warn('Automation', '❌ Step cannot be executed in web: ${step.title}');
         result.incompatibleSteps.push(step.type);
         result.stepResults.push({
           stepId: step.id,
@@ -307,7 +308,7 @@ export class WebAutomationEngine {
       }
 
       try {
-        console.log(`▶️ Executing step: ${step.title} (${step.type})`);
+        EventLogger.debug('Automation', '▶️ Executing step: ${step.title} (${step.type})');
         const stepResult = await executor.execute(step, { variables: this.variables });
         
         result.stepResults.push({
@@ -316,9 +317,9 @@ export class WebAutomationEngine {
           result: stepResult
         });
         
-        console.log(`✅ Step completed: ${step.title}`);
+        EventLogger.debug('Automation', '✅ Step completed: ${step.title}');
       } catch (error: any) {
-        console.error(`❌ Step failed: ${step.title}`, error);
+        EventLogger.error('Automation', '❌ Step failed: ${step.title}', error as Error);
         result.stepResults.push({
           stepId: step.id,
           success: false,
@@ -330,7 +331,7 @@ export class WebAutomationEngine {
       }
     }
 
-    console.log(`🏁 Web execution completed. Success: ${result.success}`);
+    EventLogger.debug('Automation', '🏁 Web execution completed. Success: ${result.success}');
     return result;
   }
 

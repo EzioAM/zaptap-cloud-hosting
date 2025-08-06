@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { theme } from '../../../theme';
 
 export interface BadgeProps {
@@ -16,42 +16,42 @@ export const Badge: React.FC<BadgeProps> = ({
   size = 'medium',
   style,
 }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  const theme = useSafeTheme();
+  const colors = theme.colors;
   
   const variantColors = {
     default: {
-      background: colors.surface.tertiary,
-      text: colors.text.secondary,
+      background: colors?.surface?.tertiary || colors?.surface || '#f5f5f5',
+      text: colors?.text?.secondary || colors?.onSurfaceVariant || '#666666',
     },
     success: {
-      background: `${colors.semantic.success}15`,
-      text: colors.semantic.success,
+      background: `${colors?.semantic?.success || '#4CAF50'}15`,
+      text: colors?.semantic?.success || '#4CAF50',
     },
     error: {
-      background: `${colors.semantic.error}15`,
-      text: colors.semantic.error,
+      background: `${colors?.semantic?.error || colors?.error || '#F44336'}15`,
+      text: colors?.semantic?.error || colors?.error || '#F44336',
     },
     warning: {
-      background: `${colors.semantic.warning}15`,
-      text: colors.semantic.warning,
+      background: `${colors?.semantic?.warning || '#FF9800'}15`,
+      text: colors?.semantic?.warning || '#FF9800',
     },
     info: {
-      background: `${colors.semantic.info}15`,
-      text: colors.semantic.info,
+      background: `${colors?.semantic?.info || '#2196F3'}15`,
+      text: colors?.semantic?.info || '#2196F3',
     },
   };
   
   const sizeStyles = {
     small: {
-      paddingHorizontal: theme.spacing.xs,
+      paddingHorizontal: theme.spacing?.xs || 4,
       paddingVertical: 2,
-      fontSize: theme.typography.caption.fontSize,
+      fontSize: theme.typography?.caption?.fontSize || 12,
     },
     medium: {
-      paddingHorizontal: theme.spacing.sm,
+      paddingHorizontal: theme.spacing?.sm || 8,
       paddingVertical: 4,
-      fontSize: theme.typography.bodySmall.fontSize,
+      fontSize: theme.typography?.bodySmall?.fontSize || 14,
     },
   };
   

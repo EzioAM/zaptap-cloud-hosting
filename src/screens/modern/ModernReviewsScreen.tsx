@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useUnifiedTheme as useTheme } from '../../contexts/UnifiedThemeProvider';
+import { useUnifiedTheme as useTheme } from '../../contexts/ThemeCompatibilityShim';
 import { useNavigation } from '@react-navigation/native';
 import { useConnection } from '../../contexts/ConnectionContext';
 import { StarRating } from '../../components/reviews/StarRating';
 import { useGetAllReviewsQuery } from '../../store/api/automationApi';
+import { DEFAULT_AVATAR } from '../../constants/defaults';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface Review {
   id: string;
@@ -57,7 +59,7 @@ const ModernReviewsScreen = () => {
     id: review.id,
     user_id: review.user_id,
     user_name: review.users?.name || 'Anonymous',
-    user_avatar: review.users?.avatar_url,
+    user_avatar: review.users?.avatar_url || DEFAULT_AVATAR,
     rating: review.rating,
     title: review.comment || '', // Use comment as title
     comment: review.comment || '',
@@ -79,7 +81,7 @@ const ModernReviewsScreen = () => {
       Alert.alert('Feature Coming Soon', 'Review voting will be available in the next update!');
       // TODO: Implement review voting functionality
     } catch (error) {
-      console.error('Error voting on review:', error);
+      EventLogger.error('ModernReviews', 'Error voting on review:', error as Error);
     }
   };
 

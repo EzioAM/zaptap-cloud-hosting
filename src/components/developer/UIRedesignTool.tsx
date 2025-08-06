@@ -33,6 +33,7 @@ import { UIPromptFormatter, DesignInputs } from '../../services/developer/UIProm
 import { UIImageGenerator } from '../../services/developer/UIImageGenerator';
 import { ChangeHistoryIntegration } from '../../services/developer/ChangeHistoryIntegration';
 import Constants from 'expo-constants';
+import { EventLogger } from '../../utils/EventLogger';
 
 export const UIRedesignTool: React.FC = () => {
   const [screenName, setScreenName] = useState('');
@@ -75,7 +76,7 @@ export const UIRedesignTool: React.FC = () => {
       const screenAnalysis = await ScreenAnalysisService.analyzeScreen(selectedScreen);
       setCurrentDescription(screenAnalysis);
     } catch (error) {
-      console.error('Failed to analyze screen:', error);
+      EventLogger.error('UI', 'Failed to analyze screen:', error as Error);
       // Keep the current description if analysis fails
     } finally {
       setIsAnalyzing(false);
@@ -92,18 +93,18 @@ export const UIRedesignTool: React.FC = () => {
     setResults(null);
 
     try {
-      console.log('🚀 Starting redesign process for:', screenName);
+      EventLogger.debug('UI', '🚀 Starting redesign process for:', screenName);
       
       // Test imports
-      console.log('🔍 Testing imports...');
-      console.log('UIPromptFormatter:', typeof UIPromptFormatter);
-      console.log('UIPromptFormatter.formatPrompts:', typeof UIPromptFormatter.formatPrompts);
-      console.log('UIPromptFormatter.createSearchQuery:', typeof UIPromptFormatter.createSearchQuery);
-      console.log('ScreenAnalysisService:', typeof ScreenAnalysisService);
-      console.log('ScreenAnalysisService.getScreenAnalysis:', typeof ScreenAnalysisService.getScreenAnalysis);
-      console.log('UIImageGenerator:', typeof UIImageGenerator);
-      console.log('UIImageGenerator.generateMockupImage:', typeof UIImageGenerator.generateMockupImage);
-      console.log('AIResearchService:', typeof AIResearchService);
+      EventLogger.debug('UI', '🔍 Testing imports...');
+      EventLogger.debug('UI', 'UIPromptFormatter:', typeof UIPromptFormatter);
+      EventLogger.debug('UI', 'UIPromptFormatter.formatPrompts:', typeof UIPromptFormatter.formatPrompts);
+      EventLogger.debug('UI', 'UIPromptFormatter.createSearchQuery:', typeof UIPromptFormatter.createSearchQuery);
+      EventLogger.debug('UI', 'ScreenAnalysisService:', typeof ScreenAnalysisService);
+      EventLogger.debug('UI', 'ScreenAnalysisService.getScreenAnalysis:', typeof ScreenAnalysisService.getScreenAnalysis);
+      EventLogger.debug('UI', 'UIImageGenerator:', typeof UIImageGenerator);
+      EventLogger.debug('UI', 'UIImageGenerator.generateMockupImage:', typeof UIImageGenerator.generateMockupImage);
+      EventLogger.debug('UI', 'AIResearchService:', typeof AIResearchService);
       // Step 1: Format design inputs into optimized prompts
       const designInputs: DesignInputs = {
         screenName,
@@ -119,16 +120,16 @@ export const UIRedesignTool: React.FC = () => {
       };
 
       // Generate optimized prompts for different AI services
-      console.log('📋 Calling UIPromptFormatter.formatPrompts...');
+      EventLogger.debug('UI', '📋 Calling UIPromptFormatter.formatPrompts...');
       let formattedPrompts;
       try {
         formattedPrompts = UIPromptFormatter.formatPrompts(designInputs);
       } catch (promptError) {
-        console.error('❌ UIPromptFormatter.formatPrompts failed:', promptError);
+        EventLogger.error('UI', '❌ UIPromptFormatter.formatPrompts failed:', promptError as Error);
         throw new Error(`Failed to format prompts: ${promptError.message}`);
       }
       
-      console.log('🎨 Optimized Prompts Generated:', {
+      EventLogger.debug('UI', '🎨 Optimized Prompts Generated:', {
         claudePromptLength: formattedPrompts?.claudePrompt?.length || 0,
         chatgptPromptLength: formattedPrompts?.chatgptPrompt?.length || 0,
         imagePromptLength: formattedPrompts?.imageGenerationPrompt?.length || 0,
@@ -139,7 +140,7 @@ export const UIRedesignTool: React.FC = () => {
       const claudeApiKey = Constants.expoConfig?.extra?.claudeApiKey;
       const openaiApiKey = Constants.expoConfig?.extra?.openaiApiKey;
       
-      console.log('🔑 UI Redesign API Keys Check:', {
+      EventLogger.debug('UI', '🔑 UI Redesign API Keys Check:', {
         claudeAvailable: !!claudeApiKey,
         openaiAvailable: !!openaiApiKey,
         claudeLength: claudeApiKey?.length || 0,
@@ -152,7 +153,7 @@ export const UIRedesignTool: React.FC = () => {
       }
 
       // Step 3: Generate AI recommendations using optimized prompts
-      console.log('🤖 Creating AIResearchService...');
+      EventLogger.debug('UI', '🤖 Creating AIResearchService...');
       const service = new AIResearchService(claudeApiKey, openaiApiKey);
       
       // Use the optimized prompts for better AI analysis
@@ -165,23 +166,23 @@ export const UIRedesignTool: React.FC = () => {
         currentDescription: `${designInputs.currentDescription}\n\n[OPTIMIZED ANALYSIS CONTEXT]\n${aiAnalysisPrompt}`
       };
 
-      console.log('📤 Calling service.generateUIRedesign...');
+      EventLogger.debug('UI', '📤 Calling service.generateUIRedesign...');
       let redesignResponse;
       try {
         redesignResponse = await service.generateUIRedesign(redesignRequest);
       } catch (serviceError) {
-        console.error('❌ service.generateUIRedesign failed:', serviceError);
-        console.error('Stack trace:', serviceError.stack);
+        EventLogger.error('UI', '❌ service.generateUIRedesign failed:', serviceError as Error);
+        EventLogger.error('UI', 'Stack trace:', serviceError.stack as Error);
         throw new Error(`AI service failed: ${serviceError.message}`);
       }
       
       // Validate response structure
       if (!redesignResponse || typeof redesignResponse !== 'object') {
-        console.error('❌ Invalid response structure:', redesignResponse);
+        EventLogger.error('UI', '❌ Invalid response structure:', redesignResponse as Error);
         throw new Error('Invalid response from AI service');
       }
       
-      console.log('✅ AI response received:', {
+      EventLogger.debug('UI', '✅ AI response received:', {
         hasDesignConcepts: !!redesignResponse.designConcepts,
         hasMockupDescriptions: !!redesignResponse.mockupDescriptions,
         mockupCount: redesignResponse.mockupDescriptions?.length || 0
@@ -227,7 +228,7 @@ export const UIRedesignTool: React.FC = () => {
             isAIGenerated: generatedImage.isAIGenerated
           };
         } catch (error) {
-          console.error(`Error generating mockup for ${style}:`, error);
+          EventLogger.error('UI', 'Error generating mockup for ${style}:', error as Error);
           // Return a fallback mockup
           return {
             name: style.charAt(0).toUpperCase() + style.slice(1) + ' Design',
@@ -280,7 +281,7 @@ export const UIRedesignTool: React.FC = () => {
           aiModel: claudeApiKey ? 'claude' : openaiApiKey ? 'chatgpt' : undefined,
         });
       } catch (historyError) {
-        console.error('Failed to track redesign in history:', historyError);
+        EventLogger.error('UI', 'Failed to track redesign in history:', historyError as Error);
       }
 
       const aiGeneratedCount = mockups.filter(m => m.isAIGenerated).length;
@@ -292,10 +293,10 @@ export const UIRedesignTool: React.FC = () => {
       );
 
     } catch (error: any) {
-      console.error('Redesign error:', error);
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
+      EventLogger.error('UI', 'Redesign error:', error as Error);
+      EventLogger.error('UI', 'Error type:', error.constructor.name as Error);
+      EventLogger.error('UI', 'Error message:', error.message as Error);
+      EventLogger.error('UI', 'Error stack:', error.stack as Error);
       
       const errorMessage = error.message || 'Unknown error occurred';
       const errorDetails = `Error: ${errorMessage}${error.stack ? '\n\nCheck console for detailed stack trace.' : ''}`;

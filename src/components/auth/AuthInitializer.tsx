@@ -5,8 +5,11 @@ import authSlice from '../../store/slices/authSlice';
 import { AppDispatch, RootState, resetApiState } from '../../store';
 import { automationApi } from '../../store/api/automationApi';
 import { analyticsApi } from '../../store/api/analyticsApi';
+import NetInfo from '@react-native-community/netinfo';
+import { DEFAULT_AVATAR } from '../../constants/defaults';
+import { EventLogger } from '../../utils/EventLogger';
 
-export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthInitializer: React.FC<{ children: React.ReactNode }> = React.memo(({ children }) => {
   const dispatch = useDispatch<AppDispatch>();
   const authState = useSelector((state: RootState) => state.auth);
   const hasInitialized = useRef(false);
@@ -17,25 +20,29 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
     if (hasInitialized.current) return;
     hasInitialized.current = true;
 
-    // NON-BLOCKING: Check for existing session with delay to prevent startup blocking
+    EventLogger.debug('Authentication', '🔐 AuthInitializer: Starting session restoration check...');
+
+    // DEFERRED: Check for existing session after UI renders to improve startup time
     const initTimer = setTimeout(() => {
       checkSession().catch(error => {
-        console.warn('Session check failed during startup, continuing without auth:', error);
+        EventLogger.warn('Authentication', 'Session check failed during startup, continuing without auth:', error);
       });
-    }, 100); // Small delay to let UI render first
+    }, 2000); // Extended delay for better startup performance
 
     // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
-      
-      try {
-        if (event === 'SIGNED_IN' && session) {
-          // Non-blocking profile fetch
-          handleSignIn(session).catch(error => {
-            console.warn('Profile fetch failed after sign in:', error);
-          });
+    let authListener: any;
+    try {
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+        EventLogger.debug('Authentication', 'Auth state changed:', event, session?.user?.email);
+        
+        try {
+          if (event === 'SIGNED_IN' && session) {
+            // Non-blocking profile fetch
+            handleSignIn(session).catch(error => {
+              EventLogger.warn('Authentication', 'Profile fetch failed after sign in:', error);
+            });
         } else if (event === 'SIGNED_OUT') {
-          console.log('🚪 User signed out');
+          EventLogger.debug('Authentication', '🚪 User signed out');
           dispatch(authSlice.actions.signOutSuccess());
           
           // Clear API caches on sign out
@@ -44,7 +51,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
           // Reset refresh attempt flag
           tokenRefreshAttempted.current = false;
         } else if (event === 'TOKEN_REFRESHED' && session) {
-          console.log('🔄 Token refreshed successfully');
+          EventLogger.debug('Authentication', '🔄 Token refreshed successfully');
           dispatch(authSlice.actions.updateTokens({
             accessToken: session.access_token,
             refreshToken: session.refresh_token,
@@ -54,13 +61,17 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
           resetApiState();
         } else if (event === 'USER_UPDATED' && session) {
           handleSignIn(session).catch(error => {
-            console.warn('Profile update failed:', error);
+            EventLogger.warn('Authentication', 'Profile update failed:', error);
           });
+          }
+        } catch (error) {
+          EventLogger.error('Authentication', 'Auth state change handler error:', error as Error);
         }
-      } catch (error) {
-        console.error('Auth state change handler error:', error);
-      }
-    });
+      });
+      authListener = data;
+    } catch (error) {
+      EventLogger.warn('Authentication', 'Failed to set up auth listener:', error);
+    }
 
     return () => {
       clearTimeout(initTimer);
@@ -72,7 +83,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       // Validate session before processing
       if (!session || !session.user || !session.access_token) {
-        console.error('❌ Invalid session data received');
+        EventLogger.error('Authentication', '❌ Invalid session data received');
         dispatch(authSlice.actions.signOutSuccess());
         return;
       }
@@ -82,7 +93,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
         id: session.user.id,
         email: session.user.email!,
         name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-        avatar_url: session.user.user_metadata?.avatar_url,
+        avatar_url: session.user.user_metadata?.avatar_url || DEFAULT_AVATAR,
         role: session.user.user_metadata?.role || 'user',
         created_at: session.user.created_at
       };
@@ -93,7 +104,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
         refreshToken: session.refresh_token,
       }));
 
-      console.log('✅ User session updated successfully (basic)');
+      EventLogger.debug('Authentication', '✅ User session updated successfully (basic)');
 
       // Background profile fetch - don't block UI
       try {
@@ -106,7 +117,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
         if (profileError) {
           // Handle specific auth errors
           if (profileError.message?.includes('JWT') || profileError.code === 'PGRST301') {
-            console.warn('⚠️ JWT error during profile fetch, attempting token refresh...');
+            EventLogger.warn('Authentication', '⚠️ JWT error during profile fetch, attempting token refresh...');
             if (!tokenRefreshAttempted.current) {
               tokenRefreshAttempted.current = true;
               const refreshedSession = await supabase.auth.refreshSession();
@@ -122,13 +133,13 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
                   const enhancedUserData = {
                     ...basicUserData,
                     name: retryProfile.name || basicUserData.name,
-                    avatar_url: retryProfile.avatar_url || basicUserData.avatar_url,
+                    avatar_url: retryProfile.avatar_url || DEFAULT_AVATAR,
                     role: retryProfile.role || basicUserData.role,
                     created_at: retryProfile.created_at || basicUserData.created_at
                   };
                   
                   dispatch(authSlice.actions.updateProfile(enhancedUserData));
-                  console.log('✅ Profile data loaded after token refresh');
+                  EventLogger.debug('Authentication', '✅ Profile data loaded after token refresh');
                   return;
                 }
               }
@@ -143,25 +154,25 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
             id: profile.id,
             email: profile.email,
             name: profile.name || basicUserData.name,
-            avatar_url: profile.avatar_url || basicUserData.avatar_url,
+            avatar_url: profile.avatar_url || DEFAULT_AVATAR,
             role: profile.role || basicUserData.role,
             created_at: profile.created_at || basicUserData.created_at
           };
 
           dispatch(authSlice.actions.updateProfile(enhancedUserData));
-          console.log('✅ Profile data loaded and updated');
+          EventLogger.debug('Authentication', '✅ Profile data loaded and updated');
         }
       } catch (profileError: any) {
-        console.warn('⚠️ Failed to fetch profile, using basic data:', profileError?.message || profileError);
+        EventLogger.warn('Authentication', '⚠️ Failed to fetch profile, using basic data:', profileError?.message || profileError);
       }
     } catch (error) {
-      console.error('❌ Failed to handle sign in:', error);
+      EventLogger.error('Authentication', '❌ Failed to handle sign in:', error as Error);
       // Even if everything fails, try basic session restore
       const fallbackUserData = {
         id: session.user.id,
         email: session.user.email!,
         name: session.user.email?.split('@')[0] || 'User',
-        avatar_url: null,
+        avatar_url: DEFAULT_AVATAR,
         role: 'user',
         created_at: session.user.created_at
       };
@@ -176,28 +187,47 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
 
   const checkSession = async () => {
     try {
-      console.log('🔍 Checking for existing session...');
+      EventLogger.debug('Authentication', '🔍 Checking for existing session...');
+      
+      // Check network connectivity first to avoid unnecessary errors
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected) {
+        EventLogger.debug('Authentication', '📴 No network connection - skipping session check');
+        // Don't clear auth state when offline - user might have valid cached session
+        return;
+      }
       
       // First try to ensure we have a valid session (handles token refresh if needed)
       const validSession = await ensureValidSession();
       
       if (validSession) {
-        console.log('✅ Found valid session for:', validSession.user.email);
+        EventLogger.debug('Authentication', '✅ Found valid session for:', validSession.user.email);
+        EventLogger.debug('Authentication', '🔐 AuthInitializer: Restoring user session automatically...');
         // NON-BLOCKING: Handle sign in without waiting for profile fetch
         handleSignIn(validSession).catch(error => {
-          console.warn('Profile fetch failed, continuing with basic auth:', error);
+          EventLogger.warn('Authentication', 'Profile fetch failed, continuing with basic auth:', error);
         });
-        console.log('✅ Session restored successfully');
+        EventLogger.debug('Authentication', '✅ Session restored successfully - user will remain signed in!');
       } else {
-        console.log('ℹ️ No valid session found');
+        EventLogger.debug('Authentication', 'ℹ️ No valid session found - user needs to sign in');
         dispatch(authSlice.actions.signOutSuccess());
         
         // Clear any stale API data
         resetApiState();
       }
     } catch (error: any) {
-      console.error('❌ Failed to check session:', error?.message || error);
-      // Don't block startup - clear auth state and continue
+      // Only log network errors once, not as errors
+      if (error?.message?.includes('Network request failed') || 
+          error?.message?.includes('Failed to fetch') ||
+          error?.name === 'NetworkError' ||
+          error?.name === 'AuthRetryableFetchError') {
+        EventLogger.debug('Authentication', '📴 Network unavailable for session check');
+        // Don't clear auth state when network is down
+        return;
+      }
+      
+      EventLogger.warn('Authentication', '⚠️ Session check failed:', error?.message || 'Unknown error');
+      // For non-network errors, clear auth state
       dispatch(authSlice.actions.signOutSuccess());
       
       // Clear any stale API data
@@ -206,4 +236,4 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   return <>{children}</>;
-};
+});
