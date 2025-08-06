@@ -603,10 +603,9 @@ const BuildScreen: React.FC = memo(() => {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        onScroll={FEATURE_FLAGS.ENHANCED_ANIMATIONS ? Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        ) : undefined}
+        onScroll={FEATURE_FLAGS.ENHANCED_ANIMATIONS ? (event: any) => {
+          scrollY.setValue(event.nativeEvent.contentOffset.y);
+        } : undefined}
       >
         {/* Automation Info */}
         <View style={styles.section}>

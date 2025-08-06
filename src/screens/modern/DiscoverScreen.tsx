@@ -640,10 +640,9 @@ const DiscoverScreen: React.FC = memo(() => {
               tintColor={theme.colors.primary}
             />
           }
-          onScroll={FEATURE_FLAGS.ENHANCED_ANIMATIONS ? Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          ) : undefined}
+          onScroll={FEATURE_FLAGS.ENHANCED_ANIMATIONS ? (event: any) => {
+            scrollY.setValue(event.nativeEvent.contentOffset.y);
+          } : undefined}
           onMomentumScrollEnd={handleLoadMore}
         >
           {/* Featured Section */}

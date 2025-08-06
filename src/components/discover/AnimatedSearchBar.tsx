@@ -302,9 +302,10 @@ export const AnimatedSearchBar: React.FC<AnimatedSearchBarProps> = ({
         style={[
           styles.suggestionsContainer,
           {
-            maxHeight: suggestionMaxHeight,
+            height: suggestionMaxHeight,
             opacity: suggestionOpacityAnim,
             backgroundColor: theme.colors?.surface?.primary || theme.colors?.surface || '#FFFFFF',
+            overflow: 'hidden',
           },
         ]}
       >
