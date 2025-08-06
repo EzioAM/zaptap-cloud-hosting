@@ -2,7 +2,6 @@ import React, { ReactNode } from 'react';
 import {
   View,
   Animated,
-  ScrollView,
   StyleSheet,
   Dimensions,
   Platform,
@@ -92,7 +91,7 @@ export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
-      <ScrollView
+      <Animated.ScrollView
         style={styles.container}
         onScroll={handleScroll}
         scrollEventThrottle={1}
@@ -104,7 +103,7 @@ export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = ({
         ]}
       >
         {children}
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Parallax Header Background */}
       <Animated.View
