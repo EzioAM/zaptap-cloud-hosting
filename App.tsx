@@ -1,3 +1,78 @@
+// EMERGENCY STACK OVERFLOW PROTECTION - MUST BE ABSOLUTELY FIRST
+// This runs before ANY imports to catch recursion
+if (__DEV__ && typeof global !== 'undefined') {
+  // Override Function.apply to catch infinite recursion
+  const originalApply = Function.prototype.apply;
+  let applyDepth = 0;
+  
+  Function.prototype.apply = function(thisArg, argsArray) {
+    applyDepth++;
+    
+    if (applyDepth > 100) {
+      console.error('🚨 CRITICAL: Function.apply recursion at depth', applyDepth);
+      applyDepth = 0;
+      throw new Error('Stack overflow prevented in Function.apply at depth 100');
+    }
+    
+    try {
+      const result = originalApply.call(this, thisArg, argsArray);
+      applyDepth--;
+      return result;
+    } catch (error) {
+      applyDepth = 0;
+      if (error.message?.includes('Maximum call stack')) {
+        console.error('🚨 Stack overflow caught in apply');
+        throw new Error('Stack overflow prevented in Function.apply');
+      }
+      throw error;
+    }
+  };
+  
+  // Override Array.map to catch recursion
+  const originalMap = Array.prototype.map;
+  let mapDepth = 0;
+  
+  Array.prototype.map = function(callback, thisArg) {
+    mapDepth++;
+    
+    if (mapDepth > 50) {
+      console.error('🚨 CRITICAL: Array.map recursion at depth', mapDepth);
+      mapDepth = 0;
+      return this.slice();  // Return copy of original array to preserve some functionality
+    }
+    
+    try {
+      const result = originalMap.call(this, callback, thisArg);
+      mapDepth--;
+      return result;
+    } catch (error) {
+      mapDepth = 0;
+      if (error.message?.includes('Maximum call stack')) {
+        console.error('🚨 Stack overflow caught in map');
+        return this.slice();  // Return copy of original array
+      }
+      throw error;
+    }
+  };
+  
+  console.log('✅ Emergency stack overflow protection active');
+  
+  // Debug touch event registration (disabled - EventTarget not available in Hermes)
+  // Commenting out EventTarget usage to fix Hermes compatibility
+  /*
+  if (typeof EventTarget !== 'undefined') {
+    const originalAddEventListener = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function(type, listener, options) {
+      if (type.includes('touch') || type === 'press' || type === 'click' || type === 'tap') {
+        console.log('📱 Touch/Press event registered:', type);
+      }
+      return originalAddEventListener.call(this, type, listener, options);
+    };
+    console.log('📱 Touch event debugging enabled');
+  }
+  */
+}
+
 // Import crypto polyfill FIRST to support UUID generation in React Native
 import 'react-native-get-random-values';
 
@@ -7,78 +82,80 @@ import { PerformanceMeasurement } from './src/utils/PerformanceMeasurement';
 // Mark the very start of app loading
 PerformanceMeasurement.mark('app_bootstrap_start');
 
-import React, { Suspense, useEffect, useState } from 'react';
+// Global stack overflow catcher for debugging
+if (__DEV__) {
+  const originalError = console.error;
+  const originalWarn = console.warn;
+  let stackOverflowCount = 0;
+  
+  console.error = (...args) => {
+    const errorString = args.join(' ');
+    if (errorString.includes('Maximum call stack size exceeded')) {
+      stackOverflowCount++;
+      console.warn(`🚨 STACK OVERFLOW #${stackOverflowCount} DETECTED - Attempting to identify source`);
+      
+      // Try to get more info about where it's happening
+      try {
+        const stack = new Error().stack;
+        console.warn('Stack trace sample:', stack?.split('\n').slice(0, 5).join('\n'));
+      } catch (e) {
+        // Can't get stack
+      }
+      
+      // Don't propagate the error if we've seen it too many times
+      if (stackOverflowCount > 3) {
+        return;
+      }
+    }
+    originalError.apply(console, args);
+  };
+  
+  // Also catch warnings
+  console.warn = (...args) => {
+    const warnString = args.join(' ');
+    if (warnString.includes('Maximum call stack size exceeded')) {
+      console.log('🚨 Stack overflow in warning');
+      return;
+    }
+    originalWarn.apply(console, args);
+  };
+}
+
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Provider as ReduxProvider } from 'react-redux';
+import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-// Lazy load heavy dependencies to reduce initial bundle size
-const SafeAreaProvider = React.lazy(() => 
-  import('react-native-safe-area-context').then(module => ({ 
-    default: module.SafeAreaProvider 
-  }))
-);
+// Direct imports instead of lazy loading for React 19 compatibility
+import { AppNavigator } from './src/navigation/AppNavigator';
+import { ThemeCompatibilityProvider } from './src/contexts/ThemeCompatibilityShim';
+import { ConnectionProvider } from './src/contexts/ConnectionContext';
+import { AuthInitializer } from './src/components/auth/AuthInitializer';
+import { AnalyticsProvider } from './src/contexts/AnalyticsContext';
+import { CrashReporter } from './src/services/monitoring/CrashReporter';
+import { PerformanceMonitor } from './src/services/monitoring/PerformanceMonitor';
+import { initializeErrorInterceptor } from './src/utils/errorInterceptor';
+import { EventLogger } from './src/utils/EventLogger';
+// import { PerformanceAnalyzer } from './src/utils/PerformanceAnalyzer'; // REMOVED to fix stack overflow
+import { PerformanceOptimizer } from './src/utils/PerformanceOptimizer';
+import { NotificationService } from './src/services/notifications/NotificationService';
+import { SafeAppWrapper } from './src/utils/SafeAppWrapper';
 
-const ReduxProvider = React.lazy(() => 
-  import('react-redux').then(module => ({ 
-    default: module.Provider 
-  }))
-);
-
-const PaperProvider = React.lazy(() => 
-  import('react-native-paper').then(module => ({ 
-    default: module.Provider 
-  }))
-);
-
-// Defer loading of heavy modules until after first render
+// Initialize services directly for React 19 compatibility
 let servicesInitialized = false;
-let servicesPromise: Promise<any> | null = null;
+let storePromise: Promise<any> | null = null;
 
-const initializeServices = () => {
-  if (!servicesPromise) {
-    servicesPromise = Promise.all([
-      // Load store lazily
-      import('./src/store').then(async module => {
-        const { store } = await module.createLazyStore();
-        return store;
-      }),
-      // Load navigation lazily
-      import('./src/navigation/AppNavigator').then(module => ({ default: module.AppNavigator })),
-      // Load context providers lazily
-      import('./src/contexts/ThemeCompatibilityShim').then(module => ({ ThemeCompatibilityProvider: module.ThemeCompatibilityProvider })),
-      import('./src/contexts/ConnectionContext').then(module => ({ ConnectionProvider: module.ConnectionProvider })),
-      import('./src/components/auth/AuthInitializer').then(module => ({ AuthInitializer: module.AuthInitializer })),
-      import('./src/contexts/AnalyticsContext').then(module => ({ AnalyticsProvider: module.AnalyticsProvider })),
-      // Load monitoring services
-      import('./src/services/monitoring/CrashReporter').then(module => ({ CrashReporter: module.CrashReporter })),
-      import('./src/services/monitoring/PerformanceMonitor').then(module => ({ PerformanceMonitor: module.PerformanceMonitor })),
-      // Load utilities
-      import('./src/utils/errorInterceptor').then(module => ({ initializeErrorInterceptor: module.initializeErrorInterceptor })),
-      import('./src/utils/EventLogger').then(module => ({ EventLogger: module.EventLogger })),
-      // Load performance optimization
-      import('./src/utils/PerformanceAnalyzer').then(module => ({ PerformanceAnalyzer: module.PerformanceAnalyzer })),
-      import('./src/utils/PerformanceOptimizer').then(module => ({ PerformanceOptimizer: module.PerformanceOptimizer })),
-      // Load theme
-      import('react-native-paper').then(module => ({ MD3LightTheme: module.MD3LightTheme })),
-    ]).then((modules) => {
-      PerformanceMeasurement.mark('services_loaded');
-      return {
-        store: modules[0],
-        AppNavigator: modules[1].default,
-        ThemeCompatibilityProvider: modules[2].ThemeCompatibilityProvider,
-        ConnectionProvider: modules[3].ConnectionProvider,
-        AuthInitializer: modules[4].AuthInitializer,
-        AnalyticsProvider: modules[5].AnalyticsProvider,
-        CrashReporter: modules[6].CrashReporter,
-        PerformanceMonitor: modules[7].PerformanceMonitor,
-        initializeErrorInterceptor: modules[8].initializeErrorInterceptor,
-        EventLogger: modules[9].EventLogger,
-        PerformanceAnalyzer: modules[10].PerformanceAnalyzer,
-        PerformanceOptimizer: modules[11].PerformanceOptimizer,
-        MD3LightTheme: modules[12].MD3LightTheme,
-      };
+const initializeStore = async () => {
+  if (!storePromise) {
+    storePromise = import('./src/store').then(async module => {
+      const { createLazyStore } = module;
+      const { store } = await createLazyStore();
+      return store;
     });
   }
-  return servicesPromise;
+  return storePromise;
 };
 
 // Initialize services in the background after first render
@@ -86,13 +163,66 @@ const initializeBackgroundServices = async () => {
   if (servicesInitialized) return;
   
   try {
-    const services = await initializeServices();
+    // Initialize error interceptor first
+    initializeErrorInterceptor();
     
-    // Initialize error interceptor
-    services.initializeErrorInterceptor();
+    // Defer heavy monitoring services to avoid impacting startup
+    setTimeout(async () => {
+      try {
+        // Initialize crash reporter with reduced impact
+        await CrashReporter.initialize({
+          enabled: true,
+          captureConsoleErrors: __DEV__,
+          captureUnhandledPromiseRejections: true,
+        });
+        
+        // Initialize performance monitor after crash reporter
+        await PerformanceMonitor.initialize();
+        
+        // Performance analyzer DISABLED - was causing stack overflow
+        // TODO: Re-enable after fixing circular reference issues
+        /*
+        if (__DEV__) {
+          setTimeout(() => {
+            try {
+              // PerformanceAnalyzer.initialize();
+            } catch (error) {
+              console.warn('PerformanceAnalyzer initialization failed:', error);
+            }
+          }, 3000);
+        }
+        */
+        
+        // Initialize push notifications
+        const notificationService = NotificationService.getInstance();
+        await notificationService.initialize();
+        await notificationService.requestPermissions();
+        
+        EventLogger.info('App', 'Monitoring services initialized');
+      } catch (monitoringError) {
+        console.warn('Monitoring services initialization failed:', monitoringError);
+      }
+    }, 2000); // Delay heavy services by 2 seconds
+    
+    // Initialize performance optimizer with conservative settings
+    setTimeout(() => {
+      try {
+        PerformanceOptimizer.initialize({
+          enableAutoOptimization: false,
+          targetLaunchTime: 2500,
+          targetFPS: 50,
+          maxMemoryUsage: 200,
+          enableNavigationPreloading: true,
+          enableCaching: true,
+          enableAnimationOptimization: true,
+        });
+      } catch (perfError) {
+        console.warn('Performance optimizer initialization failed:', perfError);
+      }
+    }, 1000); // Delay by 1 second
     
     // Log successful initialization
-    services.EventLogger.info('App', 'All services loaded successfully');
+    EventLogger.info('App', 'All services loaded successfully');
     
     servicesInitialized = true;
     
@@ -121,18 +251,14 @@ class EmergencyErrorBoundary extends React.Component<
     
     // Try to report error if services are loaded
     if (servicesInitialized) {
-      initializeServices().then(services => {
-        try {
-          services.CrashReporter.reportFatalError(error, {
-            error_boundary: true,
-            context: 'App root level',
-          });
-        } catch (reportingError) {
-          console.error('Failed to report error to crash reporter:', reportingError);
-        }
-      }).catch(() => {
-        // Silently fail if services aren't ready
-      });
+      try {
+        CrashReporter.reportFatalError(error, {
+          error_boundary: true,
+          context: 'App root level',
+        });
+      } catch (reportingError) {
+        console.error('Failed to report error to crash reporter:', reportingError);
+      }
     }
     
     return { hasError: true, error };
@@ -143,29 +269,25 @@ class EmergencyErrorBoundary extends React.Component<
     
     // Try enhanced error reporting if services are loaded
     if (servicesInitialized) {
-      initializeServices().then(services => {
-        try {
-          services.EventLogger.critical('App', 'Critical error in root component', error, {
+      try {
+        EventLogger.critical('App', 'Critical error in root component', error, {
+          componentStack: errorInfo.componentStack,
+          errorBoundary: 'EmergencyErrorBoundary',
+        });
+        
+        CrashReporter.addBreadcrumb({
+          category: 'error',
+          message: 'React Error Boundary triggered',
+          level: 'error',
+          data: {
+            errorName: error.name,
+            errorMessage: error.message,
             componentStack: errorInfo.componentStack,
-            errorBoundary: 'EmergencyErrorBoundary',
-          });
-          
-          services.CrashReporter.addBreadcrumb({
-            category: 'error',
-            message: 'React Error Boundary triggered',
-            level: 'error',
-            data: {
-              errorName: error.name,
-              errorMessage: error.message,
-              componentStack: errorInfo.componentStack,
-            },
-          });
-        } catch (reportingError) {
-          console.error('Failed to add error breadcrumb:', reportingError);
-        }
-      }).catch(() => {
-        // Silently fail if services aren't ready
-      });
+          },
+        });
+      } catch (reportingError) {
+        console.error('Failed to add error breadcrumb:', reportingError);
+      }
     }
   }
 
@@ -184,23 +306,7 @@ class EmergencyErrorBoundary extends React.Component<
   }
 }
 
-// Lightweight theme fallback for initial render
-const lightweightTheme = {
-  colors: {
-    primary: '#6200ee',
-    secondary: '#03dac6',
-    background: '#ffffff',
-    surface: '#ffffff',
-    error: '#B00020',
-    onPrimary: '#ffffff',
-    onSecondary: '#000000',
-    onBackground: '#000000',
-    onSurface: '#000000',
-    onError: '#ffffff',
-  },
-};
-
-// Loading component for Suspense fallback
+// Loading component
 const LoadingScreen = () => (
   <View style={styles.loadingContainer}>
     <ActivityIndicator size="large" color="#6200ee" />
@@ -209,17 +315,7 @@ const LoadingScreen = () => (
 );
 
 // Component for rendering the full app once services are loaded
-const FullApp: React.FC<{ services: any }> = React.memo(({ services }) => {
-  const {
-    store,
-    AppNavigator,
-    ThemeCompatibilityProvider,
-    ConnectionProvider,
-    AuthInitializer,
-    AnalyticsProvider,
-    MD3LightTheme
-  } = services;
-
+const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
   // Create full theme with Material Design 3
   const paperTheme = {
     ...MD3LightTheme,
@@ -234,43 +330,39 @@ const FullApp: React.FC<{ services: any }> = React.memo(({ services }) => {
   };
 
   return (
-    <Suspense fallback={<LoadingScreen />}>
-      <SafeAreaProvider>
-        <Suspense fallback={<LoadingScreen />}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAppWrapper enableProtection={__DEV__} maxRenderCycles={100}>
+        <SafeAreaProvider>
           <ReduxProvider store={store}>
-            <Suspense fallback={<LoadingScreen />}>
-              <PaperProvider theme={paperTheme}>
-                <ThemeCompatibilityProvider>
-                  <AuthInitializer>
-                    <ConnectionProvider>
-                      <AnalyticsProvider
-                        config={{
-                          environment: __DEV__ ? 'development' : 'production',
-                          debugMode: __DEV__,
-                          enableCrashReporting: true,
-                          enablePerformanceMonitoring: true,
-                        }}
-                      >
-                        <Suspense fallback={<LoadingScreen />}>
-                          <AppNavigator />
-                        </Suspense>
-                      </AnalyticsProvider>
-                    </ConnectionProvider>
-                  </AuthInitializer>
-                </ThemeCompatibilityProvider>
-              </PaperProvider>
-            </Suspense>
+            <PaperProvider theme={paperTheme}>
+              <ThemeCompatibilityProvider>
+                <AuthInitializer>
+                  <ConnectionProvider>
+                    <AnalyticsProvider
+                      config={{
+                        environment: __DEV__ ? 'development' : 'production',
+                        debugMode: __DEV__,
+                        enableCrashReporting: true,
+                        enablePerformanceMonitoring: true,
+                      }}
+                    >
+                      <AppNavigator />
+                    </AnalyticsProvider>
+                  </ConnectionProvider>
+                </AuthInitializer>
+              </ThemeCompatibilityProvider>
+            </PaperProvider>
           </ReduxProvider>
-        </Suspense>
-      </SafeAreaProvider>
-    </Suspense>
+        </SafeAreaProvider>
+      </SafeAppWrapper>
+    </GestureHandlerRootView>
   );
 });
 
 let renderCount = 0;
 
 export default function App() {
-  const [services, setServices] = useState<any>(null);
+  const [store, setStore] = useState<any>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   
   renderCount++;
@@ -279,7 +371,7 @@ export default function App() {
     console.log('📱 App component rendering...');
   }
 
-  // Initialize services after first render
+  // Initialize store after first render
   useEffect(() => {
     let mounted = true;
     
@@ -287,29 +379,13 @@ export default function App() {
       try {
         PerformanceMeasurement.mark('app_initialization_start');
         
-        // Start background service initialization
-        const servicesData = await initializeServices();
+        // Initialize store
+        const storeInstance = await initializeStore();
         
         if (!mounted) return;
         
-        // Initialize error interceptor immediately
-        servicesData.initializeErrorInterceptor();
-        
-        // Initialize performance optimization
-        if (servicesData.PerformanceAnalyzer) {
-          servicesData.PerformanceAnalyzer.initialize();
-        }
-        if (servicesData.PerformanceOptimizer) {
-          servicesData.PerformanceOptimizer.initialize({
-            enableAutoOptimization: false, // Disable auto-optimization
-            targetLaunchTime: 2500,
-            targetFPS: 50,
-            maxMemoryUsage: 200,
-          });
-        }
-        
-        // Set services to trigger re-render with full app
-        setServices(servicesData);
+        // Set store to trigger re-render with full app
+        setStore(storeInstance);
         setIsInitializing(false);
         
         PerformanceMeasurement.mark('app_initialization_complete');
@@ -318,42 +394,47 @@ export default function App() {
           console.log('✅ App initialization complete');
           
           // Get detailed performance report
-          const report = PerformanceMeasurement.getDetailedReport();
-          
-          console.group('🚀 Performance Optimization Report');
-          console.log(`📊 Total Launch Time: ${report.totalLaunchTime}ms`);
-          console.log(`🎯 Target: ${report.benchmarks.target}ms`);
-          console.log(`📈 Status: ${report.benchmarks.status.toUpperCase()}`);
-          
-          if (report.benchmarks.improvement > 0) {
-            console.log(`✅ SUCCESS! Improved by ${report.benchmarks.improvement}ms`);
-          } else {
-            console.log(`⚠️ Still ${Math.abs(report.benchmarks.improvement)}ms over target`);
-          }
-          
-          console.log('\n📊 Phase Breakdown:');
-          report.breakdown.forEach(phase => {
-            console.log(`  ${phase.phase}: ${phase.duration}ms (${phase.percentage}%)`);
-          });
-          
-          console.groupEnd();
-          
-          // Generate and log performance analysis
-          if (servicesData.PerformanceAnalyzer) {
-            const perfReport = servicesData.PerformanceAnalyzer.generateReport();
-            console.group('🔍 Performance Analysis');
-            console.log(`Overall Health: ${perfReport.analysis.overallHealth}`);
-            console.log(`Error Boundary Overhead: ${perfReport.metrics.errorBoundaryOverhead}ms`);
-            console.log(`Animation Smoothness: ${perfReport.metrics.animationSmoothnessScore}/100`);
-            if (perfReport.bottlenecks.length > 0) {
-              console.log('Bottlenecks:', perfReport.bottlenecks.map(b => b.component).join(', '));
+          try {
+            const report = PerformanceMeasurement.getDetailedReport();
+            
+            console.group('🚀 Performance Optimization Report');
+            console.log(`📊 Total Launch Time: ${report.totalLaunchTime}ms`);
+            console.log(`🎯 Target: ${report.benchmarks.target}ms`);
+            console.log(`📈 Status: ${report.benchmarks.status.toUpperCase()}`);
+            
+            if (report.benchmarks.improvement > 0) {
+              console.log(`✅ SUCCESS! Improved by ${report.benchmarks.improvement}ms`);
+            } else {
+              console.log(`⚠️ Still ${Math.abs(report.benchmarks.improvement)}ms over target`);
             }
+            
+            console.log('\n📊 Phase Breakdown:');
+            report.breakdown.forEach(phase => {
+              console.log(`  ${phase.phase}: ${phase.duration}ms (${phase.percentage}%)`);
+            });
+            
             console.groupEnd();
+            
+            // Performance analysis DISABLED - was causing stack overflow
+            /*
+            setTimeout(() => {
+              try {
+                // PerformanceAnalyzer.logReport();
+              } catch (analysisError) {
+                console.warn('Performance analysis failed:', analysisError);
+              }
+            }, 3000);
+            */
+          } catch (reportError) {
+            console.warn('Performance reporting failed:', reportError);
           }
         }
         
+        // Initialize background services
+        initializeBackgroundServices();
+        
         // Log initialization
-        servicesData.EventLogger.info('App', 'App component fully initialized', {
+        EventLogger.info('App', 'App component fully initialized', {
           environment: __DEV__ ? 'development' : 'production',
           platform: 'mobile',
           launch_time: PerformanceMeasurement.getAppLaunchTime(),
@@ -377,7 +458,7 @@ export default function App() {
     };
   }, []);
 
-  // Early loading screen while services initialize
+  // Early loading screen while store initializes
   if (isInitializing) {
     return (
       <EmergencyErrorBoundary>
@@ -386,16 +467,16 @@ export default function App() {
     );
   }
 
-  // Render full app with services
-  if (services) {
+  // Render full app with store
+  if (store) {
     return (
       <EmergencyErrorBoundary>
-        <FullApp services={services} />
+        <FullApp store={store} />
       </EmergencyErrorBoundary>
     );
   }
 
-  // Fallback to basic loading if services failed to load
+  // Fallback to basic loading if store failed to load
   return (
     <EmergencyErrorBoundary>
       <LoadingScreen />

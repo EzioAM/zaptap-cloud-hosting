@@ -59,10 +59,20 @@ export function WelcomeScreen() {
   }, []);
 
   const handleGetStarted = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    console.log('🔘 Get Started button pressed!');
+    EventLogger.debug('Welcome', '[WelcomeScreen] Get Started pressed, navigation available:', !!navigation);
+    
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      console.log('Haptics error (not critical):', error);
+    }
+    
     if (navigation) {
+      console.log('🚀 Navigating to OnboardingFlow');
       navigation.navigate('OnboardingFlow' as never);
     } else {
+      console.log('⚠️ Navigation not available, completing onboarding');
       EventLogger.warn('Welcome', '[WelcomeScreen] Navigation not available - showing onboarding will require app restart');
       // Since navigation isn't available, just mark onboarding as complete
       // and the app will restart with the main flow
@@ -71,14 +81,24 @@ export function WelcomeScreen() {
   };
 
   const handleSkip = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    console.log('🔘 Skip button pressed!');
+    EventLogger.debug('Welcome', '[WelcomeScreen] Skip pressed, navigation available:', !!navigation);
+    
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.log('Haptics error (not critical):', error);
+    }
+    
     await onboardingManager.skipOnboarding();
     if (navigation) {
+      console.log('🚀 Resetting navigation to MainTabs');
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' as never }],
       });
     } else {
+      console.log('⚠️ Navigation not available, app will restart');
       EventLogger.warn('Welcome', '[WelcomeScreen] Navigation not available - app will restart with main flow');
       // Navigation will be handled on next app launch
     }
@@ -108,6 +128,7 @@ export function WelcomeScreen() {
             style={styles.skipButtonNew}
             onPress={handleSkip}
             activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <BlurView intensity={10} style={styles.skipBlur}>
               <Text style={styles.skipText}>Skip</Text>
@@ -176,6 +197,7 @@ export function WelcomeScreen() {
               style={styles.getStartedButton}
               onPress={handleGetStarted}
               activeOpacity={0.8}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <BlurView intensity={20} style={styles.buttonBlur}>
                 <Text style={styles.getStartedButtonText}>Get Started</Text>
