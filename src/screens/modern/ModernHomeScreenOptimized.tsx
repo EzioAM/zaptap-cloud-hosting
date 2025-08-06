@@ -224,7 +224,7 @@ const ModernHomeScreenOptimized: React.FC = memo(() => {
   );
 
   // Optimized scroll animation
-  const { scrollY, handleScroll, interpolate, isScrolling } = useOptimizedScrollAnimation();
+  const { scrollY, handleScroll, handleScrollListener, interpolate, isScrolling } = useOptimizedScrollAnimation();
   
   // FAB animation
   const { value: fabScale, animate: animateFab } = useSpringAnimation(1);
@@ -278,12 +278,14 @@ const ModernHomeScreenOptimized: React.FC = memo(() => {
         [{ nativeEvent: { contentOffset: { y: scrollY } } }],
         { 
           useNativeDriver: true,
-          listener: handleScroll,
+          listener: handleScrollListener,
         }
       );
     }
-    return undefined;
-  }, [scrollY, handleScroll, FEATURE_FLAGS.PARALLAX_SCROLLING]);
+    return (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      handleScrollListener(event);
+    };
+  }, [scrollY, handleScrollListener, FEATURE_FLAGS.PARALLAX_SCROLLING]);
 
   // Handle navigation with animation
   const navigateToScreen = useCallback((screenName: string) => {

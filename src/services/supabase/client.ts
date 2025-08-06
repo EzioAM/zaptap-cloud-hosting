@@ -241,10 +241,23 @@ export const refreshSession = async () => {
   }
 };
 
-// Helper to ensure session is valid
+// Helper to ensure session is valid (gracefully handles no session)
 export const ensureValidSession = async () => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    // Handle auth service errors gracefully
+    if (error) {
+      if (error?.message?.includes('Network request failed') || 
+          error?.name === 'NetworkError' ||
+          error?.name === 'AuthRetryableFetchError') {
+        EventLogger.debug('client', '📴 Network unavailable - cannot validate session');
+        return null;
+      }
+      // For other auth errors, log and continue without session
+      EventLogger.debug('client', 'Auth service error:', error.message);
+      return null;
+    }
     
     if (!session) {
       return null;
@@ -254,6 +267,7 @@ export const ensureValidSession = async () => {
     const expiresAt = session.expires_at;
     if (expiresAt && expiresAt * 1000 < Date.now()) {
       // Token expired, try to refresh
+      EventLogger.debug('client', 'Token expired, attempting refresh...');
       return await refreshSession();
     }
 
@@ -267,13 +281,33 @@ export const ensureValidSession = async () => {
       return null;
     }
     
-    // Re-throw non-network errors
-    throw error;
+    // Log other errors but don't throw them to avoid breaking the app
+    EventLogger.warn('client', 'Session validation error:', error.message);
+    return null;
   }
 };
 
+// Helper to check if we should allow public access for this request
+export const shouldAllowPublicAccess = (url?: string): boolean => {
+  if (!url) return false;
+  
+  // Allow public access for certain endpoints
+  const publicEndpoints = [
+    'automations?is_public=eq.true', // Public automations
+    'automations?select=*&is_public=eq.true', // Public automations with select
+  ];
+  
+  return publicEndpoints.some(endpoint => url.includes(endpoint));
+};
+
 // Helper to handle auth errors globally
-export const handleAuthError = async (error: any) => {
+export const handleAuthError = async (error: any, requestUrl?: string) => {
+  // If this is a public endpoint and we get an auth error, it might be expected
+  if (shouldAllowPublicAccess(requestUrl)) {
+    EventLogger.debug('client', 'Auth error on public endpoint - this may be expected for demo mode');
+    return false;
+  }
+  
   if (error.message?.includes('JWT') || error.code === 'PGRST301') {
     // JWT error, try to refresh session
     const newSession = await refreshSession();
@@ -281,7 +315,7 @@ export const handleAuthError = async (error: any) => {
       EventLogger.debug('client', '✅ Session refreshed successfully');
       return true;
     } else {
-      EventLogger.error('client', '❌ Failed to refresh session, user needs to login again');
+      EventLogger.debug('client', '❌ Failed to refresh session, user needs to login again');
       return false;
     }
   }

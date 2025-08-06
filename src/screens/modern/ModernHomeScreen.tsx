@@ -165,32 +165,29 @@ const ModernHomeScreen: React.FC = memo(() => {
   // Scroll-based animations
   const handleScroll = useCallback(
     FEATURE_FLAGS.ENHANCED_ANIMATIONS
-      ? Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          {
-            useNativeDriver: false,
-            listener: (event: any) => {
-              const offsetY = event.nativeEvent.contentOffset.y;
-              
-              // Header blur effect
-              const blurValue = Math.min(offsetY / 100, 1);
-              headerBlur.setValue(blurValue);
-              
-              // Header opacity
-              const opacityValue = Math.max(0, Math.min(1, 1 - offsetY / 200));
-              headerOpacity.setValue(opacityValue);
-              
-              // FAB scale based on scroll
-              const fabScaleValue = offsetY > 200 ? 0 : 1;
-              Animated.spring(fabScale, {
-                toValue: fabScaleValue,
-                tension: ANIMATION_CONFIG.SPRING_TENSION,
-                friction: ANIMATION_CONFIG.SPRING_FRICTION,
-                useNativeDriver: true,
-              }).start();
-            },
-          }
-        )
+      ? (event: any) => {
+          const offsetY = event.nativeEvent.contentOffset.y;
+          
+          // Update scroll Y for animations
+          scrollY.setValue(offsetY);
+          
+          // Header blur effect
+          const blurValue = Math.min(offsetY / 100, 1);
+          headerBlur.setValue(blurValue);
+          
+          // Header opacity
+          const opacityValue = Math.max(0, Math.min(1, 1 - offsetY / 200));
+          headerOpacity.setValue(opacityValue);
+          
+          // FAB scale based on scroll
+          const fabScaleValue = offsetY > 200 ? 0 : 1;
+          Animated.spring(fabScale, {
+            toValue: fabScaleValue,
+            tension: ANIMATION_CONFIG.SPRING_TENSION,
+            friction: ANIMATION_CONFIG.SPRING_FRICTION,
+            useNativeDriver: true,
+          }).start();
+        }
       : undefined,
     [scrollY, headerBlur, headerOpacity, fabScale]
   );

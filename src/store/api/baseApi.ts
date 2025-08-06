@@ -250,12 +250,18 @@ const createSupabaseBaseQuery = (): BaseQueryFn<FetchArgs, unknown, ApiError> =>
         headers.set('Content-Type', 'application/json');
         headers.set('Prefer', 'return=representation');
 
-        // Add authentication if available
-        const state = getState() as RootState;
-        const accessToken = state.auth?.accessToken;
-        
-        if (accessToken) {
-          headers.set('Authorization', `Bearer ${accessToken}`);
+        // Add authentication if available (but don't require it)
+        try {
+          const state = getState() as RootState;
+          const accessToken = state.auth?.accessToken;
+          
+          if (accessToken && state.auth?.isAuthenticated) {
+            headers.set('Authorization', `Bearer ${accessToken}`);
+          }
+        } catch (error) {
+          // If we can't access auth state, continue without authentication
+          // This allows public endpoints to work even if Redux hasn't initialized
+          EventLogger.debug('API', 'Auth state not available, proceeding without authentication');
         }
 
         return headers;
@@ -323,37 +329,42 @@ const createSupabaseBaseQuery = (): BaseQueryFn<FetchArgs, unknown, ApiError> =>
 
         const error = result.error as FetchBaseQueryError;
 
-        // Handle authentication errors
+        // Handle authentication errors only if we were actually trying to authenticate
         if (error.status === 401 || 
             (error.status === 400 && error.data && 
              (error.data as any)?.message?.includes('JWT'))) {
           
-          EventLogger.warn('API', '🔄 Auth error on attempt ${attempt + 1}, trying to refresh token...');
+          // Check if this was a request that should have authentication
+          const state = api.getState() as RootState;
+          const wasAuthenticated = state.auth?.isAuthenticated && state.auth?.accessToken;
           
-          try {
-            // Attempt to refresh session
-            const newSession = await ensureValidSession();
+          if (wasAuthenticated) {
+            EventLogger.warn('API', '🔄 Auth error on attempt ${attempt + 1}, trying to refresh token...');
             
-            if (newSession && newSession.access_token) {
-              // Update auth state and retry request
-              const state = api.getState() as RootState;
-              if (state.auth) {
+            try {
+              // Attempt to refresh session
+              const newSession = await ensureValidSession();
+              
+              if (newSession && newSession.access_token) {
                 // Token will be updated by auth listener, retry the request
                 const retryResult = await baseQuery(args, api, extraOptions);
                 if (!retryResult.error) {
                   return retryResult;
                 }
               }
+            } catch (refreshError: any) {
+              // Only log non-network errors as errors
+              if (refreshError?.message?.includes('Network request failed') || 
+                  refreshError?.name === 'NetworkError' ||
+                  refreshError?.name === 'AuthRetryableFetchError') {
+                EventLogger.debug('API', '📴 Network unavailable during token refresh');
+              } else {
+                EventLogger.error('API', 'Failed to refresh session:', refreshError as Error);
+              }
             }
-          } catch (refreshError: any) {
-            // Only log non-network errors as errors
-            if (refreshError?.message?.includes('Network request failed') || 
-                refreshError?.name === 'NetworkError' ||
-                refreshError?.name === 'AuthRetryableFetchError') {
-              EventLogger.debug('API', '📴 Network unavailable during token refresh');
-            } else {
-              EventLogger.error('API', 'Failed to refresh session:', refreshError as Error);
-            }
+          } else {
+            // If we weren't authenticated, this might be expected for a public endpoint
+            EventLogger.debug('API', 'Auth error on public endpoint access, this may be expected');
           }
         }
 

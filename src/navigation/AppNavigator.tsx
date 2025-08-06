@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -12,12 +12,17 @@ import { NotificationProvider } from '../components/notifications/NotificationPr
 import { EventLogger } from '../utils/EventLogger';
 
 // Error Boundaries and Recovery
-import { BaseErrorBoundary } from '../components/ErrorBoundaries';
+import { BaseErrorBoundary, NavigationErrorBoundary } from '../components/ErrorBoundaries';
 import { ErrorFallback, LoadingFallback } from '../components/Fallbacks';
-import { useErrorHandler } from '../utils/errorRecovery';
 
 // Track initialization
 let appNavigatorInitCount = 0;
+
+// Navigation error recovery state
+let navigationErrorCount = 0;
+let lastErrorTime = 0;
+const MAX_NAVIGATION_ERRORS = 3;
+const ERROR_RESET_INTERVAL = 30000; // 30 seconds
 
 // Emergency fallback screen
 const EmergencyScreen = React.memo(() => (
@@ -35,14 +40,20 @@ const AppNavigatorContent = React.memo(() => {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
+  const [isRecovering, setIsRecovering] = useState(false);
   
+  // Safely get auth state with error handling
+  let isAuthenticated = false;
   try {
-    const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+    const authState = useSelector((state: RootState) => state?.auth);
+    isAuthenticated = authState?.isAuthenticated || false;
     if (appNavigatorInitCount === 1) {
       EventLogger.debug('Navigation', '🚨 Auth state:', isAuthenticated);
     }
   } catch (error) {
     EventLogger.error('Navigation', '🚨 Redux selector error:', error as Error);
+    // Continue with default values
   }
 
   // Check onboarding status on mount
@@ -87,7 +98,59 @@ const AppNavigatorContent = React.memo(() => {
   }, []);
   
   const onError = useCallback((error: Error) => {
-    EventLogger.error('Navigation', '🚨 Navigation error:', error as Error);
+    const now = Date.now();
+    
+    // Reset error count if enough time has passed
+    if (now - lastErrorTime > ERROR_RESET_INTERVAL) {
+      navigationErrorCount = 0;
+    }
+    
+    navigationErrorCount++;
+    lastErrorTime = now;
+    
+    EventLogger.error('Navigation', '🚨 Navigation error:', error as Error, {
+      errorCount: navigationErrorCount,
+      maxErrors: MAX_NAVIGATION_ERRORS,
+      timeElapsed: now - lastErrorTime
+    });
+    
+    // Set navigation error state to show user-friendly message
+    setNavigationError(error.message || 'Navigation error occurred');
+    
+    // If we've had too many errors, show recovery options
+    if (navigationErrorCount >= MAX_NAVIGATION_ERRORS) {
+      Alert.alert(
+        'Navigation Issues Detected',
+        'The app navigation has encountered repeated errors. Would you like to reset the navigation system?',
+        [
+          {
+            text: 'Continue',
+            style: 'cancel',
+            onPress: () => setNavigationError(null)
+          },
+          {
+            text: 'Reset Navigation',
+            onPress: () => handleNavigationReset()
+          }
+        ]
+      );
+    }
+  }, []);
+  
+  const handleNavigationReset = useCallback(() => {
+    setIsRecovering(true);
+    setNavigationError(null);
+    navigationErrorCount = 0;
+    lastErrorTime = 0;
+    
+    EventLogger.info('Navigation', 'Resetting navigation system...');
+    
+    // Force a navigation reset by clearing and rebuilding state
+    setTimeout(() => {
+      setIsRecovering(false);
+      setHasCompletedOnboarding(true); // Default to main app
+      EventLogger.info('Navigation', 'Navigation system reset completed');
+    }, 1000);
   }, []);
 
   // Handle navigation state changes to intercept and redirect invalid routes
@@ -120,6 +183,25 @@ const AppNavigatorContent = React.memo(() => {
     },
   };
 
+  // Show recovery screen if navigation is being reset
+  if (isRecovering) {
+    return (
+      <View style={styles.recovery}>
+        <Text style={styles.recoveryText}>Resetting Navigation...</Text>
+      </View>
+    );
+  }
+  
+  // Show error screen if navigation has persistent errors
+  if (navigationError) {
+    return (
+      <View style={styles.error}>
+        <Text style={styles.errorTitle}>Navigation Error</Text>
+        <Text style={styles.errorText}>{navigationError}</Text>
+      </View>
+    );
+  }
+  
   // Show loading screen while checking onboarding
   if (isCheckingOnboarding) {
     return (
@@ -141,7 +223,15 @@ const AppNavigatorContent = React.memo(() => {
           fallback={<EmergencyScreen />}
         >
           {/* Show welcome screen if onboarding not completed, otherwise show main navigator */}
-          {hasCompletedOnboarding === false ? <WelcomeScreen /> : <MainNavigator />}
+          {hasCompletedOnboarding === false ? (
+            <NavigationErrorBoundary context="WelcomeScreen">
+              <WelcomeScreen />
+            </NavigationErrorBoundary>
+          ) : (
+            <NavigationErrorBoundary context="MainNavigator">
+              <MainNavigator isAuthenticated={isAuthenticated} />
+            </NavigationErrorBoundary>
+          )}
         </NavigationContainer>
       </NotificationProvider>
     );
@@ -207,5 +297,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     fontWeight: '500',
+  },
+  recovery: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ff9800',
+  },
+  recoveryText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  error: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f44336',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

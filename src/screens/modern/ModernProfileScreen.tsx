@@ -36,7 +36,7 @@ import { DeveloperSection } from '../../components/developer/DeveloperSection';
 import { AnimatedStatsGrid } from '../../components/profile/AnimatedStatsGrid';
 import { AchievementSystem } from '../../components/profile/AchievementSystem';
 import { ActivityTimeline } from '../../components/profile/ActivityTimeline';
-import { AnimatedMenuSection } from '../../components/profile/AnimatedMenuItem';
+import { SafeAnimatedMenuSection } from '../../components/profile/SafeAnimatedMenuItem';
 import { PressableAnimated, FeedbackAnimation } from '../../components/automation/AnimationHelpers';
 import { ErrorState } from '../../components/states/ErrorState';
 import { EmptyState } from '../../components/states/EmptyState';
@@ -128,6 +128,7 @@ const ModernProfileScreen: React.FC = memo(() => {
     isLoading: isLoadingMyAutomations,
     refetch: refetchMyAutomations,
     error: myAutomationsError,
+    isUninitialized: myAutomationsUninitialized,
   } = useGetMyAutomationsQuery(undefined, {
     skip: !isAuthenticated,
   });
@@ -136,8 +137,9 @@ const ModernProfileScreen: React.FC = memo(() => {
     data: publicAutomations = [],
     refetch: refetchPublicAutomations,
     error: publicAutomationsError,
+    isUninitialized: publicAutomationsUninitialized,
   } = useGetPublicAutomationsQuery({}, {
-    skip: !isAuthenticated,
+    skip: false, // Allow public endpoints to work without authentication
   });
 
   // Filter my public automations
@@ -252,17 +254,16 @@ const ModernProfileScreen: React.FC = memo(() => {
   // Scroll animation handler
   const handleScroll = useCallback(
     FEATURE_FLAGS.ENHANCED_ANIMATIONS
-      ? Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          {
-            useNativeDriver: false,
-            listener: (event: any) => {
-              const offsetY = event.nativeEvent.contentOffset.y;
-              const opacity = Math.max(0, Math.min(1, 1 - offsetY / 200));
-              headerOpacity.setValue(opacity);
-            },
-          }
-        )
+      ? (event: any) => {
+          const offsetY = event.nativeEvent.contentOffset.y;
+          
+          // Update scroll Y for animations
+          scrollY.setValue(offsetY);
+          
+          // Update header opacity
+          const opacity = Math.max(0, Math.min(1, 1 - offsetY / 200));
+          headerOpacity.setValue(opacity);
+        }
       : undefined,
     [scrollY, headerOpacity]
   );
@@ -278,10 +279,20 @@ const ModernProfileScreen: React.FC = memo(() => {
       setRefreshing(true);
       triggerHaptic('medium');
       
-      await Promise.all([
-        refetchMyAutomations(),
-        refetchPublicAutomations(),
-      ]);
+      // Only refetch queries that have been initialized
+      const refetchPromises: Promise<any>[] = [];
+      
+      if (!myAutomationsUninitialized && isAuthenticated) {
+        refetchPromises.push(refetchMyAutomations());
+      }
+      
+      if (!publicAutomationsUninitialized) {
+        refetchPromises.push(refetchPublicAutomations());
+      }
+      
+      if (refetchPromises.length > 0) {
+        await Promise.all(refetchPromises);
+      }
       
       showFeedbackMessage('success', 'Profile refreshed');
     } catch (error) {
@@ -291,7 +302,7 @@ const ModernProfileScreen: React.FC = memo(() => {
     } finally {
       setRefreshing(false);
     }
-  }, [isConnected, refetchMyAutomations, refetchPublicAutomations, triggerHaptic, showFeedbackMessage]);
+  }, [isConnected, refetchMyAutomations, refetchPublicAutomations, myAutomationsUninitialized, publicAutomationsUninitialized, isAuthenticated, triggerHaptic, showFeedbackMessage]);
 
   // Settings handlers
   const handleNotificationToggle = useCallback(async (value: boolean) => {
@@ -622,50 +633,39 @@ const ModernProfileScreen: React.FC = memo(() => {
             {activeTab === 'overview' && (
               <View>
                 {/* Settings Section */}
-                <AnimatedMenuSection
-                  title="Settings"
-                  items={[
-                    {
-                      title: 'Notifications',
-                      icon: 'bell',
-                      rightComponent: (
-                        <Switch
-                          value={notificationsEnabled}
-                          onValueChange={handleNotificationToggle}
-                          trackColor={{ 
-                            false: theme.colors.outline, 
-                            true: theme.colors.primary 
-                          }}
-                          thumbColor={notificationsEnabled ? theme.colors.onPrimary : theme.colors.onSurface}
-                        />
-                      ),
-                    },
-                    {
-                      title: 'Dark Mode',
-                      icon: 'theme-light-dark',
-                      rightComponent: (
-                        <Switch
-                          value={darkMode}
-                          onValueChange={handleDarkModeToggle}
-                          trackColor={{ 
-                            false: theme.colors.outline, 
-                            true: theme.colors.primary 
-                          }}
-                          thumbColor={darkMode ? theme.colors.onPrimary : theme.colors.onSurface}
-                        />
-                      ),
-                    },
-                    {
-                      title: 'Privacy & Security',
-                      icon: 'shield-account',
-                      onPress: () => navigation.navigate('PrivacySettings' as never),
-                    },
-                    {
-                      title: 'Help & Support',
-                      icon: 'help-circle',
-                      onPress: () => navigation.navigate('HelpSupport' as never),
-                    },
-                  ]}
+                <SafeAnimatedMenuSection
+                  section={{
+                    title: "Settings",
+                    items: [
+                      {
+                        icon: 'bell',
+                        label: 'Notifications',
+                        type: 'switch' as const,
+                        value: notificationsEnabled,
+                        onValueChange: handleNotificationToggle,
+                      },
+                      {
+                        icon: 'theme-light-dark',
+                        label: 'Dark Mode',
+                        type: 'switch' as const,
+                        value: darkMode,
+                        onValueChange: handleDarkModeToggle,
+                      },
+                      {
+                        icon: 'shield-account',
+                        label: 'Privacy & Security',
+                        onPress: () => navigation.navigate('PrivacySettings' as never),
+                      },
+                      {
+                        icon: 'help-circle',
+                        label: 'Help & Support',
+                        onPress: () => navigation.navigate('HelpSupport' as never),
+                      },
+                    ],
+                    collapsible: false,
+                    initiallyExpanded: true,
+                  }}
+                  sectionIndex={0}
                   theme={theme}
                 />
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { supabase, ensureValidSession } from '../../services/supabase/client';
-import authSlice from '../../store/slices/authSlice';
+import authSlice, { recoverAuthState, shouldAttemptRecovery } from '../../store/slices/authSlice';
 import { AppDispatch, RootState, resetApiState } from '../../store';
 import { automationApi } from '../../store/api/automationApi';
 import { analyticsApi } from '../../store/api/analyticsApi';
@@ -14,6 +14,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = React.me
   const authState = useSelector((state: RootState) => state.auth);
   const hasInitialized = useRef(false);
   const tokenRefreshAttempted = useRef(false);
+  const recoveryCheckInterval = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     // Prevent double initialization
@@ -73,11 +74,34 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = React.me
       EventLogger.warn('Authentication', 'Failed to set up auth listener:', error);
     }
 
+    // Set up recovery monitoring
+    const startRecoveryMonitoring = () => {
+      recoveryCheckInterval.current = setInterval(() => {
+        try {
+          const currentAuthState = authState;
+          if (shouldAttemptRecovery(currentAuthState)) {
+            EventLogger.debug('Authentication', '🔄 Auto-recovery needed, attempting...');
+            dispatch(recoverAuthState()).catch(error => {
+              EventLogger.warn('Authentication', 'Auto-recovery failed:', error);
+            });
+          }
+        } catch (error) {
+          EventLogger.error('Authentication', 'Recovery monitoring error:', error as Error);
+        }
+      }, 30000); // Check every 30 seconds
+    };
+
+    // Start monitoring after initialization
+    setTimeout(startRecoveryMonitoring, 10000);
+
     return () => {
       clearTimeout(initTimer);
       authListener?.subscription?.unsubscribe();
+      if (recoveryCheckInterval.current) {
+        clearInterval(recoveryCheckInterval.current);
+      }
     };
-  }, [dispatch]);
+  }, [dispatch, authState]);
 
   const handleSignIn = async (session: any) => {
     try {
@@ -212,6 +236,9 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = React.me
         EventLogger.debug('Authentication', 'ℹ️ No valid session found - user needs to sign in');
         dispatch(authSlice.actions.signOutSuccess());
         
+        // Mark session as invalid to prevent unnecessary recovery attempts
+        dispatch(authSlice.actions.setSessionValidity(false));
+        
         // Clear any stale API data
         resetApiState();
       }
@@ -229,6 +256,9 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = React.me
       EventLogger.warn('Authentication', '⚠️ Session check failed:', error?.message || 'Unknown error');
       // For non-network errors, clear auth state
       dispatch(authSlice.actions.signOutSuccess());
+      
+      // Mark session as invalid and track the error
+      dispatch(authSlice.actions.setSessionValidity(false));
       
       // Clear any stale API data
       resetApiState();

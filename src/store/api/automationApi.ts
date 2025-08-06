@@ -153,55 +153,24 @@ export const automationApi = createApi({
     }),
 
     /**
-     * Get public automations for gallery
+     * Get public automations for gallery (no authentication required)
      */
     getPublicAutomations: builder.query<AutomationData[], { limit?: number }>({
-      queryFn: async ({ limit = 50 }, { signal }) => {
-        try {
-          // Use network-aware wrapper to prevent calls when offline
-          const data = await networkAwareQuery(
-            async () => {
-              const { data, error } = await supabase
-                .from('automations')
-                .select('*')
-                .eq('is_public', true)
-                .order('created_at', { ascending: false })
-                .limit(limit)
-                .abortSignal(signal);
-
-              if (error) {
-                logApiError(error, 'getPublicAutomations');
-                throw error;
-              }
-
-              return data || [];
-            },
-            {
-              offlineData: [], // Return empty array when offline
-            }
-          );
-
-          return { data };
-        } catch (error: any) {
-          if (error.name === 'AbortError') {
-            return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
-          }
-          
-          // Check if it's an offline error
-          if (error.status === 'OFFLINE' || error.code === 'NETWORK_OFFLINE') {
-            return { data: [] }; // Return empty data instead of error for offline
-          }
-          
-          logApiError(error, 'getPublicAutomations');
-          return {
-            error: {
-              status: error.status || 'FETCH_ERROR',
-              message: error.message || 'Failed to fetch public automations',
-              code: error.code,
-            }
-          };
-        }
-      },
+      query: ({ limit = 50 }) =>
+        createQueryConfig('automations', {
+          method: 'GET',
+          params: {
+            is_public: 'eq.true',
+          },
+          select: '*',
+          order: 'created_at.desc',
+          limit,
+        }),
+      transformErrorResponse: (response: any) => ({
+        status: response.status || 'FETCH_ERROR',
+        message: response.data?.message || 'Failed to fetch public automations',
+        code: response.data?.code,
+      }),
       providesTags: [{ type: 'Automation', id: 'PUBLIC' }],
     }),
 
@@ -742,56 +711,24 @@ export const automationApi = createApi({
     // ===== TRENDING AND ENGAGEMENT =====
 
     /**
-     * Get trending automations with fallback
+     * Get trending automations with fallback (no authentication required)
      */
     getTrendingAutomations: builder.query<AutomationData[], { limit?: number; timeWindow?: string }>({
-      queryFn: async ({ limit = 10, timeWindow = '7 days' }, { signal }) => {
-        try {
-          // Use network-aware wrapper to prevent calls when offline
-          const data = await networkAwareQuery(
-            async () => {
-              // Skip RPC function and use direct query to avoid download_count error
-              const { data: fallbackData, error: fallbackError } = await supabase
-                .from('automations')
-                .select('*')
-                .eq('is_public', true)
-                .order('created_at', { ascending: false })
-                .limit(limit)
-                .abortSignal(signal);
-              
-              if (fallbackError) {
-                logApiError(fallbackError, 'getTrendingAutomations');
-                throw fallbackError;
-              }
-              
-              return fallbackData || [];
-            },
-            {
-              offlineData: [], // Return empty array when offline
-            }
-          );
-          
-          return { data };
-        } catch (error: any) {
-          if (error.name === 'AbortError') {
-            return { error: { status: 'CANCELLED', message: 'Request cancelled' } };
-          }
-          
-          // Check if it's an offline error
-          if (error.status === 'OFFLINE' || error.code === 'NETWORK_OFFLINE') {
-            return { data: [] }; // Return empty data instead of error for offline
-          }
-          
-          logApiError(error, 'getTrendingAutomations');
-          return {
-            error: {
-              status: error.status || 'FETCH_ERROR',
-              message: error.message || 'Failed to fetch trending automations',
-              code: error.code,
-            }
-          };
-        }
-      },
+      query: ({ limit = 10 }) =>
+        createQueryConfig('automations', {
+          method: 'GET',
+          params: {
+            is_public: 'eq.true',
+          },
+          select: '*',
+          order: 'created_at.desc',
+          limit,
+        }),
+      transformErrorResponse: (response: any) => ({
+        status: response.status || 'FETCH_ERROR',
+        message: response.data?.message || 'Failed to fetch trending automations',
+        code: response.data?.code,
+      }),
       providesTags: [{ type: 'Automation', id: 'TRENDING' }],
     }),
 

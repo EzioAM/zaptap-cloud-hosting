@@ -131,31 +131,36 @@ export const useOptimizedScrollAnimation = (
   const lastScrollY = useRef(0);
   const isScrolling = useRef(false);
 
+  const handleScrollListener = useCallback((event: any) => {
+    const currentScrollY = event.nativeEvent.contentOffset.y;
+    
+    // Update scrollY for animations
+    scrollY.setValue(currentScrollY);
+    
+    // Throttle scroll events
+    if (Math.abs(currentScrollY - lastScrollY.current) < 5) {
+      return;
+    }
+    
+    lastScrollY.current = currentScrollY;
+    
+    if (!isScrolling.current) {
+      isScrolling.current = true;
+      InteractionManager.runAfterInteractions(() => {
+        isScrolling.current = false;
+      });
+    }
+  }, [scrollY]);
+
   const handleScroll = useCallback(
     Animated.event(
       [{ nativeEvent: { contentOffset: { y: scrollY } } }],
       {
         useNativeDriver: true,
-        listener: (event: any) => {
-          const currentScrollY = event.nativeEvent.contentOffset.y;
-          
-          // Throttle scroll events
-          if (Math.abs(currentScrollY - lastScrollY.current) < 5) {
-            return;
-          }
-          
-          lastScrollY.current = currentScrollY;
-          
-          if (!isScrolling.current) {
-            isScrolling.current = true;
-            InteractionManager.runAfterInteractions(() => {
-              isScrolling.current = false;
-            });
-          }
-        },
+        listener: handleScrollListener,
       }
     ),
-    [scrollY]
+    [scrollY, handleScrollListener]
   );
 
   const interpolate = useCallback(
@@ -172,6 +177,7 @@ export const useOptimizedScrollAnimation = (
   return {
     scrollY,
     handleScroll,
+    handleScrollListener,
     interpolate,
     isScrolling: isScrolling.current,
   };

@@ -9,16 +9,24 @@ export class PerformanceMeasurement {
   public static appStartTime: number = Date.now();
   public static measurementPoints: Map<string, number> = new Map();
   private static isInitialized = false;
+  private static actualLaunchTime: number | null = null;
+  private static launchCompleted = false;
 
   /**
    * Initialize performance measurement
    */
   public static initialize(): void {
-    if (this.isInitialized) return;
+    if (this.isInitialized) {
+      if (__DEV__) {
+        console.debug('📊 Performance measurement already initialized, skipping');
+      }
+      return;
+    }
     
-    this.appStartTime = Date.now();
-    this.measurementPoints.clear();
-    this.measurementPoints.set('app_start', this.appStartTime);
+    // Don't reset appStartTime if it's already set (from module load)
+    if (!this.measurementPoints.has('app_start')) {
+      this.measurementPoints.set('app_start', this.appStartTime);
+    }
     this.isInitialized = true;
 
     if (__DEV__) {
@@ -103,6 +111,15 @@ export class PerformanceMeasurement {
     const now = Date.now();
     this.measurementPoints.set(pointName, now);
     
+    // Capture actual launch time when app initialization completes
+    if (pointName === 'app_initialization_complete' && !this.launchCompleted) {
+      this.actualLaunchTime = now - this.appStartTime;
+      this.launchCompleted = true;
+      if (__DEV__) {
+        console.log(`✅ App launch completed: ${this.actualLaunchTime}ms`);
+      }
+    }
+    
     if (__DEV__) {
       const elapsed = now - this.appStartTime;
       try {
@@ -150,6 +167,21 @@ export class PerformanceMeasurement {
    * Get total app launch time
    */
   public static getAppLaunchTime(): number {
+    // If launch is completed, return the captured time
+    if (this.launchCompleted && this.actualLaunchTime !== null) {
+      return this.actualLaunchTime;
+    }
+    
+    // If we have app_initialization_complete mark, use that
+    const initComplete = this.measurementPoints.get('app_initialization_complete');
+    if (initComplete) {
+      const launchTime = initComplete - this.appStartTime;
+      this.actualLaunchTime = launchTime;
+      this.launchCompleted = true;
+      return launchTime;
+    }
+    
+    // Otherwise, return current elapsed time (app still launching)
     const now = Date.now();
     return now - this.appStartTime;
   }
@@ -211,6 +243,9 @@ export class PerformanceMeasurement {
     this.appStartTime = Date.now();
     this.measurementPoints.clear();
     this.measurementPoints.set('app_start', this.appStartTime);
+    this.actualLaunchTime = null;
+    this.launchCompleted = false;
+    this.isInitialized = false;
     
     if (__DEV__) {
       try {

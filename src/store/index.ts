@@ -59,21 +59,50 @@ export const createLazyStore = async () => {
     migrate: (state: any) => {
       try {
         EventLogger.debug('index', '🔄 Running store migration...');
+        
         // Clear potentially corrupted state
         if (state && typeof state === 'object') {
+          // Validate auth state structure
+          let authState = state.auth;
+          if (authState && typeof authState === 'object') {
+            // Ensure all required auth fields exist with proper defaults
+            authState = {
+              user: authState.user || null,
+              isAuthenticated: Boolean(authState.isAuthenticated),
+              isLoading: Boolean(authState.isLoading),
+              error: authState.error || null,
+              accessToken: authState.accessToken || null,
+              refreshToken: authState.refreshToken || null,
+              // Add new fields with defaults
+              isRecovering: authState.isRecovering || false,
+              lastErrorTimestamp: authState.lastErrorTimestamp || null,
+              consecutiveErrors: authState.consecutiveErrors || 0,
+              sessionValid: authState.sessionValid !== undefined ? authState.sessionValid : true,
+            };
+          }
+          
           const migratedState = {
             ...state,
+            // Apply validated auth state
+            auth: authState,
             // Reset API state on migration
             [automationApi.reducerPath]: undefined,
             [analyticsApi.reducerPath]: undefined,
             [dashboardApi.reducerPath]: undefined,
             [searchApi.reducerPath]: undefined,
+            // Reset error state
+            errors: {
+              api: {},
+              redux: {},
+            },
           };
-          EventLogger.debug('index', '✅ Store migration completed');
+          
+          EventLogger.debug('index', '✅ Store migration completed successfully');
           return migratedState;
         }
+        
         EventLogger.debug('index', '⚠️ Invalid state during migration, using default');
-        return state;
+        return undefined; // Force fresh state
       } catch (error) {
         EventLogger.error('index', '❌ Store migration failed:', error as Error);
         // Return undefined to force fresh state

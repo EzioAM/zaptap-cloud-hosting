@@ -86,7 +86,7 @@ export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = ({
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     {
       useNativeDriver: true,
-      listener: onScroll,
+      listener: onScroll && typeof onScroll === 'function' ? onScroll : undefined,
     }
   );
 

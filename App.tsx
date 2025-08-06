@@ -1,3 +1,6 @@
+// Import crypto polyfill FIRST to support UUID generation in React Native
+import 'react-native-get-random-values';
+
 // Initialize performance tracking BEFORE any imports
 import { PerformanceMeasurement } from './src/utils/PerformanceMeasurement';
 
@@ -51,6 +54,9 @@ const initializeServices = () => {
       // Load utilities
       import('./src/utils/errorInterceptor').then(module => ({ initializeErrorInterceptor: module.initializeErrorInterceptor })),
       import('./src/utils/EventLogger').then(module => ({ EventLogger: module.EventLogger })),
+      // Load performance optimization
+      import('./src/utils/PerformanceAnalyzer').then(module => ({ PerformanceAnalyzer: module.PerformanceAnalyzer })),
+      import('./src/utils/PerformanceOptimizer').then(module => ({ PerformanceOptimizer: module.PerformanceOptimizer })),
       // Load theme
       import('react-native-paper').then(module => ({ MD3LightTheme: module.MD3LightTheme })),
     ]).then((modules) => {
@@ -66,7 +72,9 @@ const initializeServices = () => {
         PerformanceMonitor: modules[7].PerformanceMonitor,
         initializeErrorInterceptor: modules[8].initializeErrorInterceptor,
         EventLogger: modules[9].EventLogger,
-        MD3LightTheme: modules[10].MD3LightTheme,
+        PerformanceAnalyzer: modules[10].PerformanceAnalyzer,
+        PerformanceOptimizer: modules[11].PerformanceOptimizer,
+        MD3LightTheme: modules[12].MD3LightTheme,
       };
     });
   }
@@ -287,6 +295,19 @@ export default function App() {
         // Initialize error interceptor immediately
         servicesData.initializeErrorInterceptor();
         
+        // Initialize performance optimization
+        if (servicesData.PerformanceAnalyzer) {
+          servicesData.PerformanceAnalyzer.initialize();
+        }
+        if (servicesData.PerformanceOptimizer) {
+          servicesData.PerformanceOptimizer.initialize({
+            enableAutoOptimization: false, // Disable auto-optimization
+            targetLaunchTime: 2500,
+            targetFPS: 50,
+            maxMemoryUsage: 200,
+          });
+        }
+        
         // Set services to trigger re-render with full app
         setServices(servicesData);
         setIsInitializing(false);
@@ -316,10 +337,20 @@ export default function App() {
           });
           
           console.groupEnd();
+          
+          // Generate and log performance analysis
+          if (servicesData.PerformanceAnalyzer) {
+            const perfReport = servicesData.PerformanceAnalyzer.generateReport();
+            console.group('🔍 Performance Analysis');
+            console.log(`Overall Health: ${perfReport.analysis.overallHealth}`);
+            console.log(`Error Boundary Overhead: ${perfReport.metrics.errorBoundaryOverhead}ms`);
+            console.log(`Animation Smoothness: ${perfReport.metrics.animationSmoothnessScore}/100`);
+            if (perfReport.bottlenecks.length > 0) {
+              console.log('Bottlenecks:', perfReport.bottlenecks.map(b => b.component).join(', '));
+            }
+            console.groupEnd();
+          }
         }
-        
-        // Now that EventLogger is available, properly initialize PerformanceMeasurement
-        PerformanceMeasurement.initialize();
         
         // Log initialization
         servicesData.EventLogger.info('App', 'App component fully initialized', {

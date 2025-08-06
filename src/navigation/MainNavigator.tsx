@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, ActivityIndicator } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, Text, ActivityIndicator, Alert } from 'react-native';
 import { ModernBottomTabNavigator } from './ModernBottomTabNavigator';
 // import { ModernBottomTabNavigator } from './EmergencyBottomTabNavigator';
 import AutomationBuilderScreen from '../screens/automation/AutomationBuilderScreen';
@@ -29,60 +28,144 @@ import PrivacyPolicyScreen from '../screens/placeholder/PrivacyPolicyScreen';
 import ScannerScreen from '../screens/modern/ScannerScreen';
 import { RootStackParamList } from './types';
 import { EventLogger } from '../utils/EventLogger';
+import { NavigationErrorBoundary } from '../components/ErrorBoundaries';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Track if this is the first render
 let navigatorInitCount = 0;
 
-export const MainNavigator = () => {
+interface MainNavigatorProps {
+  isAuthenticated?: boolean;
+}
+
+// Navigation error recovery
+let navigationRenderErrors = 0;
+const MAX_RENDER_ERRORS = 5;
+
+export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = false }) => {
   navigatorInitCount++;
   if (navigatorInitCount === 1) {
     EventLogger.debug('Navigation', '🚨 MainNavigator starting...');
   }
   
-  const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState<boolean | null>(true); // Default to true to skip onboarding
-  const [isLoading, setIsLoading] = React.useState(false); // Don't load by default
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
+  const [isRecoveringFromError, setIsRecoveringFromError] = useState(false);
   
-  React.useEffect(() => {
-    if (navigatorInitCount === 1) {
-      EventLogger.debug('Navigation', '🚨 MainNavigator mounted, skipping onboarding check for emergency recovery');
+  useEffect(() => {
+    try {
+      if (navigatorInitCount === 1) {
+        EventLogger.debug('Navigation', '🚨 MainNavigator mounted, auth state:', isAuthenticated);
+      }
+      
+      // Clear any previous render errors
+      setRenderError(null);
+      setIsRecoveringFromError(false);
+      
+      // Skip onboarding check for stability
+      setHasSeenOnboarding(true);
+      setIsLoading(false);
+      
+      // Log successful initialization
+      EventLogger.debug('Navigation', '✅ MainNavigator initialized successfully');
+    } catch (error) {
+      EventLogger.error('Navigation', '❌ MainNavigator initialization error:', error as Error);
+      handleRenderError('MainNavigator initialization failed');
     }
-    // Skip onboarding check entirely for now
-    setHasSeenOnboarding(true);
-    setIsLoading(false);
-  }, []);
+  }, [isAuthenticated]);
   
-  // Never show loading screen - go straight to app
-  if (isLoading) {
-    EventLogger.debug('Navigation', '🚨 MainNavigator in loading state - THIS SHOULD NOT HAPPEN');
+  const handleRenderError = (errorMessage: string) => {
+    navigationRenderErrors++;
+    EventLogger.error('Navigation', 'MainNavigator render error:', new Error(errorMessage), {
+      errorCount: navigationRenderErrors,
+      maxErrors: MAX_RENDER_ERRORS
+    });
+    
+    if (navigationRenderErrors >= MAX_RENDER_ERRORS) {
+      setRenderError('Navigation system requires reset');
+      Alert.alert(
+        'Navigation Error',
+        'The navigation system has encountered repeated errors. Please restart the app.',
+        [{ text: 'OK' }]
+      );
+    } else {
+      setRenderError(errorMessage);
+      // Auto-recovery after a short delay
+      setTimeout(() => {
+        if (!isRecoveringFromError) {
+          setIsRecoveringFromError(true);
+          setRenderError(null);
+          EventLogger.debug('Navigation', 'Attempting auto-recovery...');
+        }
+      }, 2000);
+    }
+  };
+  
+  // Show error recovery screen
+  if (renderError) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FF0000' }}>
-        <Text style={{ fontSize: 20, color: '#FFFFFF' }}>STUCK IN LOADING!</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f44336', padding: 20 }}>
+        <Text style={{ fontSize: 18, color: '#FFFFFF', fontWeight: 'bold', marginBottom: 10 }}>Navigation Error</Text>
+        <Text style={{ fontSize: 14, color: '#FFFFFF', textAlign: 'center' }}>{renderError}</Text>
+        <Text style={{ fontSize: 12, color: '#FFFFFF', marginTop: 10, opacity: 0.8 }}>Error count: {navigationRenderErrors}/{MAX_RENDER_ERRORS}</Text>
       </View>
     );
   }
   
-  return (
-    <Stack.Navigator
-      initialRouteName={hasSeenOnboarding ? "MainTabs" : "WelcomeScreen"}
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: '#6200ee',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    >
+  // Show recovery indicator
+  if (isRecoveringFromError) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ff9800' }}>
+        <ActivityIndicator size="large" color="#FFFFFF" />
+        <Text style={{ fontSize: 16, color: '#FFFFFF', marginTop: 10 }}>Recovering...</Text>
+      </View>
+    );
+  }
+  
+  // Fallback loading screen (should rarely be shown)
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#6200ee' }}>
+        <ActivityIndicator size="large" color="#FFFFFF" />
+        <Text style={{ fontSize: 16, color: '#FFFFFF', marginTop: 10 }}>Loading Navigator...</Text>
+      </View>
+    );
+  }
+  
+  // Wrap navigator in try-catch for render error handling
+  try {
+    const initialRoute = hasSeenOnboarding ? "MainTabs" : "WelcomeScreen";
+    
+    return (
+      <Stack.Navigator
+        initialRouteName={initialRoute}
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#6200ee',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          // Add error handling for screen transitions
+          gestureEnabled: true,
+          animation: 'slide_from_right',
+        }}
+      >
       <Stack.Screen
         name="MainTabs"
-        component={ModernBottomTabNavigator}
         options={{ 
           headerShown: false 
         }}
-      />
+      >
+        {(props) => (
+          <NavigationErrorBoundary context="BottomTabNavigator">
+            <ModernBottomTabNavigator {...props} />
+          </NavigationErrorBoundary>
+        )}
+      </Stack.Screen>
       <Stack.Screen
         name="AutomationBuilder"
         component={AutomationBuilderScreen}
@@ -198,6 +281,17 @@ export const MainNavigator = () => {
         component={PrivacyPolicyScreen}
         options={{ title: 'Privacy Policy' }}
       />
-    </Stack.Navigator>
-  );
+      </Stack.Navigator>
+    );
+  } catch (error) {
+    EventLogger.error('Navigation', '❌ MainNavigator render error:', error as Error);
+    handleRenderError('Navigator render failed');
+    
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f44336', padding: 20 }}>
+        <Text style={{ fontSize: 18, color: '#FFFFFF', fontWeight: 'bold', marginBottom: 10 }}>Navigation Error</Text>
+        <Text style={{ fontSize: 14, color: '#FFFFFF', textAlign: 'center' }}>The navigation system failed to render.</Text>
+      </View>
+    );
+  }
 };

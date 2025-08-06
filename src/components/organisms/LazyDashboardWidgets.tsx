@@ -3,28 +3,28 @@ import { lazyWidget } from '../../utils/lazyLoad';
 
 // Lazy load all dashboard widgets
 export const LazyQuickStatsWidget = lazyWidget(
-  () => import('./DashboardWidgets/QuickStatsWidget').then(m => ({ default: m.QuickStatsWidget })),
+  () => import('./DashboardWidgets/QuickStatsWidget'),
   'Quick Stats'
 );
 
 export const LazyFeaturedAutomationWidget = lazyWidget(
-  () => import('./DashboardWidgets/FeaturedAutomationWidget').then(m => ({ default: m.FeaturedAutomationWidget })),
+  () => import('./DashboardWidgets/FeaturedAutomationWidget'),
   'Featured Automation'
 );
 
 export const LazyQuickActionsWidget = lazyWidget(
-  () => import('./DashboardWidgets/QuickActionsWidget').then(m => ({ default: m.QuickActionsWidget })),
+  () => import('./DashboardWidgets/QuickActionsWidget'),
   'Quick Actions'
 );
 
 export const LazyRecentActivityWidget = lazyWidget(
-  () => import('./DashboardWidgets/RecentActivityWidget').then(m => ({ default: m.RecentActivityWidget })),
+  () => import('./DashboardWidgets/RecentActivityWidget'),
   'Recent Activity'
 );
 
 // Enhanced versions (if they exist)
 export const LazyQuickStatsWidgetEnhanced = lazyWidget(
-  () => import('./DashboardWidgets/QuickStatsWidgetEnhanced'),
+  () => import('./DashboardWidgets/QuickStatsWidgetOptimized'),
   'Quick Stats Enhanced'
 );
 
@@ -87,13 +87,13 @@ export class DashboardWidgetLoader {
   private static async importWidget(widgetName: string): Promise<React.ComponentType<any>> {
     switch (widgetName) {
       case 'QuickStats':
-        return (await import('./DashboardWidgets/QuickStatsWidget')).QuickStatsWidget;
+        return (await import('./DashboardWidgets/QuickStatsWidget')).default;
       case 'FeaturedAutomation':
-        return (await import('./DashboardWidgets/FeaturedAutomationWidget')).FeaturedAutomationWidget;
+        return (await import('./DashboardWidgets/FeaturedAutomationWidget')).default;
       case 'QuickActions':
-        return (await import('./DashboardWidgets/QuickActionsWidget')).QuickActionsWidget;
+        return (await import('./DashboardWidgets/QuickActionsWidget')).default;
       case 'RecentActivity':
-        return (await import('./DashboardWidgets/RecentActivityWidget')).RecentActivityWidget;
+        return (await import('./DashboardWidgets/RecentActivityWidget')).default;
       default:
         throw new Error(`Unknown widget: ${widgetName}`);
     }

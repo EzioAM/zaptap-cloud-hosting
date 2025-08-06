@@ -20,6 +20,11 @@ import { EventLogger } from '../../utils/EventLogger';
     error: string | null;
     accessToken: string | null;
     refreshToken: string | null;
+    // Add recovery state
+    isRecovering: boolean;
+    lastErrorTimestamp: number | null;
+    consecutiveErrors: number;
+    sessionValid: boolean;
   }
 
   const initialState: AuthState = {
@@ -29,6 +34,11 @@ import { EventLogger } from '../../utils/EventLogger';
     error: null,
     accessToken: null,
     refreshToken: null,
+    // Initialize recovery state
+    isRecovering: false,
+    lastErrorTimestamp: null,
+    consecutiveErrors: 0,
+    sessionValid: true, // Assume valid until proven otherwise
   };
 
   // Real Supabase sign in
@@ -242,6 +252,9 @@ import { EventLogger } from '../../utils/EventLogger';
     reducers: {
       clearError: (state) => {
         state.error = null;
+        state.consecutiveErrors = 0;
+        state.lastErrorTimestamp = null;
+        state.isRecovering = false;
       },
       setTokens: (state, action: PayloadAction<{ accessToken: string; refreshToken: string }>) => {
         state.accessToken = action.payload.accessToken;
@@ -276,6 +289,39 @@ import { EventLogger } from '../../utils/EventLogger';
         state.accessToken = null;
         state.refreshToken = null;
         state.error = null;
+        // Reset recovery state on successful sign out
+        state.isRecovering = false;
+        state.consecutiveErrors = 0;
+        state.lastErrorTimestamp = null;
+        state.sessionValid = true; // Reset for next session
+      },
+      
+      // Add recovery actions
+      startRecovery: (state) => {
+        state.isRecovering = true;
+        state.error = null;
+        EventLogger.debug('Authentication', '🔄 Starting auth recovery...');
+      },
+      
+      endRecovery: (state, action: PayloadAction<{ success: boolean; error?: string }>) => {
+        state.isRecovering = false;
+        if (action.payload.success) {
+          state.consecutiveErrors = 0;
+          state.lastErrorTimestamp = null;
+          EventLogger.debug('Authentication', '✅ Auth recovery successful');
+        } else {
+          state.consecutiveErrors++;
+          state.lastErrorTimestamp = Date.now();
+          state.error = action.payload.error || 'Recovery failed';
+          EventLogger.warn('Authentication', '❌ Auth recovery failed:', action.payload.error);
+        }
+      },
+      
+      setSessionValidity: (state, action: PayloadAction<boolean>) => {
+        state.sessionValid = action.payload;
+        if (!action.payload) {
+          EventLogger.warn('Authentication', '⚠️ Session marked as invalid');
+        }
       },
     },
     extraReducers: (builder) => {
@@ -295,6 +341,10 @@ import { EventLogger } from '../../utils/EventLogger';
         .addCase(signIn.rejected, (state, action) => {
           state.isLoading = false;
           state.error = action.error.message || 'Sign in failed';
+          // Track consecutive errors for recovery logic
+          state.consecutiveErrors++;
+          state.lastErrorTimestamp = Date.now();
+          state.sessionValid = false;
         })
         // Sign Up
         .addCase(signUp.pending, (state) => {
@@ -311,6 +361,9 @@ import { EventLogger } from '../../utils/EventLogger';
         .addCase(signUp.rejected, (state, action) => {
           state.isLoading = false;
           state.error = action.error.message || 'Sign up failed';
+          // Track consecutive errors
+          state.consecutiveErrors++;
+          state.lastErrorTimestamp = Date.now();
         })
         // Sign Out
         .addCase(signOut.pending, (state) => {
@@ -332,6 +385,11 @@ import { EventLogger } from '../../utils/EventLogger';
           state.refreshToken = null;
           state.isLoading = false;
           state.error = action.error.message || 'Sign out failed';
+          // Reset recovery state even on sign out failure
+          state.isRecovering = false;
+          state.consecutiveErrors = 0;
+          state.lastErrorTimestamp = null;
+          state.sessionValid = true;
         })
         // Refresh Profile
         .addCase(refreshProfile.pending, (state) => {
@@ -351,7 +409,16 @@ import { EventLogger } from '../../utils/EventLogger';
         .addCase(refreshProfile.rejected, (state, action) => {
           state.isLoading = false;
           state.error = action.payload as string || 'Failed to refresh profile';
-          EventLogger.error('Authentication', '❌ Profile refresh failed:', state.error as Error);
+          
+          // Handle specific error types
+          const errorMessage = action.payload as string;
+          if (errorMessage === 'JWT_ERROR' || errorMessage?.includes('JWT')) {
+            state.sessionValid = false;
+            state.consecutiveErrors++;
+            state.lastErrorTimestamp = Date.now();
+          }
+          
+          EventLogger.error('Authentication', '❌ Profile refresh failed:', new Error(state.error));
         })
         // Reset Password
         .addCase(resetPassword.pending, (state) => {
@@ -368,6 +435,95 @@ import { EventLogger } from '../../utils/EventLogger';
     },
   });
 
-  export const { clearError, setTokens, setUser, restoreSession, signOutSuccess, updateTokens, updateProfile } = authSlice.actions;
-  export { signIn, signUp, signOut, refreshProfile, resetPassword };
+  // Recovery thunk for handling auth errors
+  export const recoverAuthState = createAsyncThunk(
+    'auth/recover',
+    async (_, { dispatch, getState, rejectWithValue }) => {
+      try {
+        EventLogger.debug('Authentication', '🔄 Starting auth state recovery...');
+        dispatch(authSlice.actions.startRecovery());
+        
+        const state = getState() as { auth: AuthState };
+        const { consecutiveErrors, lastErrorTimestamp } = state.auth;
+        
+        // If too many consecutive errors recently, wait before retrying
+        if (consecutiveErrors >= 3 && lastErrorTimestamp) {
+          const timeSinceLastError = Date.now() - lastErrorTimestamp;
+          const minWaitTime = Math.min(consecutiveErrors * 5000, 30000); // Max 30s
+          
+          if (timeSinceLastError < minWaitTime) {
+            const remainingWait = minWaitTime - timeSinceLastError;
+            EventLogger.debug('Authentication', `⏳ Waiting ${remainingWait}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, remainingWait));
+          }
+        }
+        
+        // Attempt to refresh the session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error || !session) {
+          EventLogger.debug('Authentication', '❌ No valid session for recovery');
+          dispatch(authSlice.actions.endRecovery({ success: false, error: 'No valid session' }));
+          dispatch(authSlice.actions.signOutSuccess());
+          return rejectWithValue('No valid session');
+        }
+        
+        // Try to refresh the profile
+        try {
+          await dispatch(refreshProfile()).unwrap();
+          dispatch(authSlice.actions.endRecovery({ success: true }));
+          EventLogger.debug('Authentication', '✅ Auth recovery completed successfully');
+          return { recovered: true };
+        } catch (profileError: any) {
+          EventLogger.warn('Authentication', '⚠️ Profile refresh failed during recovery:', profileError);
+          // Still consider it a partial success if we have a session
+          dispatch(authSlice.actions.endRecovery({ success: true }));
+          return { recovered: true, warning: 'Profile refresh failed' };
+        }
+      } catch (error: any) {
+        EventLogger.error('Authentication', '❌ Auth recovery failed:', error as Error);
+        dispatch(authSlice.actions.endRecovery({ success: false, error: error.message }));
+        return rejectWithValue(error.message || 'Recovery failed');
+      }
+    }
+  );
+  
+  export const { 
+    clearError, 
+    setTokens, 
+    setUser, 
+    restoreSession, 
+    signOutSuccess, 
+    updateTokens, 
+    updateProfile,
+    startRecovery,
+    endRecovery,
+    setSessionValidity
+  } = authSlice.actions;
+  
+  // Export thunks (avoiding re-declaration conflicts)
+  export { recoverAuthState };
+  
+  // Utility function to determine if recovery is needed
+  export const shouldAttemptRecovery = (state: AuthState): boolean => {
+    const { consecutiveErrors, lastErrorTimestamp, isRecovering, sessionValid } = state;
+    
+    // Don't attempt recovery if already recovering
+    if (isRecovering) return false;
+    
+    // Don't attempt if session is known to be invalid
+    if (!sessionValid) return false;
+    
+    // Attempt recovery if there are errors but not too many too quickly
+    if (consecutiveErrors > 0 && consecutiveErrors < 5) {
+      if (!lastErrorTimestamp) return true;
+      
+      const timeSinceError = Date.now() - lastErrorTimestamp;
+      const minInterval = Math.min(consecutiveErrors * 2000, 10000); // Max 10s
+      return timeSinceError > minInterval;
+    }
+    
+    return false;
+  };
+  
   export default authSlice;
