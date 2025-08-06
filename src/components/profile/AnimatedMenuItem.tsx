@@ -368,20 +368,15 @@ export const AnimatedMenuSection: React.FC<AnimatedMenuSectionProps> = ({
         )}
       </TouchableOpacity>
 
-      <Animated.View
-        style={[
-          styles.menuCard,
-          {
-            backgroundColor: theme?.colors?.surface || '#fff',
-            height: heightAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, section.items.length * 80], // Approximate item height
-            }),
+      <View style={[styles.menuCard, { backgroundColor: theme?.colors?.surface || '#fff', overflow: 'hidden' }]}>
+        <Animated.View
+          style={{
             opacity: heightAnim,
-            overflow: 'hidden',
-          },
-        ]}
-      >
+            transform: [{
+              scaleY: heightAnim
+            }],
+          }}
+        >
         <View style={styles.menuItems}>
           {section.items.map((item, itemIndex) => (
             <AnimatedMenuItem
@@ -394,8 +389,8 @@ export const AnimatedMenuSection: React.FC<AnimatedMenuSectionProps> = ({
             />
           ))}
         </View>
-      </Animated.View>
-    </Animated.View>
+        </Animated.View>
+      </View>
   );
 };
 

@@ -298,17 +298,15 @@ export const AnimatedSearchBar: React.FC<AnimatedSearchBarProps> = ({
       </Animated.View>
 
       {/* Suggestions List */}
-      <Animated.View
-        style={[
-          styles.suggestionsContainer,
-          {
-            height: suggestionMaxHeight,
+      <View style={[styles.suggestionsContainer, { backgroundColor: theme.colors?.surface?.primary || theme.colors?.surface || '#FFFFFF', overflow: 'hidden' }]}>
+        <Animated.View
+          style={{
             opacity: suggestionOpacityAnim,
-            backgroundColor: theme.colors?.surface?.primary || theme.colors?.surface || '#FFFFFF',
-            overflow: 'hidden',
-          },
-        ]}
-      >
+            transform: [{
+              scaleY: suggestionHeightAnim
+            }],
+          }}
+        >
         <FlatList
           data={suggestions}
           renderItem={renderSuggestion}
@@ -316,7 +314,8 @@ export const AnimatedSearchBar: React.FC<AnimatedSearchBarProps> = ({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         />
-      </Animated.View>
+        </Animated.View>
+      </View>
     </View>
   );
 };
