@@ -309,19 +309,19 @@ const ModernHomeScreen: React.FC = memo(() => {
     }
   }, [isLoading, pulseAnim]);
 
-  // Authentication check
-  if (!user) {
-    return (
-      <ErrorState
-        title="Authentication Required"
-        description="Please sign in to access your dashboard"
-        action={{
-          label: "Sign In",
-          onPress: () => navigation.navigate('Auth' as never),
-        }}
-      />
-    );
-  }
+  // Authentication check - disabled for demo
+  // if (!user) {
+  //   return (
+  //     <ErrorState
+  //       title="Authentication Required"
+  //       description="Please sign in to access your dashboard"
+  //       action={{
+  //         label: "Sign In",
+  //         onPress: () => navigation.navigate('Auth' as never),
+  //       }}
+  //     />
+  //   );
+  // }
 
   // Error state for connection issues
   if (error && !isConnected) {

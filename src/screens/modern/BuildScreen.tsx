@@ -533,18 +533,19 @@ const BuildScreen: React.FC = memo(() => {
     </TouchableOpacity>
   ), [handleUseTemplate]);
 
-  if (!user) {
-    return (
-      <ErrorState
-        title="Authentication Required"
-        description="Please sign in to create automations"
-        action={{
-          label: "Sign In",
-          onPress: () => navigation.navigate('Auth' as never),
-        }}
-      />
-    );
-  }
+  // Authentication check - disabled for demo
+  // if (!user) {
+  //   return (
+  //     <ErrorState
+  //       title="Authentication Required"
+  //       description="Please sign in to create automations"
+  //       action={{
+  //         label: "Sign In",
+  //         onPress: () => navigation.navigate('Auth' as never),
+  //       }}
+  //     />
+  //   );
+  // }
 
   return (
     <ScreenErrorBoundary 

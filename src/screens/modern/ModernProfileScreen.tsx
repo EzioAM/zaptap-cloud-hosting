@@ -397,19 +397,19 @@ const ModernProfileScreen: React.FC = memo(() => {
     };
   }, [myAutomations, myPublicAutomations, profileCompletion]);
 
-  // Authentication check
-  if (!isAuthenticated || !user) {
-    return (
-      <ErrorState
-        title="Authentication Required"
-        description="Please sign in to access your profile"
-        action={{
-          label: "Sign In",
-          onPress: () => navigation.navigate('Auth' as never),
-        }}
-      />
-    );
-  }
+  // Authentication check - disabled for demo
+  // if (!isAuthenticated || !user) {
+  //   return (
+  //     <ErrorState
+  //       title="Authentication Required"
+  //       description="Please sign in to access your profile"
+  //       action={{
+  //         label: "Sign In",
+  //         onPress: () => navigation.navigate('Auth' as never),
+  //       }}
+  //     />
+  //   );
+  // }
 
   // Error state
   if ((myAutomationsError || publicAutomationsError) && !isConnected) {
@@ -501,7 +501,7 @@ const ModernProfileScreen: React.FC = memo(() => {
           <GradientCard gradientKey="primary" style={styles.profileCard}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
-                {user.user_metadata?.avatar_url ? (
+                {user?.user_metadata?.avatar_url ? (
                   <Image
                     source={{ uri: user.user_metadata.avatar_url }}
                     style={styles.avatar}
@@ -532,10 +532,10 @@ const ModernProfileScreen: React.FC = memo(() => {
               
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>
-                  {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                  {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest User'}
                 </Text>
                 <Text style={styles.profileEmail}>
-                  {user.email}
+                  {user?.email || 'Not signed in'}
                 </Text>
                 <Text style={styles.profileCompletion}>
                   {profileStats.completionPercentage}% Complete
@@ -696,7 +696,7 @@ const ModernProfileScreen: React.FC = memo(() => {
             {activeTab === 'activity' && FEATURE_FLAGS.ACTIVITY_TIMELINE && (
               <ActivityTimeline
                 theme={theme}
-                userId={user.id}
+                userId={user?.id}
               />
             )}
           </Animated.View>

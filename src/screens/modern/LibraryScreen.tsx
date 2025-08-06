@@ -554,19 +554,19 @@ const LibraryScreen: React.FC = memo(() => {
     </TouchableOpacity>
   ), [sortBy, theme]);
 
-  // Authentication check
-  if (!isAuthenticated) {
-    return (
-      <ErrorState
-        title="Authentication Required"
-        description="Please sign in to access your library"
-        action={{
-          label: "Sign In",
-          onPress: () => navigation.navigate('Auth' as never),
-        }}
-      />
-    );
-  }
+  // Authentication check - disabled for demo
+  // if (!isAuthenticated) {
+  //   return (
+  //     <ErrorState
+  //       title="Authentication Required"
+  //       description="Please sign in to access your library"
+  //       action={{
+  //         label: "Sign In",
+  //         onPress: () => navigation.navigate('Auth' as never),
+  //       }}
+  //     />
+  //   );
+  // }
 
   // Loading state
   if (isLoading && automations.length === 0) {
