@@ -668,10 +668,9 @@ const DiscoverScreen: React.FC = memo(() => {
                 Trending Now
               </Text>
               <TrendingCarousel
-                automations={trendingAutomations}
-                onAutomationPress={handleAutomationPress}
+                data={trendingAutomations}
+                onItemPress={handleAutomationPress}
                 onLike={handleLike}
-                theme={theme}
               />
             </View>
           )}

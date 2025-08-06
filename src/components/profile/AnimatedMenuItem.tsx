@@ -373,11 +373,12 @@ export const AnimatedMenuSection: React.FC<AnimatedMenuSectionProps> = ({
           styles.menuCard,
           {
             backgroundColor: theme?.colors?.surface || '#fff',
-            maxHeight: heightAnim.interpolate({
+            height: heightAnim.interpolate({
               inputRange: [0, 1],
               outputRange: [0, section.items.length * 80], // Approximate item height
             }),
             opacity: heightAnim,
+            overflow: 'hidden',
           },
         ]}
       >

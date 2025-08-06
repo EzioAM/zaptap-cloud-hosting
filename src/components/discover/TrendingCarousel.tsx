@@ -39,7 +39,7 @@ interface TrendingCarouselProps {
 }
 
 export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
-  data,
+  data = [],
   onItemPress,
   onLike,
   autoPlay = true,
@@ -53,7 +53,7 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
   const autoPlayRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    if (isAutoPlaying && data.length > 1) {
+    if (isAutoPlaying && data && data.length > 1) {
       autoPlayRef.current = setInterval(() => {
         setCurrentIndex((prevIndex) => {
           const nextIndex = (prevIndex + 1) % data.length;
@@ -84,17 +84,12 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
     setIsAutoPlaying(true);
   };
 
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-    {
-      useNativeDriver: false,
-      listener: (event: any) => {
-        const contentOffsetX = event.nativeEvent.contentOffset.x;
-        const index = Math.round(contentOffsetX / (CARD_WIDTH + SPACING));
-        setCurrentIndex(index);
-      },
-    }
-  );
+  const handleScroll = (event: any) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    scrollX.setValue(contentOffsetX);
+    const index = Math.round(contentOffsetX / (CARD_WIDTH + SPACING));
+    setCurrentIndex(index);
+  };
 
   const renderCard = ({ item, index }: { item: TrendingItem; index: number }) => {
     const inputRange = [
@@ -228,7 +223,7 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
 
   const renderIndicators = () => (
     <View style={styles.indicatorContainer}>
-      {data.map((_, index) => {
+      {data && data.map((_, index) => {
         const inputRange = [
           (index - 1) * (CARD_WIDTH + SPACING),
           index * (CARD_WIDTH + SPACING),
@@ -264,7 +259,7 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
     </View>
   );
 
-  if (!data.length) return null;
+  if (!data || !data.length) return null;
 
   return (
     <View style={styles.container}>
