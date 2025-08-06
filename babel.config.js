@@ -14,12 +14,8 @@ module.exports = function(api) {
           'date-fns': {
             'transform': 'date-fns/${member}',
             'preventFullImport': true
-          },
-          'react-native-paper': {
-            'transform': 'react-native-paper/lib/module/components/${member}',
-            'preventFullImport': true,
-            'skipDefaultConversion': true
           }
+          // Removed react-native-paper transformation as it's not compatible with current version
         }
       ],
       // Remove console logs in production
