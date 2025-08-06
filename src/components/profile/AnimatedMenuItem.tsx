@@ -391,6 +391,7 @@ export const AnimatedMenuSection: React.FC<AnimatedMenuSectionProps> = ({
         </View>
         </Animated.View>
       </View>
+    </Animated.View>
   );
 };
 
