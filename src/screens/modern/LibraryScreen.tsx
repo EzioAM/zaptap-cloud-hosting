@@ -55,7 +55,6 @@ import { typography, fontWeights, textShadows } from '../../theme/typography';
 
 // Constants
 import { ANIMATION_CONFIG } from '../../constants/animations';
-import { EventLogger } from '../../utils/EventLogger';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -608,7 +607,7 @@ const LibraryScreen: React.FC = memo(() => {
         EventLogger.error('LibraryScreen', 'Screen-level error caught', error, {
           componentStack: errorInfo.componentStack,
           userId: user?.id,
-          automationsCount: sortedAutomations.length,
+          automationsCount: filteredAndSortedAutomations.length,
           selectedCategory: selectedFilter,
         });
       }}

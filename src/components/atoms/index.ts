@@ -6,9 +6,9 @@ export * from './IconButton';
 export * from './Shimmer';
 
 // Enhanced components
-export * from './InteractiveElement';
-export * from './SkeletonLoader';
-export * from './Typography';
+export * from './InteractiveElement/InteractiveElement';
+export * from './SkeletonLoader/SkeletonLoader';
+export * from './Typography/Typography';
 
 // Platform-aware components
 export * from './PlatformAware';

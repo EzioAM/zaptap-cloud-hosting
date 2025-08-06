@@ -34,7 +34,7 @@ export class ImprovedAIResearchService {
     );
 
     EventLogger.debug('ImprovedAIResearch', '🔧 AI Research Service initialized:', {
-      hasClaudeKey: !!(this.claudeApiKey && this.claudeApiKey.length > 10);,
+      hasClaudeKey: !!(this.claudeApiKey && this.claudeApiKey.length > 10),
       hasOpenAIKey: !!(this.openaiApiKey && this.openaiApiKey.length > 10),
       isConfigured: this.isConfigured
     });
@@ -97,7 +97,7 @@ export class ImprovedAIResearchService {
       results.push(this.generateHelpfulFallback(normalizedQuery));
     }
 
-    EventLogger.debug('ImprovedAIResearch', '📊 Research complete: ${results.length} results from ${results.map(r => r.provider).join(', ');}`);
+    EventLogger.debug('ImprovedAIResearch', `📊 Research complete: ${results.length} results from ${results.map(r => r.provider).join(', ')}`);
     return results;
   }
 

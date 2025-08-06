@@ -51,7 +51,7 @@ export class CollaborativeAIResearchService {
     EventLogger.debug('CollaborativeAIResearch', '🤝 Collaborative AI Service initialized:', {
       hasClaudeKey: !!this.claudeApiKey,
       hasOpenAIKey: !!this.openaiApiKey,
-      canCollaborate: !!(this.claudeApiKey && this.openaiApiKey);
+      canCollaborate: !!(this.claudeApiKey && this.openaiApiKey)
     });
   }
 

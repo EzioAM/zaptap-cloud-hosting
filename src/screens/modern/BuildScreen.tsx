@@ -66,7 +66,6 @@ import { ANIMATION_CONFIG } from '../../constants/animations';
 // Haptics
 import * as Haptics from 'expo-haptics';
 import { v4 as uuidv4 } from 'uuid';
-import { EventLogger } from '../../utils/EventLogger';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 

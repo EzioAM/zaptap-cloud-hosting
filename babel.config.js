@@ -7,10 +7,7 @@ module.exports = function(api) {
       [
         'babel-plugin-transform-imports',
         {
-          'lodash': {
-            'transform': 'lodash/${member}',
-            'preventFullImport': true
-          },
+          // Removed lodash transformation to fix compatibility with third-party libraries
           'date-fns': {
             'transform': 'date-fns/${member}',
             'preventFullImport': true

@@ -753,6 +753,7 @@ const DiscoverScreen: React.FC = memo(() => {
         </Animated.View>
       )}
     </SafeAreaView>
+    </ScreenErrorBoundary>
   );
 });
 
@@ -903,12 +904,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-
-      </SafeAreaView>
-    </ScreenErrorBoundary>
-  );
-});
-
-DiscoverScreen.displayName = 'DiscoverScreen';
 
 export default DiscoverScreen;

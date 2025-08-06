@@ -34,7 +34,7 @@ export class AIResearchService {
     EventLogger.debug('AIResearch', '🔍 Starting AI research with keys:', {
       hasClaudeKey: !!this.claudeApiKey && this.claudeApiKey.length > 10,
       hasOpenaiKey: !!this.openaiApiKey && this.openaiApiKey.length > 10,
-      claudeKeyPreview: this.claudeApiKey ? this.claudeApiKey.substring(0, 10); + '...' : 'Missing',
+      claudeKeyPreview: this.claudeApiKey ? this.claudeApiKey.substring(0, 10) + '...' : 'Missing',
       openaiKeyPreview: this.openaiApiKey ? this.openaiApiKey.substring(0, 10) + '...' : 'Missing'
     });
 

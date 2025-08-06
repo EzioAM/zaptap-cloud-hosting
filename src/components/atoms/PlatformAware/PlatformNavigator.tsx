@@ -378,7 +378,7 @@ export const createPlatformStackNavigator = (config: PlatformNavigatorConfig = {
   return function PlatformStackNavigator() {
     const screenOptions = usePlatformNavigationOptions(config);
     
-    return Stack.Navigator
+    return <Stack.Navigator
       screenOptions={screenOptions}
       {...config}
     />;
