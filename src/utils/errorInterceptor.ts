@@ -1,5 +1,5 @@
 /**
-import { EventLogger } from './/EventLogger';
+import { EventLogger } from './EventLogger';
  * Smart Error Interceptor
  * 
  * This module intelligently manages console.error calls to reduce spam

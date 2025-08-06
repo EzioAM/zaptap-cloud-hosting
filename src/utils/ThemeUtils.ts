@@ -4,7 +4,7 @@
  */
 
 import { Theme } from '../theme';
-import { EventLogger } from './/EventLogger';
+import { EventLogger } from './EventLogger';
 
 // Color manipulation utilities
 export const hexToRgba = (hex: string, alpha: number): string => {

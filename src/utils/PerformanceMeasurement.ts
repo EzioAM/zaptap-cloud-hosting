@@ -1,5 +1,5 @@
 /**
-import { EventLogger } from './/EventLogger';
+import { EventLogger } from './EventLogger';
  * Performance measurement utilities for app launch time optimization
  * Provides tools to measure and verify launch time improvements
  */

@@ -1,4 +1,4 @@
-import { EventLogger } from './/EventLogger';
+import { EventLogger } from './EventLogger';
 #!/usr/bin/env node
 
 /**

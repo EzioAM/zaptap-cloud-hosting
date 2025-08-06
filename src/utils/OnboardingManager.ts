@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { EventLogger } from './/EventLogger';
+import { EventLogger } from './EventLogger';
 
 /**
  * OnboardingManager - Manages user onboarding state and progress
