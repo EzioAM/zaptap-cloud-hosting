@@ -157,7 +157,7 @@ class NotificationService {
       // Store token locally
       await AsyncStorage.setItem(NotificationService.STORAGE_KEYS.PUSH_TOKEN, token);
       
-      EventLogger.debug('Notification', '[NotificationService] Push token obtained:', token.substring(0, 20); + '...');
+      EventLogger.debug('Notification', '[NotificationService] Push token obtained:', token.substring(0, 20) + '...');
       return token;
 
     } catch (error) {

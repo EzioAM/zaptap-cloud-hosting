@@ -4,8 +4,62 @@
  */
 
 import React, { createContext, useContext } from 'react';
-import { MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
 import { useColorScheme } from 'react-native';
+
+// Define MD3 theme colors directly to avoid import issues
+const MD3LightTheme = {
+  colors: {
+    primary: '#6366F1',
+    primaryContainer: '#E0E0FF',
+    secondary: '#EC4899',
+    secondaryContainer: '#FFE0F0',
+    tertiary: '#8B5CF6',
+    tertiaryContainer: '#F0E0FF',
+    background: '#FFFFFF',
+    surface: '#FAFAFA',
+    surfaceVariant: '#F5F5F5',
+    error: '#DC2626',
+    errorContainer: '#FFEBEE',
+    onBackground: '#1A1A1A',
+    onSurface: '#1A1A1A',
+    onSurfaceVariant: '#666666',
+    onSurfaceDisabled: '#999999',
+    inverseSurface: '#1A1A1A',
+    outline: '#E0E0E0',
+    elevation: {
+      level1: '#FFFFFF',
+      level2: '#FAFAFA',
+      level3: '#F5F5F5',
+    },
+  },
+};
+
+const MD3DarkTheme = {
+  colors: {
+    primary: '#818CF8',
+    primaryContainer: '#3730A3',
+    secondary: '#F472B6',
+    secondaryContainer: '#9F1239',
+    tertiary: '#A78BFA',
+    tertiaryContainer: '#5B21B6',
+    background: '#121212',
+    surface: '#1E1E1E',
+    surfaceVariant: '#2A2A2A',
+    error: '#EF4444',
+    errorContainer: '#7F1D1D',
+    onBackground: '#E5E5E5',
+    onSurface: '#E5E5E5',
+    onSurfaceVariant: '#A0A0A0',
+    onSurfaceDisabled: '#666666',
+    inverseSurface: '#E5E5E5',
+    outline: '#404040',
+    elevation: {
+      level1: '#1E1E1E',
+      level2: '#252525',
+      level3: '#2A2A2A',
+    },
+  },
+};
 
 // Minimal theme structure to prevent crashes
 const createMinimalTheme = (isDark: boolean) => {
