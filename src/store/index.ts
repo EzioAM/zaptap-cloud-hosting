@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
 import { EventLogger } from '../utils/EventLogger';
 import { errorHandlingMiddleware, errorReducer, initialErrorState } from './middleware/errorHandler';
+import { circularReferenceMiddleware } from './middleware/circularReferenceMiddleware';
 
 // Lazy load heavy dependencies to improve store creation time
 let storeInstance: ReturnType<typeof configureStore> | null = null;
@@ -168,9 +169,10 @@ export const createLazyStore = async () => {
         },
       });
       
-      // Add API middleware with error handling
+      // Add API middleware with circular reference protection and error handling
       const enhancedMiddleware = middleware.concat(
-        errorHandlingMiddleware, // Add error handling first
+        circularReferenceMiddleware, // Add circular reference protection first
+        errorHandlingMiddleware, // Then error handling
         automationApi.middleware,
         analyticsApi.middleware,
         dashboardApi.middleware,

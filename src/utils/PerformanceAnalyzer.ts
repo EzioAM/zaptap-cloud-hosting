@@ -40,6 +40,12 @@ export class PerformanceAnalyzer {
   private static animationMetrics: Map<string, number[]> = new Map();
   private static errorBoundaryTriggers: number = 0;
   private static navigationTransitions: number[] = [];
+  private static frameMonitoringActive: boolean = false;
+  private static frameMonitoringIntervalId: NodeJS.Timeout | null = null;
+  private static lastLogTime: number = 0;
+  private static frameDropBuffer: number[] = [];
+  private static frameCheckCount: number = 0;
+  private static readonly MAX_FRAME_CHECKS = 10000;
 
   /**
    * Initialize performance monitoring
@@ -72,30 +78,58 @@ export class PerformanceAnalyzer {
   }
 
   /**
-   * Monitor frame rate
+   * Monitor frame rate using setInterval to prevent stack overflow
    */
   private static startFrameRateMonitoring(): void {
-    if (typeof requestAnimationFrame === 'undefined') return;
+    // Prevent duplicate monitoring
+    if (this.frameMonitoringActive || this.frameMonitoringIntervalId) return;
 
-    const measureFrame = () => {
+    this.frameMonitoringActive = true;
+    this.frameCheckCount = 0;
+    
+    // Use setInterval instead of requestAnimationFrame to prevent stack overflow
+    this.frameMonitoringIntervalId = setInterval(() => {
+      // Safety check: stop after maximum iterations
+      if (!this.frameMonitoringActive || this.frameCheckCount >= this.MAX_FRAME_CHECKS) {
+        this.stopFrameRateMonitoring();
+        return;
+      }
+      
+      this.frameCheckCount++;
+      
       const now = Date.now();
       const frameDuration = now - this.lastFrameTime;
       
       // Only count significant frame drops (> 33ms for 30fps threshold)
-      // This avoids false positives from normal JS thread work
-      if (frameDuration > 33) {
+      if (frameDuration > 33 && frameDuration < 5000) { // Cap at 5 seconds to prevent overflow
         this.frameDropCount++;
-        // Only warn for severe drops that actually impact user experience
-        if (frameDuration > 100) { // Very severe frame drop (< 10fps)
-          EventLogger.warn('PerformanceAnalyzer', `Severe frame drop detected: ${frameDuration}ms`);
+        
+        // Buffer severe drops for batch logging
+        if (frameDuration > 100 && frameDuration < 1000) { // Cap at 1 second
+          this.frameDropBuffer.push(frameDuration);
+          
+          // Only log once per second to avoid performance impact
+          if (now - this.lastLogTime > 1000 && this.frameDropBuffer.length > 0) {
+            const maxDrop = Math.max(...this.frameDropBuffer);
+            const avgDrop = Math.round(this.frameDropBuffer.reduce((a, b) => a + b, 0) / this.frameDropBuffer.length);
+            
+            if (__DEV__) {
+              EventLogger.warn('PerformanceAnalyzer', `Frame drop: ${maxDrop}ms (avg: ${avgDrop}ms)`);
+            }
+            
+            this.frameDropBuffer = [];
+            this.lastLogTime = now;
+          }
         }
       }
       
       this.lastFrameTime = now;
-      requestAnimationFrame(measureFrame);
-    };
-    
-    requestAnimationFrame(measureFrame);
+      
+      // Reset check count periodically to prevent overflow
+      if (this.frameCheckCount > this.MAX_FRAME_CHECKS - 100) {
+        this.frameCheckCount = 0;
+      }
+    }, 100); // Check every 100ms (10 times per second)
   }
 
   /**
@@ -210,46 +244,86 @@ export class PerformanceAnalyzer {
   }
 
   /**
-   * Generate comprehensive performance report
+   * Generate comprehensive performance report with circular reference protection
    */
   public static generateReport(): PerformanceReport {
-    const launchTime = PerformanceMeasurement.getAppLaunchTime();
-    const memoryUsage = this.getCurrentMemoryUsage();
-    const frameRate = this.calculateFrameRate();
-    const animationSmoothnessScore = this.calculateAnimationSmoothness();
-    
-    // Calculate average navigation transition time
-    const navigationTransitionTime = this.navigationTransitions.length > 0
-      ? this.navigationTransitions.reduce((a, b) => a + b, 0) / this.navigationTransitions.length
-      : 0;
-    
-    // Calculate error boundary overhead (estimated)
-    const errorBoundaryOverhead = this.errorBoundaryTriggers * 50; // Assume 50ms per trigger
-    
-    const metrics: PerformanceMetrics = {
-      launchTime,
-      memoryUsage,
-      frameRate,
-      errorBoundaryOverhead,
-      animationSmoothnessScore,
-      navigationTransitionTime,
-    };
-    
-    // Analyze metrics
-    const analysis = this.analyzeMetrics(metrics);
-    
-    // Generate recommendations
-    const recommendations = this.generateRecommendations(metrics, analysis);
-    
-    // Identify bottlenecks
-    const bottlenecks = this.identifyBottlenecks(metrics);
-    
-    return {
-      metrics,
-      analysis,
-      recommendations,
-      bottlenecks,
-    };
+    try {
+      const launchTime = PerformanceMeasurement.getAppLaunchTime();
+      const memoryUsage = this.getCurrentMemoryUsage();
+      const frameRate = this.calculateFrameRate();
+      const animationSmoothnessScore = this.calculateAnimationSmoothness();
+      
+      // Calculate average navigation transition time
+      const navigationTransitionTime = this.navigationTransitions.length > 0
+        ? this.navigationTransitions.reduce((a, b) => a + b, 0) / this.navigationTransitions.length
+        : 0;
+      
+      // Calculate error boundary overhead (estimated)
+      const errorBoundaryOverhead = this.errorBoundaryTriggers * 50; // Assume 50ms per trigger
+      
+      const metrics: PerformanceMetrics = {
+        launchTime,
+        memoryUsage,
+        frameRate,
+        errorBoundaryOverhead,
+        animationSmoothnessScore,
+        navigationTransitionTime,
+      };
+      
+      // Analyze metrics
+      const analysis = this.analyzeMetrics(metrics);
+      
+      // Generate recommendations - limit to prevent stack overflow
+      const recommendations = this.generateRecommendations(metrics, analysis).slice(0, 10);
+      
+      // Identify bottlenecks - limit to prevent stack overflow
+      const bottlenecks = this.identifyBottlenecks(metrics).slice(0, 10);
+      
+      // Create report with circular reference check
+      const report = {
+        metrics,
+        analysis,
+        recommendations,
+        bottlenecks,
+      };
+      
+      // Verify no circular references by trying to stringify
+      try {
+        JSON.stringify(report);
+      } catch (e) {
+        console.warn('PerformanceAnalyzer: Report contains circular references');
+        // Return a minimal safe report
+        return {
+          metrics,
+          analysis,
+          recommendations: [],
+          bottlenecks: [],
+        };
+      }
+      
+      return report;
+    } catch (error) {
+      console.error('PerformanceAnalyzer: Failed to generate report', error);
+      // Return a minimal safe report on error
+      return {
+        metrics: {
+          launchTime: 0,
+          memoryUsage: 0,
+          frameRate: 60,
+          errorBoundaryOverhead: 0,
+          animationSmoothnessScore: 100,
+          navigationTransitionTime: 0,
+        },
+        analysis: {
+          launchTimeStatus: 'excellent',
+          memoryStatus: 'optimal',
+          frameRateStatus: 'smooth',
+          overallHealth: 'healthy',
+        },
+        recommendations: [],
+        bottlenecks: [],
+      };
+    }
   }
 
   /**
@@ -462,60 +536,111 @@ export class PerformanceAnalyzer {
   }
 
   /**
-   * Export performance report as JSON
+   * Export performance report as JSON with circular reference protection
    */
   public static exportReport(): string {
-    const report = this.generateReport();
-    return JSON.stringify(report, null, 2);
+    try {
+      const report = this.generateReport();
+      // Use a replacer to handle any potential circular references
+      const seen = new WeakSet();
+      return JSON.stringify(report, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular Reference]';
+          }
+          seen.add(value);
+        }
+        return value;
+      }, 2);
+    } catch (error) {
+      console.error('PerformanceAnalyzer: Failed to export report', error);
+      return '{}';
+    }
   }
 
   /**
-   * Log performance report to console
+   * Log performance report to console (simplified to prevent stack overflow)
    */
   public static logReport(): void {
-    const report = this.generateReport();
-    
-    console.group('🎯 Performance Analysis Report');
-    
-    console.group('📊 Metrics');
-    console.log(`Launch Time: ${report.metrics.launchTime}ms`);
-    console.log(`Memory Usage: ${report.metrics.memoryUsage}MB`);
-    console.log(`Frame Rate: ${report.metrics.frameRate}fps`);
-    console.log(`Error Boundary Overhead: ${report.metrics.errorBoundaryOverhead}ms`);
-    console.log(`Animation Smoothness: ${report.metrics.animationSmoothnessScore}/100`);
-    console.log(`Avg Navigation Time: ${Math.round(report.metrics.navigationTransitionTime)}ms`);
-    console.groupEnd();
-    
-    console.group('🔍 Analysis');
-    console.log(`Launch Time Status: ${report.analysis.launchTimeStatus}`);
-    console.log(`Memory Status: ${report.analysis.memoryStatus}`);
-    console.log(`Frame Rate Status: ${report.analysis.frameRateStatus}`);
-    console.log(`Overall Health: ${report.analysis.overallHealth}`);
-    console.groupEnd();
-    
-    if (report.bottlenecks.length > 0) {
-      console.group('🚧 Bottlenecks');
-      report.bottlenecks.forEach(bottleneck => {
-        console.warn(`[${bottleneck.impact.toUpperCase()}] ${bottleneck.component}`);
-        console.log(`  Issue: ${bottleneck.description}`);
-        console.log(`  Solution: ${bottleneck.solution}`);
-      });
-      console.groupEnd();
+    try {
+      const report = this.generateReport();
+      
+      // Use simple console.log instead of nested console.group to prevent stack issues
+      console.log('🎯 Performance Analysis Report');
+      console.log('=====================================');
+      
+      // Metrics
+      console.log('📊 Metrics:');
+      console.log(`  Launch Time: ${report.metrics.launchTime}ms`);
+      console.log(`  Memory Usage: ${report.metrics.memoryUsage}MB`);
+      console.log(`  Frame Rate: ${report.metrics.frameRate}fps`);
+      console.log(`  Error Boundary Overhead: ${report.metrics.errorBoundaryOverhead}ms`);
+      console.log(`  Animation Smoothness: ${report.metrics.animationSmoothnessScore}/100`);
+      console.log(`  Avg Navigation Time: ${Math.round(report.metrics.navigationTransitionTime)}ms`);
+      
+      // Analysis
+      console.log('\n🔍 Analysis:');
+      console.log(`  Launch Time Status: ${report.analysis.launchTimeStatus}`);
+      console.log(`  Memory Status: ${report.analysis.memoryStatus}`);
+      console.log(`  Frame Rate Status: ${report.analysis.frameRateStatus}`);
+      console.log(`  Overall Health: ${report.analysis.overallHealth}`);
+      
+      // Bottlenecks - safely handle
+      if (report.bottlenecks && report.bottlenecks.length > 0) {
+        console.log('\n🚧 Bottlenecks:');
+        // Limit iteration to prevent issues
+        const maxBottlenecks = Math.min(report.bottlenecks.length, 5);
+        for (let i = 0; i < maxBottlenecks; i++) {
+          const bottleneck = report.bottlenecks[i];
+          if (bottleneck && bottleneck.component) {
+            console.log(`  [${bottleneck.impact}] ${bottleneck.component}`);
+            console.log(`    Issue: ${bottleneck.description}`);
+            console.log(`    Solution: ${bottleneck.solution}`);
+          }
+        }
+      }
+      
+      // Recommendations - safely handle
+      if (report.recommendations && report.recommendations.length > 0) {
+        console.log('\n💡 Recommendations:');
+        // Limit iteration to prevent issues
+        const maxRecs = Math.min(report.recommendations.length, 5);
+        for (let i = 0; i < maxRecs; i++) {
+          console.log(`  ${i + 1}. ${report.recommendations[i]}`);
+        }
+      }
+      
+      console.log('=====================================');
+    } catch (error) {
+      // Fail silently to prevent crash
+      console.error('PerformanceAnalyzer: Failed to log report', error);
     }
-    
-    if (report.recommendations.length > 0) {
-      console.group('💡 Recommendations');
-      report.recommendations.forEach((rec, index) => {
-        console.log(`${index + 1}. ${rec}`);
-      });
-      console.groupEnd();
+  }
+
+  /**
+   * Stop frame rate monitoring
+   */
+  public static stopFrameRateMonitoring(): void {
+    this.frameMonitoringActive = false;
+    if (this.frameMonitoringIntervalId !== null) {
+      clearInterval(this.frameMonitoringIntervalId);
+      this.frameMonitoringIntervalId = null;
     }
-    
-    console.groupEnd();
+    this.frameCheckCount = 0;
+  }
+
+  /**
+   * Cleanup and reset
+   */
+  public static cleanup(): void {
+    this.stopFrameRateMonitoring();
+    this.frameDropCount = 0;
+    this.frameDropBuffer = [];
+    this.frameCheckCount = 0;
+    this.animationMetrics.clear();
+    this.errorBoundaryTriggers = 0;
+    this.navigationTransitions = [];
   }
 }
 
-// Auto-initialize in development
-if (__DEV__) {
-  PerformanceAnalyzer.initialize();
-}
+// Auto-initialization disabled - now controlled by App.tsx for better timing

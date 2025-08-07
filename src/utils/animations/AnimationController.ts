@@ -319,17 +319,43 @@ export class AnimationController {
     const cached = this.animationCache.get(cacheKey);
     if (cached) return cached;
 
-    const animation = Animated.spring(value, {
+    // Build the spring config properly - avoid mixing parameter sets
+    let springConfig: any = {
       toValue,
-      ...adjustedConfig,
       useNativeDriver: adjustedConfig.useNativeDriver ?? true,
-      // Platform-specific optimizations
-      ...(Platform.OS === 'ios' && {
-        stiffness: adjustedConfig.tension,
-        damping: adjustedConfig.friction,
-        mass: 1,
-      }),
-    });
+    };
+
+    // Use either tension/friction OR stiffness/damping/mass, not both
+    if (Platform.OS === 'ios' && adjustedConfig.tension && adjustedConfig.friction) {
+      // Convert tension/friction to stiffness/damping/mass for iOS
+      // This provides better performance on iOS
+      springConfig.stiffness = adjustedConfig.tension;
+      springConfig.damping = adjustedConfig.friction;
+      springConfig.mass = 1;
+    } else if (adjustedConfig.stiffness && adjustedConfig.damping) {
+      // Already has stiffness/damping/mass
+      springConfig.stiffness = adjustedConfig.stiffness;
+      springConfig.damping = adjustedConfig.damping;
+      springConfig.mass = adjustedConfig.mass || 1;
+    } else if (adjustedConfig.tension && adjustedConfig.friction) {
+      // Use tension/friction
+      springConfig.tension = adjustedConfig.tension;
+      springConfig.friction = adjustedConfig.friction;
+    } else if (adjustedConfig.bounciness && adjustedConfig.speed) {
+      // Use bounciness/speed
+      springConfig.bounciness = adjustedConfig.bounciness;
+      springConfig.speed = adjustedConfig.speed;
+    } else {
+      // Default to tension/friction
+      springConfig.tension = 200;
+      springConfig.friction = 15;
+    }
+
+    // Add other config properties that aren't spring parameters
+    if (adjustedConfig.delay) springConfig.delay = adjustedConfig.delay;
+    if (adjustedConfig.velocity !== undefined) springConfig.velocity = adjustedConfig.velocity;
+
+    const animation = Animated.spring(value, springConfig);
 
     this.animationCache.set(cacheKey, animation);
     this.metrics.totalAnimations++;

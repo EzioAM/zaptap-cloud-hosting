@@ -4,7 +4,7 @@
 
 import { Animated } from 'react-native';
 import { animationController } from './AnimationController';
-import { DURATIONS, SPRING_CONFIGS } from './index';
+import { DURATIONS, SPRING_CONFIGS } from './constants';
 
 export class PresetAnimations {
   // Entry animations

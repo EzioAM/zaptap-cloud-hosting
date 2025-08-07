@@ -88,6 +88,7 @@ class CrashReporterService {
   private isFlushingReports = false;
   private databaseAvailable = false;
   private databaseUnavailableLogged = false; // Track if we've already logged database unavailability
+  private submittedReportIds = new Set<string>(); // Track reports that have been successfully submitted
 
   // Storage keys
   private static readonly OFFLINE_REPORTS_KEY = 'crash_reports_offline';
@@ -451,6 +452,12 @@ class CrashReporterService {
       const finalReport = this.config.beforeSend ? this.config.beforeSend(report) : report;
       if (!finalReport) return;
 
+      // Skip if already submitted
+      if (this.submittedReportIds.has(finalReport.id)) {
+        EventLogger.debug('CrashReporter', `Report ${finalReport.id} already submitted, skipping`);
+        return;
+      }
+
       this.reportQueue.push(finalReport);
       EventLogger.error('CrashReporter', 'Error report queued', error as any, {
         report_id: report.id,
@@ -698,12 +705,27 @@ class CrashReporterService {
     // Database availability is already checked in checkDatabaseAvailability()
     // No need to test again here since we only call this when databaseAvailable is true
 
+    // Deduplicate reports by ID before sending and filter out already submitted
+    const uniqueReports = new Map<string, ErrorReport>();
+    reports.forEach(report => {
+      if (!this.submittedReportIds.has(report.id)) {
+        uniqueReports.set(report.id, report);
+      }
+    });
+    const deduplicatedReports = Array.from(uniqueReports.values());
+
+    if (deduplicatedReports.length === 0) {
+      EventLogger.debug('CrashReporter', 'All reports already submitted, skipping');
+      return;
+    }
+
     const errors: Error[] = [];
-    const results = await Promise.allSettled(reports.map(async (report) => {
+    const successfulReports: string[] = [];
+    const results = await Promise.allSettled(deduplicatedReports.map(async (report) => {
       try {
         const { error } = await supabase
           .from('error_reports')
-          .insert({
+          .upsert({
             id: report.id,
             timestamp: report.timestamp,
             error_name: report.error.name,
@@ -718,10 +740,20 @@ class CrashReporterService {
             severity: report.severity,
             fingerprint: report.fingerprint,
             tags: report.tags,
+          }, {
+            onConflict: 'id',
+            ignoreDuplicates: true
           });
 
         if (error) {
-          EventLogger.error('CrashReporter', `Failed to insert report ${report.id}`, {
+          // Ignore duplicate key errors since we're using upsert
+          if (error.code === '23505') {
+            EventLogger.debug('CrashReporter', `Report ${report.id} already exists in database`);
+            successfulReports.push(report.id);
+            return { success: true, reportId: report.id };
+          }
+          
+          EventLogger.error('CrashReporter', `Failed to upsert report ${report.id}`, {
             supabaseError: error,
             errorCode: error.code,
             errorMessage: error.message,
@@ -730,9 +762,10 @@ class CrashReporterService {
           throw new Error(`Supabase error: ${error.message} (code: ${error.code})`);
         }
         
+        successfulReports.push(report.id);
         return { success: true, reportId: report.id };
       } catch (insertError) {
-        EventLogger.error('CrashReporter', `Database insert failed for report ${report.id}`, {
+        EventLogger.error('CrashReporter', `Database upsert failed for report ${report.id}`, {
           error: insertError,
           reportId: report.id
         } as any);
@@ -740,19 +773,22 @@ class CrashReporterService {
       }
     }));
 
+    // Mark successful reports as submitted
+    successfulReports.forEach(id => this.submittedReportIds.add(id));
+
     // Collect all errors from failed insertions
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
-        errors.push(new Error(`Report ${reports[index].id}: ${result.reason}`));
+        errors.push(new Error(`Report ${deduplicatedReports[index].id}: ${result.reason}`));
       }
     });
 
     // If any errors occurred, throw with details
     if (errors.length > 0) {
-      const errorMessage = `Failed to send ${errors.length}/${reports.length} error reports:\n${errors.map(e => e.message).join('\n')}`;
+      const errorMessage = `Failed to send ${errors.length}/${deduplicatedReports.length} error reports:\n${errors.map(e => e.message).join('\n')}`;
       EventLogger.error('CrashReporter', 'Batch send failed with detailed errors', {
         failedCount: errors.length,
-        totalCount: reports.length,
+        totalCount: deduplicatedReports.length,
         errors: errors.map(e => ({ name: e.name, message: e.message, stack: e.stack }))
       } as any);
       throw new Error(errorMessage);
@@ -767,12 +803,22 @@ class CrashReporterService {
       const offlineReports = await AsyncStorage.getItem(CrashReporterService.OFFLINE_REPORTS_KEY);
       if (offlineReports) {
         const reports: ErrorReport[] = JSON.parse(offlineReports);
-        this.reportQueue.unshift(...reports);
+        // Filter out already submitted reports
+        const newReports = reports.filter(report => !this.submittedReportIds.has(report.id));
+        
+        if (newReports.length > 0) {
+          this.reportQueue.unshift(...newReports);
+          EventLogger.info('CrashReporter', 'Loaded offline reports', { 
+            total: reports.length,
+            new: newReports.length,
+            skipped: reports.length - newReports.length
+          });
+        }
+        
         await AsyncStorage.removeItem(CrashReporterService.OFFLINE_REPORTS_KEY);
-        EventLogger.info('CrashReporter', 'Loaded offline reports', { count: reports.length });
 
         // Try to sync loaded reports when database becomes available
-        if (this.databaseAvailable) {
+        if (this.databaseAvailable && newReports.length > 0) {
           this.syncOfflineReports().catch(error => {
             EventLogger.error('CrashReporter', 'Failed to sync offline reports immediately', error as Error);
           });

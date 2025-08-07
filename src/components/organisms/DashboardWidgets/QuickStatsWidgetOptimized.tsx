@@ -90,39 +90,50 @@ const defaultGradients = {
 // Optimized Animated Counter Component
 const AnimatedCounter: React.FC<AnimatedCounterProps> = memo(({ value, suffix = '', color }) => {
   const reducedMotion = useReducedMotion();
-  const animatedValue = useOptimizedAnimatedValue(0, `counter_${value}`);
   const [displayValue, setDisplayValue] = React.useState(0);
-  const listenerRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    
     // Skip animation if reduced motion is enabled
     if (reducedMotion) {
       setDisplayValue(value);
       return;
     }
 
-    // Clean up previous listener
-    if (listenerRef.current) {
-      animatedValue.removeListener(listenerRef.current);
+    // Clear previous animation
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
     }
 
-    // Add optimized listener
-    listenerRef.current = animatedValue.addListener(({ value }) => {
-      // Throttle updates to reduce re-renders
-      requestAnimationFrame(() => {
-        setDisplayValue(Math.round(value));
-      });
-    });
-
-    // Use optimized timing animation
-    animationController.createTiming(animatedValue, value, {
-      duration: DURATIONS.SLOW * 1.5,
-      useNativeDriver: false, // Can't use native driver for value updates
-    }).start();
+    // Animate the value directly without listener to prevent stack overflow
+    const startValue = displayValue;
+    const duration = DURATIONS.SLOW * 1.5;
+    const startTime = Date.now();
+    
+    const updateValue = () => {
+      if (!isMountedRef.current) return;
+      
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const currentValue = Math.round(startValue + (value - startValue) * progress);
+      
+      setDisplayValue(currentValue);
+      
+      if (progress < 1) {
+        // Use setTimeout instead of requestAnimationFrame to prevent stack overflow
+        animationTimeoutRef.current = setTimeout(updateValue, 16); // ~60fps
+      }
+    };
+    
+    updateValue();
 
     return () => {
-      if (listenerRef.current) {
-        animatedValue.removeListener(listenerRef.current);
+      isMountedRef.current = false;
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
       }
     };
   }, [value, reducedMotion]);
@@ -137,30 +148,59 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = memo(({ value, suffix = 
 // Optimized Progress Ring Component
 const ProgressRing: React.FC<ProgressRingProps> = memo(({ progress, color, size = 60 }) => {
   const reducedMotion = useReducedMotion();
-  const animatedProgress = useOptimizedAnimatedValue(0, `progress_${progress}`);
   const strokeWidth = 4;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const [strokeDashoffset, setStrokeDashoffset] = React.useState(circumference);
+  const isMountedRef = useRef(true);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    
     if (reducedMotion) {
       setStrokeDashoffset(circumference - (progress / 100) * circumference);
       return;
     }
 
-    const listener = animatedProgress.addListener(({ value }) => {
-      const offset = circumference - (value / 100) * circumference;
-      setStrokeDashoffset(offset);
-    });
+    // Clear previous animation
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
 
-    // Use spring animation for smoother progress
-    animationController.createSpring(animatedProgress, progress, SPRING_CONFIGS.GENTLE).start();
+    // Animate without using addListener to prevent stack overflow
+    const targetOffset = circumference - (progress / 100) * circumference;
+    const startOffset = strokeDashoffset;
+    const duration = 300; // Spring-like duration
+    const startTime = Date.now();
+    
+    const updateProgress = () => {
+      if (!isMountedRef.current) return;
+      
+      const elapsed = Date.now() - startTime;
+      const progressValue = Math.min(elapsed / duration, 1);
+      
+      // Easing function for spring-like effect
+      const easeOutQuad = progressValue * (2 - progressValue);
+      const currentOffset = startOffset + (targetOffset - startOffset) * easeOutQuad;
+      
+      setStrokeDashoffset(currentOffset);
+      
+      if (progressValue < 1) {
+        // Use setTimeout to prevent stack overflow
+        animationTimeoutRef.current = setTimeout(updateProgress, 16); // ~60fps
+      }
+    };
+    
+    updateProgress();
 
     return () => {
-      animatedProgress.removeListener(listener);
+      isMountedRef.current = false;
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
     };
-  }, [progress, circumference, reducedMotion]);
+  }, [progress, circumference, reducedMotion, strokeDashoffset]);
 
   return (
     <Svg width={size} height={size} style={{ position: 'absolute' }}>
@@ -281,7 +321,7 @@ const QuickStatsWidgetOptimized: React.FC = memo(() => {
   // Adjust animation quality based on FPS
   useEffect(() => {
     if (isLowFPS && __DEV__) {
-      EventLogger.warn('UI', 'Low FPS detected: ${currentFPS}fps');
+      EventLogger.warn('UI', `Low FPS detected: ${currentFPS}fps`);
     }
   }, [isLowFPS, currentFPS]);
 

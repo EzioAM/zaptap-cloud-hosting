@@ -1,0 +1,49 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Enhanced Components Snapshots Accessibility Snapshots should render components with accessibility attributes: build-screen-accessible 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Accessibility Snapshots should render components with accessibility attributes: onboarding-accessible 1`] = `null`;
+
+exports[`Enhanced Components Snapshots BuildScreenSafe should render build screen with automation data 1`] = `null`;
+
+exports[`Enhanced Components Snapshots BuildScreenSafe should render build screen with many steps 1`] = `null`;
+
+exports[`Enhanced Components Snapshots BuildScreenSafe should render empty build screen correctly 1`] = `null`;
+
+exports[`Enhanced Components Snapshots DeploymentOptions should render deployment modal for private automation 1`] = `null`;
+
+exports[`Enhanced Components Snapshots DeploymentOptions should render deployment modal for public automation 1`] = `null`;
+
+exports[`Enhanced Components Snapshots DeploymentOptions should render deployment modal with no description 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Error States should render components with error states: build-screen-error 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Error States should render components with error states: deployment-options-error 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Loading States should render components with loading states: build-screen-loading 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Loading States should render components with loading states: deployment-options-loading 1`] = `null`;
+
+exports[`Enhanced Components Snapshots OfflineIndicator should render offline state correctly 1`] = `null`;
+
+exports[`Enhanced Components Snapshots OfflineIndicator should render online state correctly 1`] = `null`;
+
+exports[`Enhanced Components Snapshots OnboardingFlow should render NFC tutorial step correctly 1`] = `null`;
+
+exports[`Enhanced Components Snapshots OnboardingFlow should render automation tutorial step correctly 1`] = `null`;
+
+exports[`Enhanced Components Snapshots OnboardingFlow should render permissions step correctly 1`] = `null`;
+
+exports[`Enhanced Components Snapshots OnboardingFlow should render welcome step correctly 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Responsive Design Snapshots should render components with different screen sizes: build-screen-responsive 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Responsive Design Snapshots should render components with different screen sizes: deployment-options-responsive 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Theme Variations should render components with dark theme: build-screen-dark-theme 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Theme Variations should render components with dark theme: onboarding-dark-theme 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Theme Variations should render components with light theme: build-screen-light-theme 1`] = `null`;
+
+exports[`Enhanced Components Snapshots Theme Variations should render components with light theme: offline-indicator-light-theme 1`] = `null`;

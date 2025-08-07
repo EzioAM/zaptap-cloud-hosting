@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`QuickActionsWidget Button States maintains button layout with different content lengths 1`] = `null`;
+
+exports[`QuickActionsWidget Layout handles different screen sizes 1`] = `null`;
+
+exports[`QuickActionsWidget Rendering matches snapshot 1`] = `null`;
+
+exports[`QuickActionsWidget Theme Integration handles missing theme gracefully 1`] = `null`;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, ActivityIndicator, Alert } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ModernBottomTabNavigator } from './ModernBottomTabNavigator';
 // import { ModernBottomTabNavigator } from './EmergencyBottomTabNavigator';
 import AutomationBuilderScreen from '../screens/automation/AutomationBuilderScreen';
@@ -21,9 +22,9 @@ import TermsScreen from '../screens/placeholder/TermsScreen';
 import HelpScreen from '../screens/placeholder/HelpScreen';
 import DocsScreen from '../screens/placeholder/DocsScreen';
 import FAQScreen from '../screens/placeholder/FAQScreen';
-import EditProfileScreen from '../screens/placeholder/EditProfileScreen';
-import ChangePasswordScreen from '../screens/placeholder/ChangePasswordScreen';
-import EmailPreferencesScreen from '../screens/placeholder/EmailPreferencesScreen';
+import EditProfileScreen from '../screens/profile/EditProfileScreen';
+import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
+import EmailPreferencesScreen from '../screens/settings/EmailPreferencesScreen';
 import PrivacyPolicyScreen from '../screens/placeholder/PrivacyPolicyScreen';
 import ScannerScreen from '../screens/modern/ScannerScreen';
 import { RootStackParamList } from './types';
@@ -161,9 +162,11 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         }}
       >
         {(props) => (
-          <NavigationErrorBoundary context="BottomTabNavigator">
-            <ModernBottomTabNavigator {...props} />
-          </NavigationErrorBoundary>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <NavigationErrorBoundary context="BottomTabNavigator">
+              <ModernBottomTabNavigator {...props} />
+            </NavigationErrorBoundary>
+          </GestureHandlerRootView>
         )}
       </Stack.Screen>
       <Stack.Screen

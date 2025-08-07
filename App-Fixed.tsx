@@ -1,78 +1,3 @@
-// EMERGENCY STACK OVERFLOW PROTECTION - MUST BE ABSOLUTELY FIRST
-// This runs before ANY imports to catch recursion
-if (__DEV__ && typeof global !== 'undefined') {
-  // Override Function.apply to catch infinite recursion
-  const originalApply = Function.prototype.apply;
-  let applyDepth = 0;
-  
-  Function.prototype.apply = function(thisArg, argsArray) {
-    applyDepth++;
-    
-    if (applyDepth > 100) {
-      console.error('🚨 CRITICAL: Function.apply recursion at depth', applyDepth);
-      applyDepth = 0;
-      throw new Error('Stack overflow prevented in Function.apply at depth 100');
-    }
-    
-    try {
-      const result = originalApply.call(this, thisArg, argsArray);
-      applyDepth--;
-      return result;
-    } catch (error) {
-      applyDepth = 0;
-      if (error.message?.includes('Maximum call stack')) {
-        console.error('🚨 Stack overflow caught in apply');
-        throw new Error('Stack overflow prevented in Function.apply');
-      }
-      throw error;
-    }
-  };
-  
-  // Override Array.map to catch recursion
-  const originalMap = Array.prototype.map;
-  let mapDepth = 0;
-  
-  Array.prototype.map = function(callback, thisArg) {
-    mapDepth++;
-    
-    if (mapDepth > 50) {
-      console.error('🚨 CRITICAL: Array.map recursion at depth', mapDepth);
-      mapDepth = 0;
-      return this.slice();  // Return copy of original array to preserve some functionality
-    }
-    
-    try {
-      const result = originalMap.call(this, callback, thisArg);
-      mapDepth--;
-      return result;
-    } catch (error) {
-      mapDepth = 0;
-      if (error.message?.includes('Maximum call stack')) {
-        console.error('🚨 Stack overflow caught in map');
-        return this.slice();  // Return copy of original array
-      }
-      throw error;
-    }
-  };
-  
-  console.log('✅ Emergency stack overflow protection active');
-  
-  // Debug touch event registration (disabled - EventTarget not available in Hermes)
-  // Commenting out EventTarget usage to fix Hermes compatibility
-  /*
-  if (typeof EventTarget !== 'undefined') {
-    const originalAddEventListener = EventTarget.prototype.addEventListener;
-    EventTarget.prototype.addEventListener = function(type, listener, options) {
-      if (type.includes('touch') || type === 'press' || type === 'click' || type === 'tap') {
-        console.log('📱 Touch/Press event registered:', type);
-      }
-      return originalAddEventListener.call(this, type, listener, options);
-    };
-    console.log('📱 Touch event debugging enabled');
-  }
-  */
-}
-
 // Import crypto polyfill FIRST to support UUID generation in React Native
 import 'react-native-get-random-values';
 
@@ -82,51 +7,11 @@ import { PerformanceMeasurement } from './src/utils/PerformanceMeasurement';
 // Mark the very start of app loading
 PerformanceMeasurement.mark('app_bootstrap_start');
 
-// Global stack overflow catcher for debugging
-if (__DEV__) {
-  const originalError = console.error;
-  const originalWarn = console.warn;
-  let stackOverflowCount = 0;
-  
-  console.error = (...args) => {
-    const errorString = args.join(' ');
-    if (errorString.includes('Maximum call stack size exceeded')) {
-      stackOverflowCount++;
-      console.warn(`🚨 STACK OVERFLOW #${stackOverflowCount} DETECTED - Attempting to identify source`);
-      
-      // Try to get more info about where it's happening
-      try {
-        const stack = new Error().stack;
-        console.warn('Stack trace sample:', stack?.split('\n').slice(0, 5).join('\n'));
-      } catch (e) {
-        // Can't get stack
-      }
-      
-      // Don't propagate the error if we've seen it too many times
-      if (stackOverflowCount > 3) {
-        return;
-      }
-    }
-    originalError.apply(console, args);
-  };
-  
-  // Also catch warnings
-  console.warn = (...args) => {
-    const warnString = args.join(' ');
-    if (warnString.includes('Maximum call stack size exceeded')) {
-      console.log('🚨 Stack overflow in warning');
-      return;
-    }
-    originalWarn.apply(console, args);
-  };
-}
-
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as ReduxProvider } from 'react-redux';
 import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Direct imports instead of lazy loading for React 19 compatibility
 import { AppNavigator } from './src/navigation/AppNavigator';
@@ -138,10 +23,8 @@ import { CrashReporter } from './src/services/monitoring/CrashReporter';
 import { PerformanceMonitor } from './src/services/monitoring/PerformanceMonitor';
 import { initializeErrorInterceptor } from './src/utils/errorInterceptor';
 import { EventLogger } from './src/utils/EventLogger';
-// import { PerformanceAnalyzer } from './src/utils/PerformanceAnalyzer'; // REMOVED to fix stack overflow
+import { PerformanceAnalyzer } from './src/utils/PerformanceAnalyzer';
 import { PerformanceOptimizer } from './src/utils/PerformanceOptimizer';
-import { NotificationService } from './src/services/notifications/NotificationService';
-import { SafeAppWrapper } from './src/utils/SafeAppWrapper';
 
 // Initialize services directly for React 19 compatibility
 let servicesInitialized = false;
@@ -163,63 +46,8 @@ const initializeBackgroundServices = async () => {
   if (servicesInitialized) return;
   
   try {
-    // Initialize error interceptor first
+    // Initialize error interceptor
     initializeErrorInterceptor();
-    
-    // Defer heavy monitoring services to avoid impacting startup
-    setTimeout(async () => {
-      try {
-        // Initialize crash reporter with reduced impact
-        await CrashReporter.initialize({
-          enabled: true,
-          captureConsoleErrors: __DEV__,
-          captureUnhandledPromiseRejections: true,
-        });
-        
-        // Initialize performance monitor after crash reporter
-        await PerformanceMonitor.initialize();
-        
-        // Performance analyzer DISABLED - was causing stack overflow
-        // TODO: Re-enable after fixing circular reference issues
-        /*
-        if (__DEV__) {
-          setTimeout(() => {
-            try {
-              // PerformanceAnalyzer.initialize();
-            } catch (error) {
-              console.warn('PerformanceAnalyzer initialization failed:', error);
-            }
-          }, 3000);
-        }
-        */
-        
-        // Initialize push notifications
-        const notificationService = NotificationService.getInstance();
-        await notificationService.initialize();
-        await notificationService.requestPermissions();
-        
-        EventLogger.info('App', 'Monitoring services initialized');
-      } catch (monitoringError) {
-        console.warn('Monitoring services initialization failed:', monitoringError);
-      }
-    }, 2000); // Delay heavy services by 2 seconds
-    
-    // Initialize performance optimizer with conservative settings
-    setTimeout(() => {
-      try {
-        PerformanceOptimizer.initialize({
-          enableAutoOptimization: false,
-          targetLaunchTime: 2500,
-          targetFPS: 50,
-          maxMemoryUsage: 200,
-          enableNavigationPreloading: true,
-          enableCaching: true,
-          enableAnimationOptimization: true,
-        });
-      } catch (perfError) {
-        console.warn('Performance optimizer initialization failed:', perfError);
-      }
-    }, 1000); // Delay by 1 second
     
     // Log successful initialization
     EventLogger.info('App', 'All services loaded successfully');
@@ -314,24 +142,6 @@ const LoadingScreen = () => (
   </View>
 );
 
-// Touch debugger component to diagnose touch issues
-const TouchDebugger: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  if (!__DEV__) return <>{children}</>;
-  
-  return (
-    <View 
-      style={{ flex: 1 }}
-      onStartShouldSetResponder={() => {
-        console.log('🎯 Touch detected at TouchDebugger level');
-        return false; // Don't capture, let it pass through
-      }}
-      pointerEvents="box-none"
-    >
-      {children}
-    </View>
-  );
-};
-
 // Component for rendering the full app once services are loaded
 const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
   // Create full theme with Material Design 3
@@ -347,37 +157,29 @@ const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
     },
   };
 
-  console.log('🔄 FullApp rendering with GestureHandlerRootView');
-
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <TouchDebugger>
-        <SafeAppWrapper enableProtection={__DEV__} maxRenderCycles={100}>
-          <SafeAreaProvider>
-            <ReduxProvider store={store}>
-              <PaperProvider theme={paperTheme}>
-                <ThemeCompatibilityProvider>
-                  <AuthInitializer>
-                    <ConnectionProvider>
-                      <AnalyticsProvider
-                        config={{
-                          environment: __DEV__ ? 'development' : 'production',
-                          debugMode: __DEV__,
-                          enableCrashReporting: true,
-                          enablePerformanceMonitoring: true,
-                        }}
-                      >
-                        <AppNavigator />
-                      </AnalyticsProvider>
-                    </ConnectionProvider>
-                  </AuthInitializer>
-                </ThemeCompatibilityProvider>
-              </PaperProvider>
-            </ReduxProvider>
-          </SafeAreaProvider>
-        </SafeAppWrapper>
-      </TouchDebugger>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <ReduxProvider store={store}>
+        <PaperProvider theme={paperTheme}>
+          <ThemeCompatibilityProvider>
+            <AuthInitializer>
+              <ConnectionProvider>
+                <AnalyticsProvider
+                  config={{
+                    environment: __DEV__ ? 'development' : 'production',
+                    debugMode: __DEV__,
+                    enableCrashReporting: true,
+                    enablePerformanceMonitoring: true,
+                  }}
+                >
+                  <AppNavigator />
+                </AnalyticsProvider>
+              </ConnectionProvider>
+            </AuthInitializer>
+          </ThemeCompatibilityProvider>
+        </PaperProvider>
+      </ReduxProvider>
+    </SafeAreaProvider>
   );
 });
 
@@ -405,6 +207,19 @@ export default function App() {
         const storeInstance = await initializeStore();
         
         if (!mounted) return;
+        
+        // Initialize performance optimization
+        try {
+          PerformanceAnalyzer.initialize();
+          PerformanceOptimizer.initialize({
+            enableAutoOptimization: false, // Disable auto-optimization for stability
+            targetLaunchTime: 2500,
+            targetFPS: 50,
+            maxMemoryUsage: 200,
+          });
+        } catch (perfError) {
+          console.warn('Performance optimization failed to initialize:', perfError);
+        }
         
         // Set store to trigger re-render with full app
         setStore(storeInstance);
@@ -437,16 +252,16 @@ export default function App() {
             
             console.groupEnd();
             
-            // Performance analysis DISABLED - was causing stack overflow
-            /*
-            setTimeout(() => {
-              try {
-                // PerformanceAnalyzer.logReport();
-              } catch (analysisError) {
-                console.warn('Performance analysis failed:', analysisError);
-              }
-            }, 3000);
-            */
+            // Generate and log performance analysis
+            const perfReport = PerformanceAnalyzer.generateReport();
+            console.group('🔍 Performance Analysis');
+            console.log(`Overall Health: ${perfReport.analysis.overallHealth}`);
+            console.log(`Error Boundary Overhead: ${perfReport.metrics.errorBoundaryOverhead}ms`);
+            console.log(`Animation Smoothness: ${perfReport.metrics.animationSmoothnessScore}/100`);
+            if (perfReport.bottlenecks.length > 0) {
+              console.log('Bottlenecks:', perfReport.bottlenecks.map(b => b.component).join(', '));
+            }
+            console.groupEnd();
           } catch (reportError) {
             console.warn('Performance reporting failed:', reportError);
           }

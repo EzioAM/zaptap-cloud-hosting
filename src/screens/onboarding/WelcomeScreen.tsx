@@ -5,6 +5,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   StatusBar,
   Platform,
 } from 'react-native';
@@ -42,6 +43,11 @@ export function WelcomeScreen() {
   const fadeAnim = useSharedValue(0);
   const scaleAnim = useSharedValue(0.8);
   const slideAnim = useSharedValue(50);
+  
+  // Debug: Log when component mounts
+  useEffect(() => {
+    console.log('🎨 WelcomeScreen mounted, navigation available:', !!navigation);
+  }, []);
 
   useEffect(() => {
     // Entrance animations
@@ -90,18 +96,13 @@ export function WelcomeScreen() {
       console.log('Haptics error (not critical):', error);
     }
     
+    // Mark onboarding as complete - this will trigger AppNavigator to show MainNavigator
     await onboardingManager.skipOnboarding();
-    if (navigation) {
-      console.log('🚀 Resetting navigation to MainTabs');
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' as never }],
-      });
-    } else {
-      console.log('⚠️ Navigation not available, app will restart');
-      EventLogger.warn('Welcome', '[WelcomeScreen] Navigation not available - app will restart with main flow');
-      // Navigation will be handled on next app launch
-    }
+    await onboardingManager.completeOnboarding();
+    
+    // The AppNavigator will automatically switch to MainNavigator
+    // when it detects onboarding is complete
+    console.log('✅ Onboarding completed, app will switch to main navigation');
   };
 
   const logoAnimatedStyle = useAnimatedStyle(() => ({
@@ -120,6 +121,25 @@ export function WelcomeScreen() {
       style={styles.container}
     >
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      {/* Test button to verify touches work */}
+      {__DEV__ && (
+        <View style={{ position: 'absolute', top: 100, left: 20, zIndex: 9999 }}>
+          <Pressable
+            onPress={() => {
+              console.log('🚨 TEST BUTTON PRESSED!');
+              alert('Touch is working!');
+            }}
+            style={{ 
+              backgroundColor: 'red', 
+              padding: 20, 
+              borderRadius: 10 
+            }}
+          >
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>TEST TOUCH</Text>
+          </Pressable>
+        </View>
+      )}
       
       <SafeAreaView style={styles.safeArea}>
         {/* Skip Button */}
@@ -193,25 +213,33 @@ export function WelcomeScreen() {
 
           {/* Action Buttons */}
           <Animated.View style={[styles.buttonContainer, contentAnimatedStyle]}>
-            <TouchableOpacity
-              style={styles.getStartedButton}
+            <Pressable
+              style={({ pressed }) => [
+                styles.getStartedButton,
+                pressed && { opacity: 0.7 }
+              ]}
               onPress={handleGetStarted}
-              activeOpacity={0.8}
+              onPressIn={() => console.log('🔽 Get Started button pressed in')}
+              onPressOut={() => console.log('🔼 Get Started button pressed out')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <BlurView intensity={20} style={styles.buttonBlur}>
                 <Text style={styles.getStartedButtonText}>Get Started</Text>
                 <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
               </BlurView>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.skipButton}
+            <Pressable
+              style={({ pressed }) => [
+                styles.skipButton,
+                pressed && { opacity: 0.5 }
+              ]}
               onPress={handleSkip}
-              activeOpacity={0.7}
+              onPressIn={() => console.log('🔽 Skip Tutorial button pressed in')}
+              onPressOut={() => console.log('🔼 Skip Tutorial button pressed out')}
             >
               <Text style={styles.skipButtonText}>Skip Tutorial</Text>
-            </TouchableOpacity>
+            </Pressable>
           </Animated.View>
         </View>
       </SafeAreaView>

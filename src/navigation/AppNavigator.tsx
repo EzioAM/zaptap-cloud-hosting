@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { linkingService } from '../services/linking/LinkingService';
@@ -8,6 +9,7 @@ import { RootStackParamList } from './types';
 import { MainNavigator } from './MainNavigator';
 import { onboardingManager } from '../utils/OnboardingManager';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
+import { OnboardingFlow } from '../screens/onboarding/OnboardingFlow';
 import { NotificationProvider } from '../components/notifications/NotificationProvider';
 import { EventLogger } from '../utils/EventLogger';
 
@@ -30,6 +32,21 @@ const EmergencyScreen = React.memo(() => (
     <Text style={styles.emergencyText}>Navigation Loading...</Text>
   </View>
 ));
+
+// Create Stack Navigator for Onboarding
+const OnboardingStack = createStackNavigator();
+
+// Onboarding Navigator Component
+const OnboardingNavigator = React.memo(() => {
+  console.log('📱 OnboardingNavigator rendering');
+  
+  return (
+    <OnboardingStack.Navigator screenOptions={{ headerShown: false }}>
+      <OnboardingStack.Screen name="Welcome" component={WelcomeScreen} />
+      <OnboardingStack.Screen name="OnboardingFlow" component={OnboardingFlow} />
+    </OnboardingStack.Navigator>
+  );
+});
 
 const AppNavigatorContent = React.memo(() => {
   appNavigatorInitCount++;
@@ -56,7 +73,7 @@ const AppNavigatorContent = React.memo(() => {
     // Continue with default values
   }
 
-  // Check onboarding status on mount
+  // Check onboarding status on mount and periodically
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       try {
@@ -75,6 +92,11 @@ const AppNavigatorContent = React.memo(() => {
     };
 
     checkOnboardingStatus();
+    
+    // Check periodically for onboarding completion
+    const interval = setInterval(checkOnboardingStatus, 1000);
+    
+    return () => clearInterval(interval);
   }, []);
   
   // Initialize linking service when navigation is ready
@@ -153,18 +175,17 @@ const AppNavigatorContent = React.memo(() => {
     }, 1000);
   }, []);
 
-  // Handle navigation state changes to intercept and redirect invalid routes
+  // Handle navigation state changes (removed BuildScreen redirect as it's a valid screen)
   const onStateChange = useCallback(() => {
     if (navigationRef.current) {
       const state = navigationRef.current.getRootState();
       const currentRoute = state?.routes[state.index];
       
-      // Check if trying to navigate to BuildScreen
-      if (currentRoute?.name === 'BuildScreen') {
-        EventLogger.warn('Navigation', '🚨 Redirecting BuildScreen to AutomationBuilder');
-        // Redirect to AutomationBuilder with the same params
-        const params = (currentRoute as any).params;
-        navigationRef.current.navigate('AutomationBuilder' as never, params as never);
+      // Log navigation for debugging if needed
+      if (__DEV__) {
+        EventLogger.debug('Navigation', 'Navigation state changed', { 
+          currentRoute: currentRoute?.name 
+        });
       }
     }
   }, []);
@@ -222,10 +243,10 @@ const AppNavigatorContent = React.memo(() => {
           linking={linking}
           fallback={<EmergencyScreen />}
         >
-          {/* Show welcome screen if onboarding not completed, otherwise show main navigator */}
+          {/* Show onboarding navigator if not completed, otherwise show main navigator */}
           {hasCompletedOnboarding === false ? (
-            <NavigationErrorBoundary context="WelcomeScreen">
-              <WelcomeScreen />
+            <NavigationErrorBoundary context="OnboardingNavigator">
+              <OnboardingNavigator />
             </NavigationErrorBoundary>
           ) : (
             <NavigationErrorBoundary context="MainNavigator">

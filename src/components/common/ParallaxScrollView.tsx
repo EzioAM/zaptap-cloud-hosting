@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Animated,
@@ -18,7 +18,7 @@ interface ParallaxScrollViewProps {
   children: ReactNode;
   backgroundComponent?: ReactNode;
   headerComponent?: ReactNode;
-  onScroll?: (event: any) => void;
+  onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
   refreshControl?: ReactNode;
   showsVerticalScrollIndicator?: boolean;
   contentContainerStyle?: any;
@@ -31,7 +31,7 @@ interface ParallaxScrollViewProps {
   fadeOutParallax?: boolean;
 }
 
-export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = ({
+export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = React.memo(({
   children,
   backgroundComponent,
   headerComponent,
@@ -47,47 +47,83 @@ export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = ({
   stickyHeaderHeight = HEADER_MIN_HEIGHT,
   fadeOutParallax = true,
 }) => {
-  const scrollY = new Animated.Value(0);
+  // Use useRef to prevent recreating Animated.Value on each render
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-  const headerTranslate = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, -HEADER_SCROLL_DISTANCE],
-    extrapolate: 'clamp',
-  });
+  // Memoize all interpolated values to prevent recreation
+  const headerTranslate = useMemo(() => 
+    scrollY.interpolate({
+      inputRange: [0, HEADER_SCROLL_DISTANCE],
+      outputRange: [0, -HEADER_SCROLL_DISTANCE],
+      extrapolate: 'clamp',
+    }), [scrollY]);
 
-  const imageOpacity = fadeOutParallax
-    ? scrollY.interpolate({
-        inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
-        outputRange: [1, 1, 0],
-        extrapolate: 'clamp',
-      })
-    : 1;
+  const imageOpacity = useMemo(() => 
+    fadeOutParallax
+      ? scrollY.interpolate({
+          inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+          outputRange: [1, 1, 0],
+          extrapolate: 'clamp',
+        })
+      : 1, [fadeOutParallax, scrollY]);
 
-  const imageTranslate = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, 100],
-    extrapolate: 'extend',
-  });
+  const imageTranslate = useMemo(() => 
+    scrollY.interpolate({
+      inputRange: [0, HEADER_SCROLL_DISTANCE],
+      outputRange: [0, 100],
+      extrapolate: 'extend',
+    }), [scrollY]);
 
-  const titleScale = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
-    outputRange: [1, 1, 0.8],
-    extrapolate: 'clamp',
-  });
+  const titleScale = useMemo(() => 
+    scrollY.interpolate({
+      inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+      outputRange: [1, 1, 0.8],
+      extrapolate: 'clamp',
+    }), [scrollY]);
 
-  const titleTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, 0, -8],
-    extrapolate: 'clamp',
-  });
+  const titleTranslateY = useMemo(() => 
+    scrollY.interpolate({
+      inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+      outputRange: [0, 0, -8],
+      extrapolate: 'clamp',
+    }), [scrollY]);
 
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    {
-      useNativeDriver: true,
-      listener: onScroll && typeof onScroll === 'function' ? onScroll : undefined,
-    }
-  );
+  // Memoize sticky header animations BEFORE using them
+  const stickyHeaderOpacity = useMemo(() => 
+    scrollY.interpolate({
+      inputRange: [0, HEADER_SCROLL_DISTANCE - 50, HEADER_SCROLL_DISTANCE],
+      outputRange: [0, 0, 1],
+      extrapolate: 'clamp',
+    }), [scrollY]);
+  
+  const stickyHeaderTranslateY = useMemo(() => 
+    scrollY.interpolate({
+      inputRange: [0, HEADER_SCROLL_DISTANCE, HEADER_SCROLL_DISTANCE + 1],
+      outputRange: [stickyHeaderHeight, 0, 0],
+      extrapolate: 'clamp',
+    }), [scrollY, stickyHeaderHeight]);
+
+  // Memoize scroll handler to prevent recreation
+  const handleScroll = useMemo(() => 
+    Animated.event(
+      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+      {
+        useNativeDriver: true,
+        listener: (event: { nativeEvent: { contentOffset: { y: number } } }) => {
+          // Prevent potential recursion from onScroll handler
+          if (onScroll && typeof onScroll === 'function') {
+            try {
+              // Use setTimeout to break potential recursion chain
+              setTimeout(() => {
+                onScroll(event);
+              }, 0);
+            } catch (error) {
+              console.warn('ParallaxScrollView: onScroll handler error:', error);
+            }
+          }
+        },
+      }
+    ), [scrollY, onScroll]);
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
@@ -162,18 +198,10 @@ export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = ({
             styles.stickyHeader,
             {
               height: stickyHeaderHeight,
-              opacity: scrollY.interpolate({
-                inputRange: [0, HEADER_SCROLL_DISTANCE - 50, HEADER_SCROLL_DISTANCE],
-                outputRange: [0, 0, 1],
-                extrapolate: 'clamp',
-              }),
+              opacity: stickyHeaderOpacity,
               transform: [
                 {
-                  translateY: scrollY.interpolate({
-                    inputRange: [0, HEADER_SCROLL_DISTANCE, HEADER_SCROLL_DISTANCE + 1],
-                    outputRange: [stickyHeaderHeight, 0, 0],
-                    extrapolate: 'clamp',
-                  }),
+                  translateY: stickyHeaderTranslateY,
                 },
               ],
             },
@@ -198,7 +226,7 @@ export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = ({
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

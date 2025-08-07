@@ -469,11 +469,10 @@ export const OnboardingFlow: React.FC = () => {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await onboardingManager.markOnboardingCompleted();
     
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'MainTabs' as never }],
-    });
-  }, [navigation]);
+    // The AppNavigator will automatically switch to MainNavigator
+    // when it detects onboarding is complete
+    console.log('✅ Onboarding flow completed, app will switch to main navigation');
+  }, []);
 
   const handlePermissionRequest = async (permission: string): Promise<boolean> => {
     // Mock permission request - in real app, use expo-permissions or similar

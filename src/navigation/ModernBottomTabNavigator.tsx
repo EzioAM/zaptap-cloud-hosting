@@ -168,11 +168,11 @@ export const ModernBottomTabNavigator = () => {
                 shadowOffset: { width: 0, height: -2 },
                 shadowOpacity: 0.15,
                 shadowRadius: 12,
-                // Ensure proper touch handling
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
+                // Remove absolute positioning to fix touch issues
+                // position: 'absolute',
+                // bottom: 0,
+                // left: 0,
+                // right: 0,
               },
               tabBarItemStyle: {
                 paddingVertical: 5,
