@@ -127,7 +127,7 @@ export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = React.memo(
       <Animated.ScrollView
         style={styles.container}
         onScroll={handleScroll}
-        scrollEventThrottle={16} // PERFORMANCE FIX: Increased from 1 to reduce event frequency
+        scrollEventThrottle={100} // TOUCH FIX: Further increased to 100ms to reduce event flooding and improve touch responsiveness
         showsVerticalScrollIndicator={showsVerticalScrollIndicator}
         refreshControl={refreshControl}
         contentContainerStyle={[

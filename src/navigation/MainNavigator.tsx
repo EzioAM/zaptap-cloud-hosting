@@ -162,7 +162,8 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         }}
       >
         {(props) => (
-          <GestureHandlerRootView style={{ flex: 1 }}>
+          // TOUCH FIX: Configure GestureHandlerRootView to not interfere with touches
+          <GestureHandlerRootView style={{ flex: 1 }} shouldActivateOnStart={false}>
             <NavigationErrorBoundary context="BottomTabNavigator">
               <ModernBottomTabNavigator {...props} />
             </NavigationErrorBoundary>

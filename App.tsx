@@ -314,23 +314,8 @@ const LoadingScreen = () => (
   </View>
 );
 
-// Touch debugger component to diagnose touch issues
-const TouchDebugger: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  if (!__DEV__) return <>{children}</>;
-  
-  return (
-    <View 
-      style={{ flex: 1 }}
-      onStartShouldSetResponder={() => {
-        console.log('🎯 Touch detected at TouchDebugger level');
-        return false; // Don't capture, let it pass through
-      }}
-      pointerEvents="box-none"
-    >
-      {children}
-    </View>
-  );
-};
+// TOUCH FIX: Completely remove TouchDebugger wrapper to prevent any touch interference
+// The original TouchDebugger component was removed as it could potentially block touches
 
 // Component for rendering the full app once services are loaded
 const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
@@ -350,33 +335,32 @@ const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
   console.log('🔄 FullApp rendering with GestureHandlerRootView');
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <TouchDebugger>
-        <SafeAppWrapper enableProtection={__DEV__} maxRenderCycles={100}>
-          <SafeAreaProvider>
-            <ReduxProvider store={store}>
-              <PaperProvider theme={paperTheme}>
-                <ThemeCompatibilityProvider>
-                  <AuthInitializer>
-                    <ConnectionProvider>
-                      <AnalyticsProvider
-                        config={{
-                          environment: __DEV__ ? 'development' : 'production',
-                          debugMode: __DEV__,
-                          enableCrashReporting: true,
-                          enablePerformanceMonitoring: true,
-                        }}
-                      >
-                        <AppNavigator />
-                      </AnalyticsProvider>
-                    </ConnectionProvider>
-                  </AuthInitializer>
-                </ThemeCompatibilityProvider>
-              </PaperProvider>
-            </ReduxProvider>
-          </SafeAreaProvider>
-        </SafeAppWrapper>
-      </TouchDebugger>
+    // TOUCH FIX: Ensure GestureHandlerRootView is configured properly for touch handling
+    <GestureHandlerRootView style={{ flex: 1 }} shouldActivateOnStart={false}>
+      <SafeAppWrapper enableProtection={__DEV__} maxRenderCycles={100}>
+        <SafeAreaProvider>
+          <ReduxProvider store={store}>
+            <PaperProvider theme={paperTheme}>
+              <ThemeCompatibilityProvider>
+                <AuthInitializer>
+                  <ConnectionProvider>
+                    <AnalyticsProvider
+                      config={{
+                        environment: __DEV__ ? 'development' : 'production',
+                        debugMode: __DEV__,
+                        enableCrashReporting: true,
+                        enablePerformanceMonitoring: true,
+                      }}
+                    >
+                      <AppNavigator />
+                    </AnalyticsProvider>
+                  </ConnectionProvider>
+                </AuthInitializer>
+              </ThemeCompatibilityProvider>
+            </PaperProvider>
+          </ReduxProvider>
+        </SafeAreaProvider>
+      </SafeAppWrapper>
     </GestureHandlerRootView>
   );
 });
