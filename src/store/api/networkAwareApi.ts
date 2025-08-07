@@ -8,17 +8,21 @@
 import NetInfo from '@react-native-community/netinfo';
 import { ApiError } from './baseApi';
 import { EventLogger } from '../../utils/EventLogger';
-
-// Cache network status to avoid repeated checks
+// Cache network status to avoid repeated checks - start optimistically online
 let isOnline = true;
-let lastNetworkCheck = 0;
+let lastNetworkCheck = Date.now();
 const NETWORK_CHECK_INTERVAL = 5000; // 5 seconds
 
-// Initialize network listener
-NetInfo.addEventListener(state => {
-  isOnline = state.isConnected ?? true;
-  lastNetworkCheck = Date.now();
-});
+// Initialize network listener with error handling
+try {
+  NetInfo.addEventListener(state => {
+    isOnline = state.isConnected ?? true;
+    lastNetworkCheck = Date.now();
+  });
+} catch (error) {
+  // NetInfo might not be available in all environments (e.g., web)
+  EventLogger.debug('NetworkAwareAPI', 'NetInfo not available, assuming online status');
+}
 
 /**
  * Check if device is online (with caching)
@@ -35,7 +39,7 @@ export const checkNetworkStatus = async (): Promise<boolean> => {
     lastNetworkCheck = Date.now();
     return isOnline;
   } catch (error) {
-    EventLogger.warn('API', 'Failed to check network status:', error);
+    EventLogger.warn('NetworkAwareAPI', 'Failed to check network status', error);
     return isOnline; // Return last known state
   }
 };
@@ -104,7 +108,7 @@ export const logApiError = (error: any, context: string) => {
   const lastLogged = errorLogCache.get(errorKey) || 0;
   
   if (Date.now() - lastLogged > ERROR_LOG_INTERVAL) {
-    EventLogger.error('API', '[${context}] API Error:', error as Error);
+    EventLogger.error('NetworkAwareAPI', `[${context}] API Error`, error);
     errorLogCache.set(errorKey, Date.now());
   }
 };

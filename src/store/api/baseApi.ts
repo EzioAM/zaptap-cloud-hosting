@@ -8,11 +8,42 @@
 import { fetchBaseQuery, BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
 import { supabase, ensureValidSession } from '../../services/supabase/client';
 import Constants from 'expo-constants';
-import { RootState } from '../index';
-import { offlineQueue } from '../../services/offline/OfflineQueue';
-import { syncManager } from '../../services/offline/SyncManager';
-import { logger } from '../../services/analytics/AnalyticsService';
 import { EventLogger } from '../../utils/EventLogger';
+
+// Import types without circular dependency
+import type { RootState, AuthState } from '../types';
+
+// Function to safely get auth state from store without circular dependency
+let getAuthState: (() => { accessToken?: string; isAuthenticated?: boolean } | null) | null = null;
+
+export const setAuthStateProvider = (provider: () => { accessToken?: string; isAuthenticated?: boolean } | null) => {
+  getAuthState = provider;
+};
+
+// Import offline services with error handling for cases where they might not be ready
+let offlineQueue: any = null;
+let syncManager: any = null;
+let logger: any = null;
+
+// Lazy load offline services to avoid initialization order issues
+const getOfflineServices = async () => {
+  if (!offlineQueue || !syncManager || !logger) {
+    try {
+      const [offlineQueueModule, syncManagerModule, loggerModule] = await Promise.all([
+        import('../../services/offline/OfflineQueue'),
+        import('../../services/offline/SyncManager'),
+        import('../../services/analytics/AnalyticsService')
+      ]);
+      offlineQueue = offlineQueueModule.offlineQueue;
+      syncManager = syncManagerModule.syncManager;
+      logger = loggerModule.logger;
+    } catch (error) {
+      // Services might not be available in all environments
+      EventLogger.debug('BaseAPI', 'Offline services not available, continuing without them');
+    }
+  }
+  return { offlineQueue, syncManager, logger };
+};
 
 // Environment configuration with validation
 const getEnvConfig = () => {
@@ -23,7 +54,7 @@ const getEnvConfig = () => {
 
   // Validate configuration
   if (!config.supabaseUrl || !config.supabaseAnonKey) {
-    EventLogger.error('API', '❌ Missing Supabase configuration. Please check your environment variables.');
+    EventLogger.error('BaseAPI', 'Missing Supabase configuration. Please check your environment variables.');
     throw new Error('Missing required Supabase configuration');
   }
 
@@ -69,9 +100,9 @@ const isRetryableServerError = (status: number): boolean => {
  * Check if operation should be queued for offline processing
  */
 const shouldQueueOperation = (args: FetchArgs, error: any): boolean => {
-  // Only queue mutation operations (POST, PUT, PATCH, DELETE)
+  // Only queue mutation operations (POST, PUT, PATCH, DELETE) when offline
   if (args.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(args.method)) {
-    return isNetworkError(error);
+    return isNetworkError(error) || error?.status === 'OFFLINE';
   }
   return false;
 };
@@ -81,6 +112,13 @@ const shouldQueueOperation = (args: FetchArgs, error: any): boolean => {
  */
 const queueOfflineOperation = async (args: FetchArgs, apiContext: any): Promise<void> => {
   try {
+    const { offlineQueue, logger } = await getOfflineServices();
+    
+    if (!offlineQueue) {
+      EventLogger.debug('BaseAPI', 'Offline queue not available, skipping operation queue');
+      return;
+    }
+    
     const operationType = getOperationType(args);
     const priority = getOperationPriority(args);
     
@@ -96,14 +134,23 @@ const queueOfflineOperation = async (args: FetchArgs, apiContext: any): Promise<
       maxRetries: 3,
     });
     
-    logger.info('BaseAPI: Operation queued for offline processing', {
-      url: args.url,
-      method: args.method,
-      type: operationType,
-      priority,
-    });
+    if (logger) {
+      logger.info('BaseAPI: Operation queued for offline processing', {
+        url: args.url,
+        method: args.method,
+        type: operationType,
+        priority,
+      });
+    } else {
+      EventLogger.debug('BaseAPI', 'Operation queued for offline processing', {
+        url: args.url,
+        method: args.method,
+        type: operationType,
+        priority,
+      });
+    }
   } catch (queueError) {
-    logger.error('BaseAPI: Failed to queue operation', {
+    EventLogger.warn('BaseAPI', 'Failed to queue operation', {
       url: args.url,
       method: args.method,
       error: queueError,
@@ -252,21 +299,30 @@ const createSupabaseBaseQuery = (): BaseQueryFn<FetchArgs, unknown, ApiError> =>
 
         // Add authentication if available (but don't require it)
         try {
-          const state = getState() as RootState;
-          const accessToken = state.auth?.accessToken;
-          
-          if (accessToken && state.auth?.isAuthenticated) {
-            headers.set('Authorization', `Bearer ${accessToken}`);
+          // Try using the auth state provider first to avoid circular dependency
+          if (getAuthState) {
+            const authState = getAuthState();
+            if (authState?.accessToken && authState?.isAuthenticated) {
+              headers.set('Authorization', `Bearer ${authState.accessToken}`);
+            }
+          } else {
+            // Fallback to getState if provider not set (mainly for backwards compatibility)
+            const state = getState() as RootState;
+            const accessToken = state?.auth?.accessToken;
+            
+            if (accessToken && state?.auth?.isAuthenticated) {
+              headers.set('Authorization', `Bearer ${accessToken}`);
+            }
           }
         } catch (error) {
           // If we can't access auth state, continue without authentication
           // This allows public endpoints to work even if Redux hasn't initialized
-          EventLogger.debug('API', 'Auth state not available, proceeding without authentication');
+          EventLogger.debug('BaseAPI', 'Auth state not available, proceeding without authentication');
         }
 
         return headers;
       } catch (error) {
-        EventLogger.warn('API', 'Failed to prepare headers:', error);
+        EventLogger.warn('BaseAPI', 'Failed to prepare headers', error);
         // Ensure minimum required headers
         headers.set('apikey', envConfig.supabaseAnonKey);
         headers.set('Content-Type', 'application/json');
@@ -283,21 +339,42 @@ const createSupabaseBaseQuery = (): BaseQueryFn<FetchArgs, unknown, ApiError> =>
   ) => {
     const maxRetries = 3;
     const retryDelay = 1000; // 1 second base delay
-    const networkInfo = syncManager.getNetworkInfo();
     
-    // Check if we're offline and should queue the operation
-    if (!networkInfo?.isConnected || networkInfo?.isInternetReachable === false) {
+    // Get network info safely - initialize services if needed
+    let networkInfo = { isConnected: true, isInternetReachable: true }; // Default to online
+    try {
+      const { syncManager: sm } = await getOfflineServices();
+      if (sm && typeof sm.getNetworkInfo === 'function') {
+        networkInfo = sm.getNetworkInfo() || networkInfo;
+      }
+    } catch (error) {
+      // If offline services aren't available, continue with default online state
+      EventLogger.debug('BaseAPI', 'Offline services not available, assuming online connection');
+    }
+    
+    // Only check offline status if we definitely know we're offline
+    const isActuallyOffline = networkInfo && (networkInfo.isConnected === false || networkInfo.isInternetReachable === false);
+    
+    if (isActuallyOffline) {
       if (shouldQueueOperation(args, { status: 'NETWORK_ERROR', message: 'Offline' })) {
-        await queueOfflineOperation(args, api);
-        
-        // Return optimistic update for immediate UI feedback
-        const optimisticData = createOptimisticUpdate(args);
-        if (optimisticData) {
-          logger.info('BaseAPI: Returning optimistic update for offline operation', {
-            url: args.url,
-            method: args.method,
-          });
-          return { data: optimisticData };
+        try {
+          await queueOfflineOperation(args, api);
+          
+          // Return optimistic update for immediate UI feedback
+          const optimisticData = createOptimisticUpdate(args);
+          if (optimisticData) {
+            const { logger: lg } = await getOfflineServices();
+            if (lg) {
+              lg.info('BaseAPI: Returning optimistic update for offline operation', {
+                url: args.url,
+                method: args.method,
+              });
+            }
+            return { data: optimisticData };
+          }
+        } catch (queueError) {
+          // If queueing fails, continue with the request anyway
+          EventLogger.debug('BaseAPI', 'Failed to queue operation, continuing with request', queueError);
         }
         
         return {
@@ -335,11 +412,21 @@ const createSupabaseBaseQuery = (): BaseQueryFn<FetchArgs, unknown, ApiError> =>
              (error.data as any)?.message?.includes('JWT'))) {
           
           // Check if this was a request that should have authentication
-          const state = api.getState() as RootState;
-          const wasAuthenticated = state.auth?.isAuthenticated && state.auth?.accessToken;
+          let wasAuthenticated = false;
+          try {
+            if (getAuthState) {
+              const authState = getAuthState();
+              wasAuthenticated = Boolean(authState?.isAuthenticated && authState?.accessToken);
+            } else {
+              const state = api.getState() as RootState;
+              wasAuthenticated = Boolean(state?.auth?.isAuthenticated && state?.auth?.accessToken);
+            }
+          } catch (error) {
+            EventLogger.debug('BaseAPI', 'Could not check authentication state', error);
+          }
           
           if (wasAuthenticated) {
-            EventLogger.warn('API', '🔄 Auth error on attempt ${attempt + 1}, trying to refresh token...');
+            console.warn(`Auth error on attempt ${attempt + 1}, trying to refresh token...`);
             
             try {
               // Attempt to refresh session
@@ -357,14 +444,14 @@ const createSupabaseBaseQuery = (): BaseQueryFn<FetchArgs, unknown, ApiError> =>
               if (refreshError?.message?.includes('Network request failed') || 
                   refreshError?.name === 'NetworkError' ||
                   refreshError?.name === 'AuthRetryableFetchError') {
-                EventLogger.debug('API', '📴 Network unavailable during token refresh');
+                console.debug('Network unavailable during token refresh');
               } else {
-                EventLogger.error('API', 'Failed to refresh session:', refreshError as Error);
+                console.error('Failed to refresh session:', refreshError);
               }
             }
           } else {
             // If we weren't authenticated, this might be expected for a public endpoint
-            EventLogger.debug('API', 'Auth error on public endpoint access, this may be expected');
+            console.debug('Auth error on public endpoint access, this may be expected');
           }
         }
 
@@ -376,10 +463,15 @@ const createSupabaseBaseQuery = (): BaseQueryFn<FetchArgs, unknown, ApiError> =>
             // Return optimistic update for immediate UI feedback
             const optimisticData = createOptimisticUpdate(args);
             if (optimisticData) {
-              logger.info('BaseAPI: Returning optimistic update for network error', {
-                url: args.url,
-                method: args.method,
-              });
+              try {
+                const { logger: lg } = await getOfflineServices();
+                if (lg) {
+                  lg.info('BaseAPI: Returning optimistic update for network error', {
+                    url: args.url,
+                    method: args.method,
+                  });
+                }
+              } catch {}
               return { data: optimisticData };
             }
             
@@ -420,13 +512,26 @@ const createSupabaseBaseQuery = (): BaseQueryFn<FetchArgs, unknown, ApiError> =>
         if (typeof error.status === 'number' && isRetryableServerError(error.status)) {
           if (attempt < maxRetries - 1) {
             const delay = retryDelay * Math.pow(2, attempt); // Exponential backoff
-            logger.warn('BaseAPI: Retrying server error', {
-              url: args.url,
-              status: error.status,
-              attempt: attempt + 1,
-              maxRetries,
-              delay,
-            });
+            try {
+              const { logger: lg } = await getOfflineServices();
+              if (lg) {
+                lg.warn('BaseAPI: Retrying server error', {
+                  url: args.url,
+                  status: error.status,
+                  attempt: attempt + 1,
+                  maxRetries,
+                  delay,
+                });
+              } else {
+                console.warn('BaseAPI: Retrying server error', {
+                  url: args.url,
+                  status: error.status,
+                  attempt: attempt + 1,
+                  maxRetries,
+                  delay,
+                });
+              }
+            } catch {}
             await new Promise(resolve => setTimeout(resolve, delay));
             continue;
           }
@@ -446,12 +551,24 @@ const createSupabaseBaseQuery = (): BaseQueryFn<FetchArgs, unknown, ApiError> =>
         // Final attempt failed
         return { error: transformError(error) };
       } catch (unexpectedError: any) {
-        logger.warn('BaseAPI: Unexpected error in request', {
-          url: args.url,
-          method: args.method,
-          attempt: attempt + 1,
-          error: unexpectedError?.message,
-        });
+        try {
+          const { logger: lg } = await getOfflineServices();
+          if (lg) {
+            lg.warn('BaseAPI: Unexpected error in request', {
+              url: args.url,
+              method: args.method,
+              attempt: attempt + 1,
+              error: unexpectedError?.message,
+            });
+          } else {
+            console.warn('BaseAPI: Unexpected error in request', {
+              url: args.url,
+              method: args.method,
+              attempt: attempt + 1,
+              error: unexpectedError?.message,
+            });
+          }
+        } catch {}
         
         // Handle network errors
         if (isNetworkError(unexpectedError)) {
@@ -511,9 +628,9 @@ const createSupabaseRpcQuery = (): BaseQueryFn<
         if (error?.message?.includes('Network request failed') || 
             error?.name === 'NetworkError' ||
             error?.name === 'AuthRetryableFetchError') {
-          EventLogger.debug('API', '📴 RPC function ${functionName} - network unavailable');
+          console.debug(`RPC function ${functionName} - network unavailable`);
         } else {
-          EventLogger.error('API', 'RPC function ${functionName} failed:', error as Error);
+          console.error(`RPC function ${functionName} failed:`, error);
         }
         return { error: transformError(error) };
       }
@@ -524,9 +641,9 @@ const createSupabaseRpcQuery = (): BaseQueryFn<
       if (error?.message?.includes('Network request failed') || 
           error?.name === 'NetworkError' ||
           error?.name === 'AuthRetryableFetchError') {
-        EventLogger.debug('API', '📴 RPC function ${functionName} - network unavailable');
+        console.debug(`RPC function ${functionName} - network unavailable`);
       } else {
-        EventLogger.error('API', 'RPC function ${functionName} failed:', error as Error);
+        console.error(`RPC function ${functionName} failed:`, error);
       }
       return { error: transformError(error) };
     }

@@ -873,3 +873,6 @@ export class AnalyticsService {
     }
   }
 }
+
+// Export logger for backward compatibility with other services
+export const logger = EventLogger;

@@ -1,8 +1,8 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
-import { EventLogger } from '../utils/EventLogger';
 import { errorHandlingMiddleware, errorReducer, initialErrorState } from './middleware/errorHandler';
 import { circularReferenceMiddleware } from './middleware/circularReferenceMiddleware';
+import { EventLogger } from '../utils/EventLogger';
 
 // Lazy load heavy dependencies to improve store creation time
 let storeInstance: ReturnType<typeof configureStore> | null = null;
@@ -59,7 +59,7 @@ export const createLazyStore = async () => {
     // Add migration logic for version changes
     migrate: (state: any) => {
       try {
-        EventLogger.debug('index', '🔄 Running store migration...');
+        EventLogger.debug('Store', 'Migration: Running migration...');
         
         // Clear potentially corrupted state
         if (state && typeof state === 'object') {
@@ -92,20 +92,17 @@ export const createLazyStore = async () => {
             [dashboardApi.reducerPath]: undefined,
             [searchApi.reducerPath]: undefined,
             // Reset error state
-            errors: {
-              api: {},
-              redux: {},
-            },
+            errors: initialErrorState,
           };
           
-          EventLogger.debug('index', '✅ Store migration completed successfully');
+          EventLogger.debug('Store', 'Migration: Migration completed successfully');
           return migratedState;
         }
         
-        EventLogger.debug('index', '⚠️ Invalid state during migration, using default');
+        EventLogger.debug('Store', 'Migration: Invalid state during migration, using default');
         return undefined; // Force fresh state
       } catch (error) {
-        EventLogger.error('index', '❌ Store migration failed:', error as Error);
+        EventLogger.error('Store', 'Migration failed', error as Error);
         // Return undefined to force fresh state
         return undefined;
       }
@@ -169,14 +166,17 @@ export const createLazyStore = async () => {
         },
       });
       
-      // Add API middleware with circular reference protection and error handling
+      // Add API middleware with proper error handling order
       const enhancedMiddleware = middleware.concat(
-        circularReferenceMiddleware, // Add circular reference protection first
-        errorHandlingMiddleware, // Then error handling
+        // API middlewares should come first to handle RTK Query actions
         automationApi.middleware,
         analyticsApi.middleware,
         dashboardApi.middleware,
-        searchApi.middleware
+        searchApi.middleware,
+        // Error handling middleware after API middlewares to catch their errors
+        errorHandlingMiddleware,
+        // Circular reference protection last to sanitize any remaining issues
+        circularReferenceMiddleware
       );
       
       return enhancedMiddleware;
@@ -190,11 +190,30 @@ export const createLazyStore = async () => {
 
   // Enhanced persistor with error handling
   persistorInstance = persistStore(storeInstance, null, () => {
-    EventLogger.debug('index', '📦 Persistor initialization complete');
+    EventLogger.debug('Store', 'Persistor initialization complete');
   });
 
   // Set up RTK Query listeners for automatic cache management
   setupListeners(storeInstance.dispatch);
+
+  // Set up auth state provider for baseApi to avoid circular dependency
+  const { setAuthStateProvider } = await import('./api/baseApi');
+  setAuthStateProvider(() => storeInstance.getState().auth);
+
+  // Bootstrap services that depend on the store
+  const { bootstrapServices } = await import('./bootstrap');
+  await bootstrapServices(storeInstance);
+
+  // Initialize offline system after store setup
+  setTimeout(async () => {
+    try {
+      const { initializeOfflineSystem } = await import('./slices/offlineSlice');
+      storeInstance.dispatch(initializeOfflineSystem());
+      EventLogger.debug('index', '📱 Offline system initialization dispatched');
+    } catch (error) {
+      EventLogger.warn('index', 'Failed to initialize offline system:', error);
+    }
+  }, 100); // Small delay to ensure store is fully ready
 
   return { store: storeInstance, persistor: persistorInstance };
 };
@@ -220,15 +239,15 @@ const getPersistorInstance = () => {
 // Handle rehydration failures
 export const handleRehydrationFailure = async () => {
   try {
-    EventLogger.debug('index', '🔧 Handling rehydration failure...');
+    EventLogger.debug('Store', 'Handling rehydration failure...');
     
     // Clear potentially corrupted persisted data
     await clearPersistedData();
     
     // Force a fresh start
-    EventLogger.debug('index', '✅ Cleared corrupted state, app will continue with fresh state');
+    EventLogger.debug('Store', 'Cleared corrupted state, app will continue with fresh state');
   } catch (error) {
-    EventLogger.error('index', '❌ Failed to handle rehydration failure:', error as Error);
+    EventLogger.error('Store', 'Failed to handle rehydration failure', error as Error);
     // App will continue anyway, but log the issue
   }
 };
@@ -236,7 +255,7 @@ export const handleRehydrationFailure = async () => {
 // Enhanced utility to clear all persisted data
 export const clearPersistedData = async () => {
   try {
-    EventLogger.debug('index', '🧹 Clearing all persisted data...');
+    EventLogger.debug('Store', 'Clearing all persisted data...');
     
     const { store, persistor } = await createLazyStore();
     
@@ -276,13 +295,13 @@ export const clearPersistedData = async () => {
       try {
         await AsyncStorage.removeItem(key);
       } catch (error) {
-        EventLogger.warn('index', 'Failed to remove ${key}:', error);
+        EventLogger.warn('Store', `Failed to remove ${key}`, error);
       }
     }));
     
-    EventLogger.debug('index', '✅ Persisted data cleared successfully');
+    EventLogger.debug('Store', 'Persisted data cleared successfully');
   } catch (error) {
-    EventLogger.error('index', '❌ Failed to clear persisted data:', error as Error);
+    EventLogger.error('Store', 'Failed to clear persisted data', error as Error);
     throw error;
   }
 };
@@ -307,19 +326,19 @@ export const resetApiState = async () => {
   store.dispatch(analyticsApi.util.resetApiState());
   store.dispatch(dashboardApi.util.resetApiState());
   store.dispatch(searchApi.util.resetApiState());
-  EventLogger.debug('index', '🔄 API state reset');
+  EventLogger.debug('Store', 'API state reset');
 };
 
 // Utility to force rehydration completion in case of timeout
 export const forceRehydrationComplete = async () => {
   try {
-    EventLogger.debug('index', '⏰ Forcing rehydration completion due to timeout');
+    EventLogger.debug('Store', 'Forcing rehydration completion due to timeout');
     const { persistor } = await createLazyStore();
     // This will trigger the PersistGate to complete even if rehydration failed
     persistor.persist();
-    EventLogger.debug('index', '✅ Forced rehydration completion');
+    EventLogger.debug('Store', 'Forced rehydration completion');
   } catch (error) {
-    EventLogger.error('index', '❌ Failed to force rehydration completion:', error as Error);
+    EventLogger.error('Store', 'Failed to force rehydration completion', error as Error);
   }
 };
 

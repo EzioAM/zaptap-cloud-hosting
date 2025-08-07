@@ -1,7 +1,7 @@
 import { Middleware, isRejectedWithValue, SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { EventLogger } from '../../utils/EventLogger';
 import { errorRecoveryManager } from '../../utils/errorRecovery';
+import { EventLogger } from '../../utils/EventLogger';
 
 /**
  * Enhanced error types for better categorization
@@ -118,41 +118,30 @@ export const errorHandlingMiddleware: Middleware = (storeApi) => (next) => (acti
     };
 
     // Log the error with context
-    try {
-      EventLogger.error(
-        'Redux',
-        `API ${category} error in ${action.type}`,
-        new Error(userMessage),
-        {
-          action: action.type,
-          error: enhancedError,
-          category,
-          recoverable,
-          retryAfter,
-          status: error.status,
-          endpoint: action.meta?.baseQueryMeta?.request?.url,
-          method: action.meta?.baseQueryMeta?.request?.method,
-          timestamp: new Date().toISOString(),
-        }
-      );
-    } catch (logError) {
-      // Fallback to console if EventLogger is not ready
-      console.error(`Redux API ${category} error in ${action.type}:`, enhancedError);
-    }
+    EventLogger.error('Redux', `API ${category} error in ${action.type}`, {
+      action: action.type,
+      error: enhancedError,
+      category,
+      recoverable,
+      retryAfter,
+      status: error.status,
+      endpoint: action.meta?.baseQueryMeta?.request?.url,
+      method: action.meta?.baseQueryMeta?.request?.method,
+      timestamp: new Date().toISOString(),
+    });
 
-    // Register recovery strategy for this error type if recoverable
-    if (recoverable && !errorRecoveryManager['strategies']?.find?.(s => s.name === `redux_${category}_recovery`)) {
-      errorRecoveryManager.addRecoveryStrategy({
+    // Register recovery strategy for this error type if recoverable (with safety check)
+    if (recoverable) {
+      try {
+        if (errorRecoveryManager && typeof errorRecoveryManager.addRecoveryStrategy === 'function' && 
+            !errorRecoveryManager['strategies']?.find?.(s => s.name === `redux_${category}_recovery`)) {
+          errorRecoveryManager.addRecoveryStrategy({
         name: `redux_${category}_recovery`,
         canRecover: (err: Error) => {
           return err.message.includes(category || '');
         },
         recover: async (err: Error) => {
-          try {
-            EventLogger.info('Redux', `Attempting recovery for ${category} error`);
-          } catch (logError) {
-            console.info(`Attempting recovery for ${category} error`);
-          }
+          EventLogger.info('Redux', `Attempting recovery for ${category} error`);
           
           switch (category) {
             case 'network':
@@ -179,8 +168,13 @@ export const errorHandlingMiddleware: Middleware = (storeApi) => (next) => (acti
               return false;
           }
         },
-        priority: category === 'network' ? 10 : category === 'auth' ? 8 : 5,
-      });
+            priority: category === 'network' ? 10 : category === 'auth' ? 8 : 5,
+          });
+        }
+      } catch (recoveryError) {
+        // Silently fail if error recovery manager is not available
+        EventLogger.warn('Redux', 'Failed to register recovery strategy', recoveryError);
+      }
     }
 
     // Dispatch custom error action for UI handling
@@ -195,11 +189,11 @@ export const errorHandlingMiddleware: Middleware = (storeApi) => (next) => (acti
 
     // For development, also log to console with more details
     if (__DEV__) {
-      console.group(`🚨 Redux API Error: ${action.type}`);
-      console.error('Error Details:', enhancedError);
-      console.error('Original Action:', action);
-      console.error('Store State:', storeApi.getState());
-      console.groupEnd();
+      EventLogger.error('Redux', `🚨 Redux API Error: ${action.type}`, {
+        errorDetails: enhancedError,
+        originalAction: action,
+        storeState: storeApi.getState()
+      });
     }
   }
 
@@ -207,26 +201,16 @@ export const errorHandlingMiddleware: Middleware = (storeApi) => (next) => (acti
   if (action.error && !action.payload) {
     const error = action.error as SerializedError;
     
-    try {
-      EventLogger.error(
-        'Redux',
-        `Redux action error in ${action.type}`,
-        new Error(error.message || 'Unknown Redux error'),
-        {
-          action: action.type,
-          error: {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-            code: error.code,
-          },
-          timestamp: new Date().toISOString(),
-        }
-      );
-    } catch (logError) {
-      // Fallback to console if EventLogger is not ready
-      console.error(`Redux action error in ${action.type}:`, error);
-    }
+    EventLogger.error('Redux', `Action error in ${action.type}`, {
+      action: action.type,
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+      },
+      timestamp: new Date().toISOString(),
+    });
 
     // Dispatch custom error action
     storeApi.dispatch({

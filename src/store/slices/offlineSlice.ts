@@ -1,8 +1,18 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { NetInfoStateType } from '@react-native-community/netinfo';
 import { offlineQueue, QueuedOperation } from '../../services/offline/OfflineQueue';
-import { syncManager, NetworkInfo, SyncProgress } from '../../services/offline/SyncManager';
-import { logger } from '../../services/analytics/AnalyticsService';
+import { NetworkInfo, SyncProgress } from '../../services/offline/SyncManager';
+import { EventLogger } from '../../utils/EventLogger';
+
+// Lazy load syncManager to avoid circular dependencies
+let syncManagerInstance: any = null;
+const getSyncManager = async () => {
+  if (!syncManagerInstance) {
+    const { syncManager } = await import('../../services/offline/SyncManager');
+    syncManagerInstance = syncManager;
+  }
+  return syncManagerInstance;
+};
 
 /**
  * Network connection state
@@ -74,11 +84,11 @@ export interface OfflineState {
  */
 const initialState: OfflineState = {
   network: {
-    isOnline: false,
+    isOnline: true, // Start optimistically online to prevent API failures
     connectionType: 'unknown',
-    isInternetReachable: null,
-    lastConnectedTime: null,
-    connectionQuality: 'offline',
+    isInternetReachable: true, // Assume internet is reachable initially
+    lastConnectedTime: Date.now(), // Set initial connection time
+    connectionQuality: 'good', // Start optimistic to allow initial API calls
   },
   queue: {
     total: 0,
@@ -119,26 +129,63 @@ export const initializeOfflineSystem = createAsyncThunk(
   'offline/initialize',
   async (_, { dispatch }) => {
     try {
-      logger.info('OfflineSlice: Initializing offline system');
+      EventLogger.info('OfflineSlice', 'Initializing offline system');
       
-      // Get initial network state
-      const networkInfo = syncManager.getNetworkInfo();
-      if (networkInfo) {
-        dispatch(updateNetworkState(networkInfo));
+      // Initialize network service first
+      try {
+        const { networkService } = await import('../../services/network/NetworkService');
+        await networkService.initialize(dispatch);
+        EventLogger.info('OfflineSlice', 'NetworkService initialized successfully');
+      } catch (networkError) {
+        EventLogger.error('OfflineSlice', 'Failed to initialize NetworkService', networkError as Error);
+        
+        // Fallback - try to get network state directly from NetInfo
+        try {
+          const NetInfo = await import('@react-native-community/netinfo');
+          const state = await NetInfo.default.fetch();
+          const networkInfo = {
+            isConnected: Boolean(state.isConnected),
+            type: state.type || 'unknown',
+            isInternetReachable: state.isInternetReachable,
+            details: state.details,
+          };
+          dispatch(updateNetworkState(networkInfo));
+          EventLogger.info('OfflineSlice', 'Used fallback network initialization', networkInfo);
+        } catch (netInfoError) {
+          // Final fallback - assume online to prevent API failures
+          EventLogger.warn('OfflineSlice', 'Could not get network state, using fallback offline state');
+          dispatch(updateNetworkState({
+            isConnected: false,
+            type: 'unknown',
+            isInternetReachable: null,
+            details: null,
+          }));
+        }
       }
 
       // Get initial queue stats
-      const queueStats = offlineQueue.getQueueStats();
-      dispatch(updateQueueStatistics(queueStats));
+      try {
+        const queueStats = offlineQueue.getQueueStats();
+        dispatch(updateQueueStatistics(queueStats));
+        EventLogger.info('OfflineSlice', 'Got queue stats', queueStats);
+      } catch (error) {
+        EventLogger.error('OfflineSlice', 'Failed to get queue stats', error as Error);
+      }
 
       // Get initial sync state
-      const syncProgress = syncManager.getSyncProgress();
-      dispatch(updateSyncProgress(syncProgress));
+      try {
+        const syncManager = await getSyncManager();
+        const syncProgress = syncManager.getSyncProgress();
+        dispatch(updateSyncProgress(syncProgress));
+        EventLogger.info('OfflineSlice', 'Got sync progress', syncProgress);
+      } catch (error) {
+        EventLogger.error('OfflineSlice', 'Failed to get sync progress', error as Error);
+      }
 
-      logger.info('OfflineSlice: Offline system initialized');
+      EventLogger.info('OfflineSlice', 'Offline system initialized');
       return true;
     } catch (error) {
-      logger.error('OfflineSlice: Failed to initialize offline system', { error });
+      EventLogger.error('OfflineSlice', 'Failed to initialize offline system', error as Error);
       throw error;
     }
   }
@@ -167,16 +214,15 @@ export const enqueueOperation = createAsyncThunk(
       const queueStats = offlineQueue.getQueueStats();
       dispatch(updateQueueStatistics(queueStats));
 
-      logger.info('OfflineSlice: Operation enqueued', { 
+      EventLogger.info('OfflineSlice', 'Operation enqueued', { 
         operationId, 
         type: operation.type 
       });
 
       return { operationId, ...operation };
     } catch (error) {
-      logger.error('OfflineSlice: Failed to enqueue operation', { 
-        type: operation.type, 
-        error 
+      EventLogger.error('OfflineSlice', 'Failed to enqueue operation', error as Error, { 
+        type: operation.type 
       });
       throw error;
     }
@@ -190,11 +236,12 @@ export const forceSync = createAsyncThunk(
   'offline/forceSync',
   async (_, { dispatch }) => {
     try {
-      logger.info('OfflineSlice: Force sync requested');
+      EventLogger.info('OfflineSlice', 'Force sync requested');
+      const syncManager = await getSyncManager();
       await syncManager.forceSync();
       return true;
     } catch (error) {
-      logger.error('OfflineSlice: Force sync failed', { error });
+      EventLogger.error('OfflineSlice', 'Force sync failed', error as Error);
       throw error;
     }
   }
@@ -207,7 +254,7 @@ export const retryFailedOperations = createAsyncThunk(
   'offline/retryFailed',
   async (operationIds?: string[], { dispatch }) => {
     try {
-      logger.info('OfflineSlice: Retrying failed operations', { 
+      EventLogger.info('OfflineSlice', 'Retrying failed operations', { 
         operationIds: operationIds?.length || 'all' 
       });
 
@@ -238,13 +285,14 @@ export const retryFailedOperations = createAsyncThunk(
 
       // Trigger sync if we have requeued operations
       if (retryCount > 0) {
+        const syncManager = await getSyncManager();
         await syncManager.forceSync();
       }
 
-      logger.info('OfflineSlice: Retried failed operations', { retryCount });
+      EventLogger.info('OfflineSlice', 'Retried failed operations', { retryCount });
       return retryCount;
     } catch (error) {
-      logger.error('OfflineSlice: Failed to retry operations', { error });
+      EventLogger.error('OfflineSlice', 'Failed to retry operations', error as Error);
       throw error;
     }
   }
@@ -257,17 +305,17 @@ export const clearCompletedOperations = createAsyncThunk(
   'offline/clearCompleted',
   async (_, { dispatch }) => {
     try {
-      logger.info('OfflineSlice: Clearing completed operations');
+      EventLogger.info('OfflineSlice', 'Clearing completed operations');
       const clearedCount = await offlineQueue.clearCompleted();
       
       // Update queue stats
       const queueStats = offlineQueue.getQueueStats();
       dispatch(updateQueueStatistics(queueStats));
 
-      logger.info('OfflineSlice: Cleared completed operations', { count: clearedCount });
+      EventLogger.info('OfflineSlice', 'Cleared completed operations', { count: clearedCount });
       return clearedCount;
     } catch (error) {
-      logger.error('OfflineSlice: Failed to clear completed operations', { error });
+      EventLogger.error('OfflineSlice', 'Failed to clear completed operations', error as Error);
       throw error;
     }
   }
@@ -463,7 +511,7 @@ const offlineSlice = createSlice({
 
       // Enqueue operation
       .addCase(enqueueOperation.fulfilled, (state, action) => {
-        logger.info('OfflineSlice: Operation enqueued successfully', { 
+        EventLogger.info('OfflineSlice', 'Operation enqueued successfully', { 
           operationId: action.payload.operationId 
         });
       })
@@ -489,7 +537,7 @@ const offlineSlice = createSlice({
 
       // Retry failed operations
       .addCase(retryFailedOperations.fulfilled, (state, action) => {
-        logger.info('OfflineSlice: Successfully retried operations', { 
+        EventLogger.info('OfflineSlice', 'Successfully retried operations', { 
           count: action.payload 
         });
       })
@@ -501,7 +549,7 @@ const offlineSlice = createSlice({
 
       // Clear completed operations
       .addCase(clearCompletedOperations.fulfilled, (state, action) => {
-        logger.info('OfflineSlice: Successfully cleared completed operations', { 
+        EventLogger.info('OfflineSlice', 'Successfully cleared completed operations', { 
           count: action.payload 
         });
       })
