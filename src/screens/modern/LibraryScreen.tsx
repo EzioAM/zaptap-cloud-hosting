@@ -125,9 +125,9 @@ const FilterChip: React.FC<{
       ]).start();
     }
     
-    InteractionManager.runAfterInteractions(() => {
-      onPress();
-    });
+    // TOUCH FIX: Remove InteractionManager to prevent touch blocking
+    // Execute onPress immediately for better touch responsiveness
+    onPress();
   }, [onPress, scaleAnim]);
 
   const AnimatedTouchable = FEATURE_FLAGS.ENHANCED_ANIMATIONS ? 
@@ -729,7 +729,7 @@ const LibraryScreen: React.FC = memo(() => {
                   }
                 : {
                     label: "Create Automation",
-                    onPress: () => navigation.navigate('BuildScreen' as never),
+                    onPress: () => navigation.navigate('BuildTab' as never),
                   }
             }
           />
@@ -765,7 +765,7 @@ const LibraryScreen: React.FC = memo(() => {
           ]}
         >
           <EnhancedFloatingActionButton
-            onPress={() => navigation.navigate('BuildScreen' as never)}
+            onPress={() => navigation.navigate('BuildTab' as never)}
             icon="plus"
             theme={theme}
           />

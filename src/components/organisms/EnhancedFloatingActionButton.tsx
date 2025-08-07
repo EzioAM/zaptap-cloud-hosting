@@ -194,6 +194,9 @@ const EnhancedFloatingActionButton: React.FC<EnhancedFloatingActionButtonProps> 
                   ]}
                   onPress={() => handleActionPress(action)}
                   activeOpacity={0.8}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={action.label}
                 >
                   <MaterialCommunityIcons
                     name={action.icon as any}
@@ -207,12 +210,14 @@ const EnhancedFloatingActionButton: React.FC<EnhancedFloatingActionButtonProps> 
         </Animated.View>
       )}
 
-      {/* Overlay for menu dismiss */}
+      {/* Overlay for menu dismiss - only when expanded */}
       {isExpanded && (
         <TouchableOpacity
           style={styles.overlay}
           activeOpacity={1}
           onPress={toggleMenu}
+          // Ensure overlay doesn't interfere with navigation
+          pointerEvents={isExpanded ? 'auto' : 'none'}
         />
       )}
 
@@ -241,11 +246,14 @@ const EnhancedFloatingActionButton: React.FC<EnhancedFloatingActionButtonProps> 
             },
           ]}
           onPress={handlePress}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           android_ripple={{
             color: 'rgba(255, 255, 255, 0.3)',
             borderless: true,
             radius: size / 2,
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Floating action button"
         >
           <Animated.View
             style={{
@@ -269,17 +277,24 @@ export default EnhancedFloatingActionButton;
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 100 : 90,
+    // CRITICAL FIX: Position FAB higher to avoid overlap with bottom navigation
+    bottom: Platform.OS === 'ios' ? 120 : 110,
     right: 24,
     alignItems: 'flex-end',
+    // Ensure FAB doesn't block navigation touches
+    zIndex: 1000,
   },
   overlay: {
     position: 'absolute',
     top: -1000,
     left: -1000,
     right: -1000,
-    bottom: 0,
+    // CRITICAL FIX: Don't extend overlay to bottom navigation area
+    // Leave space for bottom navigation (approximately 100px)
+    bottom: 100,
     backgroundColor: 'transparent',
+    // Ensure overlay doesn't interfere with navigation
+    zIndex: -1,
   },
   menuContainer: {
     marginBottom: 16,

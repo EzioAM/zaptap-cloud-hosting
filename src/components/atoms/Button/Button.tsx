@@ -202,6 +202,7 @@ export const Button: React.FC<ButtonProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={isDisabled}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       style={[
         animatedStyle,
         buttonStyles.base,
@@ -220,6 +221,9 @@ export const Button: React.FC<ButtonProps> = ({
             }
           : undefined
       }
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       {...pressableProps}
     >
       <View style={buttonStyles.content}>

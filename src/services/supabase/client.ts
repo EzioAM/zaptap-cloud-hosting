@@ -48,7 +48,7 @@ class SupabaseClientWithRetry {
         storage: customStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true, // Enable for deep link auth handling
         flowType: 'pkce',
         storageKey: 'supabase.auth.token',
       },

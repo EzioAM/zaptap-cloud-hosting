@@ -190,18 +190,77 @@ const AppNavigatorContent = React.memo(() => {
     }
   }, []);
   
-  // Simplified linking config
+  // Comprehensive linking configuration
   const linking = {
-    prefixes: ['shortcuts-like://', 'https://shortcutslike.app'],
+    prefixes: [
+      'zaptap://',
+      'shortcuts-like://', // Legacy support
+      'https://zaptap.cloud',
+      'https://www.zaptap.cloud',
+      'https://shortcutslike.app' // Legacy support
+    ],
     config: {
       screens: {
         MainTabs: {
           screens: {
-            HomeTab: 'home',
+            HomeTab: {
+              path: 'home',
+              screens: {
+                Home: 'index'
+              }
+            },
+            AutomateTab: {
+              path: 'automate',
+              screens: {
+                Automate: 'index',
+                BuildScreen: 'build/:id?',
+                AutomationDetails: 'details/:automationId'
+              }
+            },
+            ScanTab: {
+              path: 'scan',
+              screens: {
+                Scan: 'index'
+              }
+            },
+            ProfileTab: {
+              path: 'profile',
+              screens: {
+                Profile: 'index',
+                Settings: 'settings'
+              }
+            }
           },
         },
+        // Deep link routes
+        AutomationExecution: 'automation/:automationId',
+        ShareAutomation: 'share/:automationId',
+        EmergencyAutomation: 'emergency/:automationId',
+        ResetPassword: 'reset-password',
+        AuthCallback: 'auth/callback',
+        // Onboarding routes
+        Welcome: 'welcome',
+        OnboardingFlow: 'onboarding'
       },
     },
+    // Custom URL parsing for special cases
+    getStateFromPath: (path: string, options: any) => {
+      // Handle legacy URLs
+      if (path.includes('/link/') || path.includes('/run/')) {
+        const automationId = path.split('/').pop()?.split('?')[0];
+        if (automationId) {
+          return {
+            routes: [{
+              name: 'AutomationExecution',
+              params: { automationId }
+            }]
+          };
+        }
+      }
+      
+      // Default parsing
+      return options.getStateFromPath(path, options);
+    }
   };
 
   // Show recovery screen if navigation is being reset

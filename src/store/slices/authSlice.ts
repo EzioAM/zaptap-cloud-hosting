@@ -237,12 +237,26 @@ import { EventLogger } from '../../utils/EventLogger';
       // For mobile apps, we need to handle password reset differently
       // The redirect URL should be your app's deep link
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'shortcuts-like://reset-password',
+        redirectTo: 'zaptap://reset-password',
       });
       
       if (error) throw error;
       
       return { email };
+    }
+  );
+
+  // Update password after reset
+  export const updatePassword = createAsyncThunk(
+    'auth/updatePassword',
+    async ({ password }: { password: string }) => {
+      const { data, error } = await supabase.auth.updateUser({
+        password
+      });
+      
+      if (error) throw error;
+      
+      return { success: true };
     }
   );
 

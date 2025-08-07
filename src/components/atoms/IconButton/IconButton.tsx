@@ -54,6 +54,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
       onPress={handlePress}
       disabled={disabled}
       activeOpacity={0.7}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       style={[
         {
           width: buttonSize,
@@ -66,6 +67,9 @@ export const IconButton: React.FC<IconButtonProps> = ({
         disabled && { opacity: 0.5 },
         style,
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={`${icon} button`}
+      accessibilityState={{ disabled }}
     >
       <MaterialCommunityIcons
         name={icon as any}

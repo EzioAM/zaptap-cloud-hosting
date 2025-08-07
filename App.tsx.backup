@@ -1,476 +1,541 @@
-import React, { useRef, useEffect } from 'react';
-  import { NavigationContainer } from '@react-navigation/native';
-  import { createNativeStackNavigator } from '@react-navigation/native-stack';
-  import { Provider as PaperProvider } from 'react-native-paper';
-  import { Provider as ReduxProvider } from 'react-redux';
-  import { PersistGate } from 'redux-persist/integration/react';
-  import {
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View,
-    Button,
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    RefreshControl,
-  } from 'react-native';
-  import { store, persistor } from './src/store';
-  import { useSelector } from 'react-redux';
-  import { RootState } from './src/store';
-  import SignInScreen from './src/screens/auth/SignInScreen';
-  import SignUpScreen from './src/screens/auth/SignUpScreen';
-  import AutomationBuilderScreen from './src/screens/automation/AutomationBuilderScreen';
-  import MyAutomationsScreen from './src/screens/automation/MyAutomationsScreen';
-  import GalleryScreen from './src/screens/automation/GalleryScreen';
-  import AutomationDetailsScreen from './src/screens/automation/AutomationDetailsScreen';
-import TemplatesScreen from './src/screens/automation/TemplatesScreen';
-import LocationTriggersScreen from './src/screens/automation/LocationTriggersScreen';
-import ReviewsScreen from './src/screens/automation/ReviewsScreen';
-import { DeveloperMenuScreen } from './src/screens/developer/DeveloperMenuScreen';
-import { RoleService } from './src/services/auth/RoleService';
-import { linkingService } from './src/services/linking/LinkingService';
-import { RootStackParamList } from './src/types/navigation';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SupabaseTestComponent } from './src/components/debug/SupabaseTestComponent';
-import { AutomationTestComponent } from './src/components/debug/AutomationTestComponent';
-import { APP_VERSION, APP_NAME, APP_TAGLINE } from './src/constants/version';
-import { VersionInfo } from './src/components/common/VersionInfo';
-import { RemoteDebugger } from './src/components/debug/RemoteDebugger';
-
-  const Stack = createNativeStackNavigator<RootStackParamList>();
-
-type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
-
-  function HomeScreen({ navigation }: HomeScreenProps) {
-    const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
-    const [refreshing, setRefreshing] = React.useState(false);
-    const [hasDeveloperAccess, setHasDeveloperAccess] = React.useState(false);
-
-    const onRefresh = React.useCallback(() => {
-      setRefreshing(true);
-      // Simulate refresh delay
-      setTimeout(() => {
-        setRefreshing(false);
-      }, 1000);
-    }, []);
-
-    // Check developer access when user changes
-    React.useEffect(() => {
-      if (isAuthenticated && user) {
-        checkDeveloperAccess();
-      } else {
-        setHasDeveloperAccess(false);
+// EMERGENCY STACK OVERFLOW PROTECTION - MUST BE ABSOLUTELY FIRST
+// This runs before ANY imports to catch recursion
+if (__DEV__ && typeof global !== 'undefined') {
+  // Override Function.apply to catch infinite recursion
+  const originalApply = Function.prototype.apply;
+  let applyDepth = 0;
+  
+  Function.prototype.apply = function(thisArg, argsArray) {
+    applyDepth++;
+    
+    if (applyDepth > 100) {
+      console.error('🚨 CRITICAL: Function.apply recursion at depth', applyDepth);
+      applyDepth = 0;
+      throw new Error('Stack overflow prevented in Function.apply at depth 100');
+    }
+    
+    try {
+      const result = originalApply.call(this, thisArg, argsArray);
+      applyDepth--;
+      return result;
+    } catch (error) {
+      applyDepth = 0;
+      if (error.message?.includes('Maximum call stack')) {
+        console.error('🚨 Stack overflow caught in apply');
+        throw new Error('Stack overflow prevented in Function.apply');
       }
-    }, [isAuthenticated, user]);
+      throw error;
+    }
+  };
+  
+  // Override Array.map to catch recursion
+  const originalMap = Array.prototype.map;
+  let mapDepth = 0;
+  
+  Array.prototype.map = function(callback, thisArg) {
+    mapDepth++;
+    
+    if (mapDepth > 50) {
+      console.error('🚨 CRITICAL: Array.map recursion at depth', mapDepth);
+      mapDepth = 0;
+      return this.slice();  // Return copy of original array to preserve some functionality
+    }
+    
+    try {
+      const result = originalMap.call(this, callback, thisArg);
+      mapDepth--;
+      return result;
+    } catch (error) {
+      mapDepth = 0;
+      if (error.message?.includes('Maximum call stack')) {
+        console.error('🚨 Stack overflow caught in map');
+        return this.slice();  // Return copy of original array
+      }
+      throw error;
+    }
+  };
+  
+  console.log('✅ Emergency stack overflow protection active');
+  
+  // Debug touch event registration (disabled - EventTarget not available in Hermes)
+  // Commenting out EventTarget usage to fix Hermes compatibility
+  /*
+  if (typeof EventTarget !== 'undefined') {
+    const originalAddEventListener = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function(type, listener, options) {
+      if (type.includes('touch') || type === 'press' || type === 'click' || type === 'tap') {
+        console.log('📱 Touch/Press event registered:', type);
+      }
+      return originalAddEventListener.call(this, type, listener, options);
+    };
+    console.log('📱 Touch event debugging enabled');
+  }
+  */
+}
 
-    const checkDeveloperAccess = async () => {
+// Import crypto polyfill FIRST to support UUID generation in React Native
+import 'react-native-get-random-values';
+
+// Initialize performance tracking BEFORE any imports
+import { PerformanceMeasurement } from './src/utils/PerformanceMeasurement';
+
+// Mark the very start of app loading
+PerformanceMeasurement.mark('app_bootstrap_start');
+
+// Global stack overflow catcher for debugging
+if (__DEV__) {
+  const originalError = console.error;
+  const originalWarn = console.warn;
+  let stackOverflowCount = 0;
+  
+  console.error = (...args) => {
+    const errorString = args.join(' ');
+    if (errorString.includes('Maximum call stack size exceeded')) {
+      stackOverflowCount++;
+      console.warn(`🚨 STACK OVERFLOW #${stackOverflowCount} DETECTED - Attempting to identify source`);
+      
+      // Try to get more info about where it's happening
       try {
-        const access = await RoleService.hasDeveloperAccess();
-        setHasDeveloperAccess(access);
+        const stack = new Error().stack;
+        console.warn('Stack trace sample:', stack?.split('\n').slice(0, 5).join('\n'));
+      } catch (e) {
+        // Can't get stack
+      }
+      
+      // Don't propagate the error if we've seen it too many times
+      if (stackOverflowCount > 3) {
+        return;
+      }
+    }
+    originalError.apply(console, args);
+  };
+  
+  // Also catch warnings
+  console.warn = (...args) => {
+    const warnString = args.join(' ');
+    if (warnString.includes('Maximum call stack size exceeded')) {
+      console.log('🚨 Stack overflow in warning');
+      return;
+    }
+    originalWarn.apply(console, args);
+  };
+}
+
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Provider as ReduxProvider } from 'react-redux';
+import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+// Direct imports instead of lazy loading for React 19 compatibility
+import { AppNavigator } from './src/navigation/AppNavigator';
+import { ThemeCompatibilityProvider } from './src/contexts/ThemeCompatibilityShim';
+import { ConnectionProvider } from './src/contexts/ConnectionContext';
+import { AuthInitializer } from './src/components/auth/AuthInitializer';
+import { AnalyticsProvider } from './src/contexts/AnalyticsContext';
+import { CrashReporter } from './src/services/monitoring/CrashReporter';
+import { PerformanceMonitor } from './src/services/monitoring/PerformanceMonitor';
+import { initializeErrorInterceptor } from './src/utils/errorInterceptor';
+import { EventLogger } from './src/utils/EventLogger';
+// import { PerformanceAnalyzer } from './src/utils/PerformanceAnalyzer'; // REMOVED to fix stack overflow
+import { PerformanceOptimizer } from './src/utils/PerformanceOptimizer';
+import { NotificationService } from './src/services/notifications/NotificationService';
+import { SafeAppWrapper } from './src/utils/SafeAppWrapper';
+
+// Initialize services directly for React 19 compatibility
+let servicesInitialized = false;
+let storePromise: Promise<any> | null = null;
+
+const initializeStore = async () => {
+  if (!storePromise) {
+    storePromise = import('./src/store').then(async module => {
+      const { createLazyStore } = module;
+      const { store } = await createLazyStore();
+      return store;
+    });
+  }
+  return storePromise;
+};
+
+// Initialize services in the background after first render
+const initializeBackgroundServices = async () => {
+  if (servicesInitialized) return;
+  
+  try {
+    // Initialize error interceptor first
+    initializeErrorInterceptor();
+    
+    // Defer heavy monitoring services to avoid impacting startup
+    setTimeout(async () => {
+      try {
+        // Initialize crash reporter with reduced impact
+        await CrashReporter.initialize({
+          enabled: true,
+          captureConsoleErrors: __DEV__,
+          captureUnhandledPromiseRejections: true,
+        });
+        
+        // Initialize performance monitor after crash reporter
+        await PerformanceMonitor.initialize();
+        
+        // Performance analyzer DISABLED - was causing stack overflow
+        // TODO: Re-enable after fixing circular reference issues
+        /*
+        if (__DEV__) {
+          setTimeout(() => {
+            try {
+              // PerformanceAnalyzer.initialize();
+            } catch (error) {
+              console.warn('PerformanceAnalyzer initialization failed:', error);
+            }
+          }, 3000);
+        }
+        */
+        
+        // Initialize push notifications
+        const notificationService = NotificationService.getInstance();
+        await notificationService.initialize();
+        await notificationService.requestPermissions();
+        
+        EventLogger.info('App', 'Monitoring services initialized');
+      } catch (monitoringError) {
+        console.warn('Monitoring services initialization failed:', monitoringError);
+      }
+    }, 2000); // Delay heavy services by 2 seconds
+    
+    // Initialize performance optimizer with conservative settings
+    setTimeout(() => {
+      try {
+        PerformanceOptimizer.initialize({
+          enableAutoOptimization: false, // Never auto-optimize to prevent blocking
+          targetLaunchTime: 3000,
+          targetFPS: 50,
+          maxMemoryUsage: 200,
+          enableNavigationPreloading: false, // Don't block navigation
+          enableCaching: true,
+          enableAnimationOptimization: true,
+          allowTouchBlocking: false, // CRITICAL: Never block touch events
+          maxDeferDelay: 30, // Maximum 30ms delay for any deferred operation
+        });
+      } catch (perfError) {
+        console.warn('Performance optimizer initialization failed:', perfError);
+      }
+    }, 1000); // Delay by 1 second
+    
+    // Log successful initialization
+    EventLogger.info('App', 'All services loaded successfully');
+    
+    servicesInitialized = true;
+    
+    if (__DEV__) {
+      console.log('✅ All services loaded successfully');
+      const currentLaunchTime = PerformanceMeasurement.getAppLaunchTime();
+      console.log(`📊 Current launch time: ${currentLaunchTime}ms`);
+    }
+  } catch (error) {
+    console.error('❌ Failed to initialize background services:', error);
+  }
+};
+
+// Emergency Error Boundary with Analytics Integration
+class EmergencyErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: any }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    console.error('🚨 ERROR BOUNDARY CAUGHT:', error);
+    
+    // Try to report error if services are loaded
+    if (servicesInitialized) {
+      try {
+        CrashReporter.reportFatalError(error, {
+          error_boundary: true,
+          context: 'App root level',
+        });
+      } catch (reportingError) {
+        console.error('Failed to report error to crash reporter:', reportingError);
+      }
+    }
+    
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('🚨 CRITICAL ERROR DETAILS:', error, errorInfo);
+    
+    // Try enhanced error reporting if services are loaded
+    if (servicesInitialized) {
+      try {
+        EventLogger.critical('App', 'Critical error in root component', error, {
+          componentStack: errorInfo.componentStack,
+          errorBoundary: 'EmergencyErrorBoundary',
+        });
+        
+        CrashReporter.addBreadcrumb({
+          category: 'error',
+          message: 'React Error Boundary triggered',
+          level: 'error',
+          data: {
+            errorName: error.name,
+            errorMessage: error.message,
+            componentStack: errorInfo.componentStack,
+          },
+        });
+      } catch (reportingError) {
+        console.error('Failed to add error breadcrumb:', reportingError);
+      }
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>🚨 CRITICAL ERROR</Text>
+          <Text style={styles.errorText}>
+            {this.state.error?.toString() || 'Unknown error'}
+          </Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// Loading component
+const LoadingScreen = () => (
+  <View style={styles.loadingContainer}>
+    <ActivityIndicator size="large" color="#6200ee" />
+    <Text style={styles.loadingText}>Loading...</Text>
+  </View>
+);
+
+// Touch debugger component to diagnose touch issues
+const TouchDebugger: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!__DEV__) return <>{children}</>;
+  
+  return (
+    <View 
+      style={{ flex: 1 }}
+      onStartShouldSetResponder={() => {
+        console.log('🎯 Touch detected at TouchDebugger level');
+        return false; // Don't capture, let it pass through
+      }}
+      pointerEvents="box-none"
+    >
+      {children}
+    </View>
+  );
+};
+
+// Component for rendering the full app once services are loaded
+const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
+  // Create full theme with Material Design 3
+  const paperTheme = {
+    ...MD3LightTheme,
+    colors: {
+      ...MD3LightTheme.colors,
+      primary: '#6200ee',
+      secondary: '#03dac6',
+      background: '#ffffff',
+      surface: '#ffffff',
+      error: '#B00020',
+    },
+  };
+
+  console.log('🔄 FullApp rendering with GestureHandlerRootView');
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <TouchDebugger>
+        <SafeAppWrapper enableProtection={__DEV__} maxRenderCycles={100}>
+          <SafeAreaProvider>
+            <ReduxProvider store={store}>
+              <PaperProvider theme={paperTheme}>
+                <ThemeCompatibilityProvider>
+                  <AuthInitializer>
+                    <ConnectionProvider>
+                      <AnalyticsProvider
+                        config={{
+                          environment: __DEV__ ? 'development' : 'production',
+                          debugMode: __DEV__,
+                          enableCrashReporting: true,
+                          enablePerformanceMonitoring: true,
+                        }}
+                      >
+                        <AppNavigator />
+                      </AnalyticsProvider>
+                    </ConnectionProvider>
+                  </AuthInitializer>
+                </ThemeCompatibilityProvider>
+              </PaperProvider>
+            </ReduxProvider>
+          </SafeAreaProvider>
+        </SafeAppWrapper>
+      </TouchDebugger>
+    </GestureHandlerRootView>
+  );
+});
+
+let renderCount = 0;
+
+export default function App() {
+  const [store, setStore] = useState<any>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+  
+  renderCount++;
+  if (renderCount === 1) {
+    PerformanceMeasurement.mark('app_render_start');
+    console.log('📱 App component rendering...');
+  }
+
+  // Initialize store after first render
+  useEffect(() => {
+    let mounted = true;
+    
+    const initializeApp = async () => {
+      try {
+        PerformanceMeasurement.mark('app_initialization_start');
+        
+        // Initialize store
+        const storeInstance = await initializeStore();
+        
+        if (!mounted) return;
+        
+        // Set store to trigger re-render with full app
+        setStore(storeInstance);
+        setIsInitializing(false);
+        
+        PerformanceMeasurement.mark('app_initialization_complete');
+        
+        if (__DEV__) {
+          console.log('✅ App initialization complete');
+          
+          // Get detailed performance report
+          try {
+            const report = PerformanceMeasurement.getDetailedReport();
+            
+            console.group('🚀 Performance Optimization Report');
+            console.log(`📊 Total Launch Time: ${report.totalLaunchTime}ms`);
+            console.log(`🎯 Target: ${report.benchmarks.target}ms`);
+            console.log(`📈 Status: ${report.benchmarks.status.toUpperCase()}`);
+            
+            if (report.benchmarks.improvement > 0) {
+              console.log(`✅ SUCCESS! Improved by ${report.benchmarks.improvement}ms`);
+            } else {
+              console.log(`⚠️ Still ${Math.abs(report.benchmarks.improvement)}ms over target`);
+            }
+            
+            console.log('\n📊 Phase Breakdown:');
+            report.breakdown.forEach(phase => {
+              console.log(`  ${phase.phase}: ${phase.duration}ms (${phase.percentage}%)`);
+            });
+            
+            console.groupEnd();
+            
+            // Performance analysis DISABLED - was causing stack overflow
+            /*
+            setTimeout(() => {
+              try {
+                // PerformanceAnalyzer.logReport();
+              } catch (analysisError) {
+                console.warn('Performance analysis failed:', analysisError);
+              }
+            }, 3000);
+            */
+          } catch (reportError) {
+            console.warn('Performance reporting failed:', reportError);
+          }
+        }
+        
+        // Initialize background services
+        initializeBackgroundServices();
+        
+        // Log initialization
+        EventLogger.info('App', 'App component fully initialized', {
+          environment: __DEV__ ? 'development' : 'production',
+          platform: 'mobile',
+          launch_time: PerformanceMeasurement.getAppLaunchTime(),
+        });
+        
       } catch (error) {
-        console.error('Error checking developer access:', error);
-        setHasDeveloperAccess(false);
+        console.error('❌ Failed to initialize app:', error);
+        if (!mounted) return;
+        
+        // Still allow the app to render with basic functionality
+        setIsInitializing(false);
       }
     };
+    
+    // Use a small delay to ensure first render completes
+    const timeoutId = setTimeout(initializeApp, 16); // Next frame
+    
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
+  // Early loading screen while store initializes
+  if (isInitializing) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh}
-              colors={['#6200ee']} // Android
-              tintColor="#6200ee"  // iOS
-            />
-          }
-        >
-          <View style={styles.header}>
-            <Text style={styles.title}>⚡ {APP_NAME}</Text>
-            <VersionInfo showButton={true} buttonStyle={styles.version} />
-            <Text style={styles.subtitle}>{APP_TAGLINE}</Text>
-          </View>
-
-          <View style={styles.featureGrid}>
-            <Pressable 
-              style={styles.featureCard}
-              onPress={() => navigation.navigate('Gallery', { category: 'essentials' })}
-            >
-              <Text style={styles.featureIcon}>🤖</Text>
-              <Text style={styles.featureTitle}>Essentials</Text>
-              <Text style={styles.featureDesc}>Must-have automations</Text>
-            </Pressable>
-            <Pressable 
-              style={styles.featureCard}
-              onPress={() => navigation.navigate('Gallery', { category: 'productivity' })}
-            >
-              <Text style={styles.featureIcon}>💼</Text>
-              <Text style={styles.featureTitle}>Productivity</Text>
-              <Text style={styles.featureDesc}>Get more done</Text>
-            </Pressable>
-            <Pressable 
-              style={styles.featureCard}
-              onPress={() => navigation.navigate('Gallery', { category: 'emergency' })}
-            >
-              <Text style={styles.featureIcon}>🚨</Text>
-              <Text style={styles.featureTitle}>Emergency</Text>
-              <Text style={styles.featureDesc}>Safety tools</Text>
-            </Pressable>
-            <Pressable 
-              style={styles.featureCard}
-              onPress={() => navigation.navigate('Templates')}
-            >
-              <Text style={styles.featureIcon}>📝</Text>
-              <Text style={styles.featureTitle}>Templates</Text>
-              <Text style={styles.featureDesc}>Pre-built automations</Text>
-            </Pressable>
-            <Pressable 
-              style={styles.featureCard}
-              onPress={() => navigation.navigate('Gallery')}
-            >
-              <Text style={styles.featureIcon}>🏪</Text>
-              <Text style={styles.featureTitle}>Gallery</Text>
-              <Text style={styles.featureDesc}>Explore all automations</Text>
-            </Pressable>
-            <Pressable 
-              style={styles.featureCard}
-              onPress={() => navigation.navigate('LocationTriggers')}
-            >
-              <Text style={styles.featureIcon}>📍</Text>
-              <Text style={styles.featureTitle}>Location Triggers</Text>
-              <Text style={styles.featureDesc}>Location-based automation</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.actions}>
-            {!isAuthenticated ? (
-              <View style={styles.authSection}>
-                <Text style={styles.authPrompt}>Get started with automation</Text>
-                <View style={styles.authButtons}>
-                  <Button
-                    title="Sign Up"
-                    onPress={() => navigation.navigate('SignUp')}
-                    color="#6200ee"
-                  />
-                  <View style={styles.buttonSpacer} />
-                  <Button
-                    title="Sign In"
-                    onPress={() => navigation.navigate('SignIn')}
-                    color="#03dac6"
-                  />
-                </View>
-              </View>
-            ) : (
-              <View style={styles.userSection}>
-                <Text style={styles.welcomeText}>Welcome back, {user?.email?.split('@')[0]}! 👋</Text>
-                <View style={styles.actionButtons}>
-                  <View style={styles.primaryAction}>
-                    <Button
-                      title="🔧 Build Automation"
-                      onPress={() => navigation.navigate('AutomationBuilder')}
-                      color="#6200ee"
-                    />
-                  </View>
-                  <View style={styles.secondaryAction}>
-                    <Button
-                      title="📋 My Automations"
-                      onPress={() => navigation.navigate('MyAutomations')}
-                      color="#03dac6"
-                    />
-                  </View>
-                  <View style={styles.secondaryAction}>
-                    <Button
-                      title="📝 Templates"
-                      onPress={() => navigation.navigate('Templates')}
-                      color="#FF9800"
-                    />
-                  </View>
-                  {hasDeveloperAccess && (
-                    <View style={styles.secondaryAction}>
-                      <Button
-                        title="🛠️ Developer"
-                        onPress={() => navigation.navigate('DeveloperMenu')}
-                        color="#9C27B0"
-                      />
-                    </View>
-                  )}
-                </View>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.status}>
-            <Text style={styles.statusTitle}>System Status</Text>
-            <View style={styles.statusItems}>
-              <Text style={styles.statusText}>✅ Automation Engine</Text>
-              <Text style={styles.statusText}>✅ Cloud Storage</Text>
-              <Text style={styles.statusText}>✅ NFC & Location</Text>
-              {isAuthenticated && (
-                <Text style={styles.statusText}>✅ User Authenticated</Text>
-              )}
-            </View>
-          </View>
-
-          {/* Debug: Test Components (temporary) */}
-          {__DEV__ && (
-            <>
-              <View style={styles.debugSection}>
-                <Text style={styles.debugTitle}>🧪 Database Connection Test</Text>
-                <SupabaseTestComponent />
-              </View>
-              
-              <View style={[styles.debugSection, { backgroundColor: '#f0f8ff' }]}>
-                <Text style={[styles.debugTitle, { color: '#1e40af' }]}>⚡ Automation Engine Test</Text>
-                <AutomationTestComponent />
-              </View>
-            </>
-          )}
-        </ScrollView>
-      </SafeAreaView>
+      <EmergencyErrorBoundary>
+        <LoadingScreen />
+      </EmergencyErrorBoundary>
     );
   }
 
-  function AppNavigator() {
-    const navigationRef = useRef(null);
-
-    useEffect(() => {
-      // Initialize linking service when navigation is ready
-      if (navigationRef.current) {
-        linkingService.initialize(navigationRef.current);
-      }
-    }, []);
-
+  // Render full app with store
+  if (store) {
     return (
-      <>
-        <NavigationContainer ref={navigationRef}>
-          <Stack.Navigator initialRouteName="Home">
-          <Stack.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{ title: APP_NAME }}
-          />
-          <Stack.Screen
-            name="SignIn"
-            component={SignInScreen}
-            options={{ title: 'Sign In' }}
-          />
-          <Stack.Screen
-            name="SignUp"
-            component={SignUpScreen}
-            options={{ title: 'Sign Up' }}
-          />
-          <Stack.Screen
-            name="AutomationBuilder"
-            component={AutomationBuilderScreen}
-            options={{ title: 'Build Automation' }}
-          />
-          <Stack.Screen
-            name="MyAutomations"
-            component={MyAutomationsScreen}
-            options={{ title: 'My Automations' }}
-          />
-          <Stack.Screen
-            name="Gallery"
-            component={GalleryScreen}
-            options={{ title: 'Gallery' }}
-          />
-          <Stack.Screen
-            name="AutomationDetails"
-            component={AutomationDetailsScreen}
-            options={{ title: 'Automation Details' }}
-          />
-          <Stack.Screen
-            name="Templates"
-            component={TemplatesScreen}
-            options={{ title: 'Templates' }}
-          />
-          <Stack.Screen
-            name="LocationTriggers"
-            component={LocationTriggersScreen}
-            options={{ title: 'Location Triggers' }}
-          />
-          <Stack.Screen
-            name="Reviews"
-            component={ReviewsScreen}
-            options={{ title: 'Reviews' }}
-          />
-          <Stack.Screen
-            name="DeveloperMenu"
-            component={DeveloperMenuScreen}
-            options={{ title: 'Developer Tools' }}
-          />
-        </Stack.Navigator>
-        </NavigationContainer>
-        <RemoteDebugger />
-      </>
+      <EmergencyErrorBoundary>
+        <FullApp store={store} />
+      </EmergencyErrorBoundary>
     );
   }
 
-  export default function App() {
-    return (
-      <ReduxProvider store={store}>
-        <PersistGate loading={<ActivityIndicator />} persistor={persistor}>
-          <PaperProvider>
-            <AppNavigator />
-          </PaperProvider>
-        </PersistGate>
-      </ReduxProvider>
-    );
-  }
+  // Fallback to basic loading if store failed to load
+  return (
+    <EmergencyErrorBoundary>
+      <LoadingScreen />
+    </EmergencyErrorBoundary>
+  );
+}
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#f8f9fa',
-    },
-    scrollView: {
-      flex: 1,
-    },
-    content: {
-      flexGrow: 1,
-      padding: 20,
-      paddingBottom: 40, // Add extra padding at bottom for better scrolling
-    },
-    header: {
-      alignItems: 'center',
-      marginBottom: 30,
-      paddingTop: 20,
-    },
-    title: {
-      fontSize: 32,
-      fontWeight: 'bold',
-      color: '#6200ee',
-      marginBottom: 5,
-    },
-    version: {
-      fontSize: 14,
-      color: '#03dac6',
-      fontWeight: '600',
-      marginBottom: 8,
-    },
-    subtitle: {
-      fontSize: 16,
-      color: '#666',
-      fontStyle: 'italic',
-    },
-    featureGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'space-between',
-      marginBottom: 30,
-    },
-    featureCard: {
-      width: '48%',
-      backgroundColor: '#fff',
-      padding: 14,
-      borderRadius: 12,
-      alignItems: 'center',
-      marginBottom: 10,
-      elevation: 2,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-    },
-    featureIcon: {
-      fontSize: 24,
-      marginBottom: 8,
-    },
-    featureTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: '#333',
-      marginBottom: 4,
-    },
-    featureDesc: {
-      fontSize: 12,
-      color: '#666',
-      textAlign: 'center',
-    },
-    actions: {
-      marginBottom: 30,
-    },
-    authSection: {
-      alignItems: 'center',
-    },
-    authPrompt: {
-      fontSize: 18,
-      color: '#333',
-      marginBottom: 20,
-      textAlign: 'center',
-    },
-    authButtons: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      width: '100%',
-    },
-    userSection: {
-      alignItems: 'center',
-    },
-    welcomeText: {
-      fontSize: 20,
-      color: '#333',
-      fontWeight: '600',
-      marginBottom: 20,
-      textAlign: 'center',
-    },
-    actionButtons: {
-      width: '100%',
-    },
-    primaryAction: {
-      marginBottom: 12,
-    },
-    secondaryAction: {
-      marginBottom: 12,
-    },
-    buttonSpacer: {
-      width: 16,
-    },
-    status: {
-      backgroundColor: '#fff',
-      padding: 16,
-      borderRadius: 12,
-      elevation: 1,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-    },
-    statusTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: '#333',
-      marginBottom: 12,
-      textAlign: 'center',
-    },
-    statusItems: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-    },
-    statusText: {
-      fontSize: 12,
-      color: '#4CAF50',
-      marginHorizontal: 8,
-      marginBottom: 4,
-    },
-    debugSection: {
-      marginTop: 30,
-      backgroundColor: '#fff3cd',
-      padding: 16,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: '#ffeaa7',
-    },
-    debugTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: '#856404',
-      marginBottom: 12,
-      textAlign: 'center',
-    },
-  });
+const styles = StyleSheet.create({
+  errorContainer: {
+    flex: 1,
+    backgroundColor: 'red',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 10,
+  },
+  errorText: {
+    fontSize: 16,
+    color: 'white',
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6200ee',
+  },
+});

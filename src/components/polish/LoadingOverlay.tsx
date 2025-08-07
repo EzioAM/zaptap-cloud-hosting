@@ -11,6 +11,7 @@ import {
   Dimensions,
   Text,
   Modal,
+  TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -455,15 +456,21 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
           )}
 
           {onCancel && (
-            <Text
-              style={[
-                styles.cancelText,
-                { color: currentTheme.error },
-              ]}
+            <TouchableOpacity
               onPress={onCancel}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel loading"
             >
-              Cancel
-            </Text>
+              <Text
+                style={[
+                  styles.cancelText,
+                  { color: currentTheme.error },
+                ]}
+              >
+                Cancel
+              </Text>
+            </TouchableOpacity>
           )}
         </Animated.View>
       </Animated.View>

@@ -1,5 +1,5 @@
 import { AutomationStep, ExecutionContext, ExecutionResult } from '../../../types';
-import { Logger } from '../../../utils/logger';
+import { Logger } from '../../../utils/Logger';
 
 export abstract class BaseExecutor {
   abstract readonly stepType: string;
@@ -16,10 +16,11 @@ export abstract class BaseExecutor {
   }
   
   protected logExecution(step: AutomationStep, result: ExecutionResult): void {
-    Logger.info(`Executed ${this.stepType} step`, {
+    const logger = new Logger(this.stepType);
+    logger.info(`Executed ${this.stepType} step`, {
       stepId: step.id,
       success: result.success,
-      duration: result.duration
+      executionTime: result.executionTime
     });
   }
   
@@ -31,14 +32,18 @@ export abstract class BaseExecutor {
     });
   }
   
-  protected async handleError(error: any, startTime: number): Promise<ExecutionResult> {
+  protected async handleError(error: any, startTime: number, totalSteps: number = 1, stepsCompleted: number = 0): Promise<ExecutionResult> {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    Logger.error(`${this.stepType} step failed`, { error: errorMessage });
+    const logger = new Logger(this.stepType);
+    logger.error(`${this.stepType} step failed`, { error: errorMessage });
     
     return {
       success: false,
       error: errorMessage,
-      duration: Date.now() - startTime
+      executionTime: Date.now() - startTime,
+      stepsCompleted,
+      totalSteps,
+      timestamp: new Date().toISOString()
     };
   }
 }

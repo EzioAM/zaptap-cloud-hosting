@@ -554,7 +554,7 @@ const BuildScreen: React.FC = memo(() => {
         EventLogger.error('BuildScreen', 'Screen-level error caught', error, {
           componentStack: errorInfo.componentStack,
           userId: user?.id,
-          automationStepsCount: automationSteps.length,
+          automationStepsCount: steps.length,
         });
       }}
     >

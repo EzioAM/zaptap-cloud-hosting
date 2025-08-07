@@ -58,6 +58,7 @@
     description: string;
     steps: AutomationStep[];
     triggers?: AutomationTrigger[];
+    variables?: import('../services/variables/VariableManager').VariableDefinition[];
     created_by: string;
     created_at: string;
     updated_at: string;
@@ -220,6 +221,7 @@
     userId?: string;
     deploymentKey?: string;
     timestamp: string;
+    variables?: Record<string, any>;
     onStepStart?: (stepIndex: number, step: AutomationStep) => void;
     onStepComplete?: (stepIndex: number, result: any) => void;
     onStepError?: (stepIndex: number, error: string) => void;

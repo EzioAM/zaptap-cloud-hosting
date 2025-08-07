@@ -128,6 +128,7 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
         <TouchableOpacity
           onPress={togglePasswordVisibility}
           style={styles.rightIconContainer}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityRole="button"
           accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'}
         >
@@ -148,6 +149,7 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
       <IconComponent
         onPress={onRightIconPress}
         style={styles.rightIconContainer}
+        hitSlop={onRightIconPress ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
         accessibilityRole={onRightIconPress ? 'button' : undefined}
       >
         <MaterialCommunityIcons

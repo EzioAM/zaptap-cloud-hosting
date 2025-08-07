@@ -1,6 +1,7 @@
 import * as SMS from 'expo-sms';
 import { BaseExecutor } from './BaseExecutor';
 import { AutomationStep, ExecutionContext, ExecutionResult } from '../../../types';
+import { securityService } from '../../security/SecurityService';
 
 export class SMSExecutor extends BaseExecutor {
   readonly stepType = 'sms';
@@ -23,6 +24,20 @@ export class SMSExecutor extends BaseExecutor {
       if (!phoneNumber || !message) {
         throw new Error('Phone number and message are required for SMS step');
       }
+
+      // Security validation
+      const phoneValidation = securityService.validatePhoneNumber(phoneNumber);
+      if (!phoneValidation.isValid) {
+        throw new Error(`Invalid phone number: ${phoneValidation.errors.join(', ')}`);
+      }
+
+      const messageValidation = securityService.sanitizeTextInput(message, 1600);
+      if (!messageValidation.isValid) {
+        throw new Error(`Invalid message: ${messageValidation.errors.join(', ')}`);
+      }
+
+      const sanitizedPhone = phoneValidation.sanitizedInput || phoneNumber;
+      const sanitizedMessage = messageValidation.sanitizedInput || message;
       
       // Check if SMS is available on this device
       const isAvailable = await SMS.isAvailableAsync();
@@ -31,15 +46,18 @@ export class SMSExecutor extends BaseExecutor {
       }
       
       // Send SMS using device's SMS app
-      const result = await SMS.sendSMSAsync([phoneNumber], message);
+      const result = await SMS.sendSMSAsync([sanitizedPhone], sanitizedMessage);
       
       const executionResult: ExecutionResult = {
         success: true,
-        duration: Date.now() - startTime,
+        executionTime: Date.now() - startTime,
+        stepsCompleted: 1,
+        totalSteps: 1,
+        timestamp: new Date().toISOString(),
         output: {
           type: 'sms',
-          phoneNumber,
-          messageLength: message.length,
+          phoneNumber: sanitizedPhone,
+          messageLength: sanitizedMessage.length,
           result,
           timestamp: new Date().toISOString()
         }
@@ -49,7 +67,7 @@ export class SMSExecutor extends BaseExecutor {
       return executionResult;
       
     } catch (error) {
-      return this.handleError(error, startTime);
+      return this.handleError(error, startTime, 1, 0);
     }
   }
 }

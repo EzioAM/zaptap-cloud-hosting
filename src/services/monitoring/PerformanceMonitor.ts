@@ -295,7 +295,9 @@ class PerformanceMonitorService {
    * Track app launch time
    */
   private trackAppLaunchTime(): void {
-    InteractionManager.runAfterInteractions(() => {
+    // CRITICAL FIX: Don't use InteractionManager as it blocks touch events
+    // Use requestAnimationFrame for non-blocking execution
+    requestAnimationFrame(() => {
       const launchTime = Date.now() - this.appStartTime;
       
       this.trackMetric({

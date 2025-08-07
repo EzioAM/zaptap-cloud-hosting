@@ -136,7 +136,7 @@ export const ModernBottomTabNavigator = () => {
                       <MaterialCommunityIcons 
                         name={iconName} 
                         size={iconSize} 
-                        color={color || '#6200ee'} 
+                        color={color || '#6200ee'}
                       />
                       {focused && <View style={[styles.activeIndicator, { backgroundColor: color || '#6200ee' }]} />}
                     </View>
@@ -148,7 +148,7 @@ export const ModernBottomTabNavigator = () => {
                       <MaterialCommunityIcons 
                         name="help-circle" 
                         size={24} 
-                        color={color || '#6200ee'} 
+                        color={color || '#6200ee'}
                       />
                     </View>
                   );
@@ -168,14 +168,23 @@ export const ModernBottomTabNavigator = () => {
                 shadowOffset: { width: 0, height: -2 },
                 shadowOpacity: 0.15,
                 shadowRadius: 12,
-                // Remove absolute positioning to fix touch issues
-                // position: 'absolute',
-                // bottom: 0,
-                // left: 0,
-                // right: 0,
+                // CRITICAL TOUCH FIXES: Ensure optimal touch event handling
+                pointerEvents: 'auto',
+                // Ensure the tab bar is always above other content
+                zIndex: 1000,
+                // Force proper touch handling
+                overflow: 'visible',
               },
               tabBarItemStyle: {
-                paddingVertical: 5,
+                paddingVertical: 8,
+                paddingHorizontal: 4,
+                // Ensure proper touch area for tab items (minimum 44pt)
+                minHeight: 50,
+                minWidth: 50,
+                justifyContent: 'center',
+                alignItems: 'center',
+                // Ensure touch events are handled properly
+                flex: 1,
               },
               tabBarLabelStyle: {
                 fontSize: 12,
@@ -184,9 +193,19 @@ export const ModernBottomTabNavigator = () => {
               },
               tabBarHideOnKeyboard: true,
               headerShown: false,
-              // Improve performance
+              // Optimize for touch responsiveness over performance
               lazy: false,
               unmountOnBlur: false,
+              // Ensure all tab interactions work properly
+              tabBarAllowFontScaling: false,
+              tabBarPressColor: 'rgba(98, 0, 238, 0.2)',
+              tabBarPressOpacity: 0.8,
+              // Enable better touch feedback
+              tabBarButton: undefined, // Use default button behavior
+              // Disable potentially blocking optimizations
+              detachInactiveScreens: false,
+              // Ensure proper touch handling
+              tabBarTestID: undefined,
             };
           } catch (screenOptionError) {
             EventLogger.error('Navigation', 'Tab screen options error:', screenOptionError as Error);
@@ -198,6 +217,8 @@ export const ModernBottomTabNavigator = () => {
         }}
         sceneContainerStyle={{
           backgroundColor: theme?.colors?.background?.primary || '#FFFFFF',
+          // Ensure screens don't overlap the tab bar
+          paddingBottom: 0,
         }}
     >
       <Tab.Screen
@@ -264,11 +285,16 @@ const styles = StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 60,
-    height: 40,
-    // Ensure proper touch area
+    width: '100%',
+    height: '100%',
+    // Ensure proper touch area (44pt minimum touch target)
     minHeight: 44,
     minWidth: 44,
+    // Add padding to ensure touch events are properly captured
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    // Ensure content is centered within the available space
+    flex: 1,
   },
   activeIndicator: {
     position: 'absolute',

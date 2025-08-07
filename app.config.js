@@ -50,7 +50,8 @@ export default {
       icon: "./assets/icon.png",
       associatedDomains: [
         "applinks:zaptap.cloud",
-        "applinks:www.zaptap.cloud"
+        "applinks:www.zaptap.cloud",
+        "applinks:shortcutslike.app"
       ],
       infoPlist: {
         NSCameraUsageDescription: "This app uses the camera to scan QR codes for automations.",
@@ -98,6 +99,22 @@ export default {
             {
               scheme: "https", 
               host: "www.zaptap.cloud"
+            },
+            {
+              scheme: "https",
+              host: "shortcutslike.app"
+            }
+          ],
+          category: ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          action: "VIEW",
+          data: [
+            {
+              scheme: "zaptap"
+            },
+            {
+              scheme: "shortcuts-like"
             }
           ],
           category: ["BROWSABLE", "DEFAULT"]

@@ -67,7 +67,10 @@ export const useDelayedAnimation = (
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
-    const handle = InteractionManager.runAfterInteractions(() => {
+    // CRITICAL FIX: Don't use InteractionManager as it blocks touch events
+    // Use requestAnimationFrame for immediate non-blocking execution
+    let animationFrame: number;
+    animationFrame = requestAnimationFrame(() => {
       setIsAnimating(true);
       const animation = animationFactory();
       animation.start(() => {
@@ -75,7 +78,7 @@ export const useDelayedAnimation = (
       });
     });
 
-    return () => handle.cancel();
+    return () => cancelAnimationFrame(animationFrame);
   }, dependencies);
 
   return isAnimating;
@@ -146,7 +149,9 @@ export const useOptimizedScrollAnimation = (
     
     if (!isScrolling.current) {
       isScrolling.current = true;
-      InteractionManager.runAfterInteractions(() => {
+      // CRITICAL FIX: Don't use InteractionManager as it blocks touch events
+      // Use requestAnimationFrame for non-blocking execution
+      requestAnimationFrame(() => {
         isScrolling.current = false;
       });
     }
@@ -296,7 +301,9 @@ export const useLazyAnimation = (
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      InteractionManager.runAfterInteractions(() => {
+      // CRITICAL FIX: Don't use InteractionManager as it blocks touch events
+      // Use requestAnimationFrame for non-blocking execution
+      requestAnimationFrame(() => {
         animationRef.current = animationFactory();
         setIsInitialized(true);
       });

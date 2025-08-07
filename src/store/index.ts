@@ -20,8 +20,12 @@ export const createLazyStore = async () => {
     { default: AsyncStorage },
     { combineReducers },
     { default: authSlice },
-    { default: offlineSlice },
-    { default: notificationSlice },
+    { default: offlineReducer },
+    { default: notificationReducer },
+    { default: automationReducer },
+    { default: deploymentReducer },
+    { default: scanReducer },
+    { default: uiReducer },
     { automationApi },
     { analyticsApi },
     { default: dashboardApi },
@@ -33,6 +37,10 @@ export const createLazyStore = async () => {
     import('./slices/authSlice'),
     import('./slices/offlineSlice'),
     import('./slices/notificationSlice'),
+    import('./slices/automationSlice'),
+    import('./slices/deploymentSlice'),
+    import('./slices/scanSlice'),
+    import('./slices/uiSlice'),
     import('./api/automationApi'),
     import('./api/analyticsApi'),
     import('./api/dashboardApi'),
@@ -41,8 +49,12 @@ export const createLazyStore = async () => {
 
   const rootReducer = combineReducers({
     auth: authSlice.reducer,
-    offline: offlineSlice,
-    notifications: notificationSlice,
+    offline: offlineReducer,
+    notifications: notificationReducer,
+    automation: automationReducer,
+    deployment: deploymentReducer,
+    scan: scanReducer,
+    ui: uiReducer,
     errors: errorReducer, // Add error state management
     [automationApi.reducerPath]: automationApi.reducer,
     [analyticsApi.reducerPath]: analyticsApi.reducer,
@@ -54,7 +66,7 @@ export const createLazyStore = async () => {
     key: 'root',
     version: 1,
     storage: AsyncStorage,
-    whitelist: ['auth', 'offline', 'notifications'], // Persist auth, offline, and notification state (errors are ephemeral)
+    whitelist: ['auth', 'offline', 'notifications', 'ui'], // Persist key state (errors, automation, deployment, scan are ephemeral)
     blacklist: [automationApi.reducerPath, analyticsApi.reducerPath, dashboardApi.reducerPath, searchApi.reducerPath], // Don't persist API cache
     // Add migration logic for version changes
     migrate: (state: any) => {
@@ -342,9 +354,8 @@ export const forceRehydrationComplete = async () => {
   }
 };
 
-// Types need to be updated to work with lazy store
-export type RootState = ReturnType<typeof getStoreInstance>['getState'];
-export type AppDispatch = ReturnType<typeof getStoreInstance>['dispatch'];
+// Re-export types from types.ts to maintain compatibility
+export type { RootState, AppDispatch } from './types';
 
 // For immediate access to store instance after initialization
 export const getStore = () => getStoreInstance();

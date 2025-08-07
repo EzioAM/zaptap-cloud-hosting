@@ -15,6 +15,8 @@ export type RootStackParamList = {
   // Auth screens
   SignIn: undefined;
   SignUp: undefined;
+  ResetPassword: undefined;
+  ChangePassword: undefined;
   
   // Automation screens
   AutomationBuilder: { 
@@ -60,12 +62,28 @@ export type RootStackParamList = {
   WelcomeScreen: undefined;
   OnboardingFlow: undefined;
   TutorialScreen: undefined;
+  
+  // Deep link screens
+  AutomationExecution: { automationId: string };
+  ShareAutomation: { automationId: string };
+  EmergencyAutomation: { automationId: string };
+  AuthCallback: { 
+    access_token?: string;
+    refresh_token?: string;
+    error?: string;
+  };
+  
+  // Additional Settings
+  EmailPreferences: undefined;
+  PrivacyPolicy: undefined;
 };
 
 // More specific navigation types
 export type AuthStackParamList = {
   SignIn: undefined;
   SignUp: undefined;
+  ResetPassword: undefined;
+  ChangePassword: undefined;
 };
 
 export type AutomationStackParamList = {

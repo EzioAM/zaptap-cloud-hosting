@@ -202,6 +202,7 @@ export const ThemedButton: React.FC<ThemedButtonProps> = ({
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={theme.constants.activeOpacity}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || title}

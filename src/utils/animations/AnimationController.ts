@@ -408,7 +408,9 @@ export class AnimationController {
   private executeBatchedAnimations(): void {
     if (this.batchedAnimations.length === 0) return;
 
-    InteractionManager.runAfterInteractions(() => {
+    // CRITICAL FIX: Don't use InteractionManager as it blocks touch events
+    // Use requestAnimationFrame for immediate execution that doesn't block UI
+    requestAnimationFrame(() => {
       Animated.parallel(this.batchedAnimations).start();
       this.batchedAnimations = [];
     });
@@ -471,7 +473,9 @@ export class AnimationController {
 
   // Run heavy operation after animations
   runAfterAnimations(callback: () => void): void {
-    InteractionManager.runAfterInteractions(callback);
+    // CRITICAL FIX: Don't use InteractionManager as it blocks touch events
+    // Use immediate execution or small timeout
+    requestAnimationFrame(callback);
   }
 
   // Get current performance metrics

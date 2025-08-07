@@ -28,7 +28,10 @@ export class NotificationExecutor extends BaseExecutor {
       
       const result: ExecutionResult = {
         success: true,
-        duration: Date.now() - startTime,
+        executionTime: Date.now() - startTime,
+        stepsCompleted: 1,
+        totalSteps: 1,
+        timestamp: new Date().toISOString(),
         output: {
           type: 'notification',
           message,
@@ -40,7 +43,7 @@ export class NotificationExecutor extends BaseExecutor {
       return result;
       
     } catch (error) {
-      return this.handleError(error, startTime);
+      return this.handleError(error, startTime, 1, 0);
     }
   }
 }

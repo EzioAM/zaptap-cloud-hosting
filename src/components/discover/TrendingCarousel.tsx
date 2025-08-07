@@ -143,6 +143,9 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
           onPressIn={pauseAutoPlay}
           onPressOut={() => setTimeout(resumeAutoPlay, 2000)}
           activeOpacity={0.9}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Trending automation: ${item.title}`}
         >
           <LinearGradient
             colors={[item.color, `${item.color}80`, item.color]}
@@ -181,6 +184,9 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
                   <TouchableOpacity
                     style={styles.statItem}
                     onPress={() => onLike?.(item)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Like ${item.title}`}
                   >
                     <Animated.View
                       style={{

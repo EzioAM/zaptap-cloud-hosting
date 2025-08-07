@@ -28,7 +28,7 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = React.me
       checkSession().catch(error => {
         EventLogger.warn('Authentication', 'Session check failed during startup, continuing without auth:', error);
       });
-    }, 2000); // Extended delay for better startup performance
+    }, 500); // Reduced delay for faster session restoration
 
     // Listen for auth state changes
     let authListener: any;
@@ -221,16 +221,36 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = React.me
         return;
       }
       
-      // First try to ensure we have a valid session (handles token refresh if needed)
-      const validSession = await ensureValidSession();
+      // First try to get the session directly (faster than ensureValidSession)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (validSession) {
-        EventLogger.debug('Authentication', '✅ Found valid session for:', validSession.user.email);
-        EventLogger.debug('Authentication', '🔐 AuthInitializer: Restoring user session automatically...');
-        // NON-BLOCKING: Handle sign in without waiting for profile fetch
-        handleSignIn(validSession).catch(error => {
-          EventLogger.warn('Authentication', 'Profile fetch failed, continuing with basic auth:', error);
-        });
+      if (sessionError) {
+        EventLogger.warn('Authentication', 'Session fetch error:', sessionError.message);
+        // Don't clear auth state on error - might be temporary
+        return;
+      }
+      
+      if (session) {
+        EventLogger.debug('Authentication', '✅ Found valid session for:', session.user.email);
+        
+        // Check if token needs refresh
+        const expiresAt = session.expires_at;
+        const now = Math.floor(Date.now() / 1000);
+        const timeUntilExpiry = expiresAt ? expiresAt - now : 0;
+        
+        if (timeUntilExpiry < 300) { // Less than 5 minutes until expiry
+          EventLogger.debug('Authentication', '🔄 Token expiring soon, refreshing...');
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError && refreshData.session) {
+            await handleSignIn(refreshData.session);
+          } else {
+            await handleSignIn(session); // Use existing session if refresh fails
+          }
+        } else {
+          EventLogger.debug('Authentication', '🔐 Restoring user session automatically...');
+          await handleSignIn(session);
+        }
+        
         EventLogger.debug('Authentication', '✅ Session restored successfully - user will remain signed in!');
       } else {
         EventLogger.debug('Authentication', 'ℹ️ No valid session found - user needs to sign in');

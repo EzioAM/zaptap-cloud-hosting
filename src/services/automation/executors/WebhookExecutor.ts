@@ -1,5 +1,6 @@
 import { BaseExecutor } from './BaseExecutor';
 import { AutomationStep, ExecutionContext, ExecutionResult } from '../../../types';
+import { securityService } from '../../security/SecurityService';
 
 export class WebhookExecutor extends BaseExecutor {
   readonly stepType = 'webhook';
@@ -22,17 +23,30 @@ export class WebhookExecutor extends BaseExecutor {
         throw new Error('URL is required for webhook step');
       }
       
-      // Validate URL
-      this.validateUrl(url);
+      // Security validation
+      const urlValidation = securityService.validateURL(url);
+      if (!urlValidation.isValid) {
+        throw new Error(`Invalid webhook URL: ${urlValidation.errors.join(', ')}`);
+      }
+      
+      const sanitizedUrl = urlValidation.sanitizedInput || url;
+      
+      // Additional webhook-specific validation
+      this.validateUrl(sanitizedUrl);
+      
+      // Sanitize headers and body
+      const sanitizedHeaders = this.sanitizeHeaders(headers);
+      const sanitizedBody = this.sanitizeBody(body);
       
       // Make the webhook request
-      const response = await fetch(url, {
+      const response = await fetch(sanitizedUrl, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          ...headers
+          ...sanitizedHeaders
         },
-        body: method !== 'GET' && method !== 'HEAD' ? JSON.stringify(body) : undefined
+        body: method !== 'GET' && method !== 'HEAD' ? JSON.stringify(sanitizedBody) : undefined,
+        timeout: 30000 // 30 second timeout
       });
       
       const responseData = await response.text();
@@ -50,10 +64,13 @@ export class WebhookExecutor extends BaseExecutor {
       
       const result: ExecutionResult = {
         success: true,
-        duration: Date.now() - startTime,
+        executionTime: Date.now() - startTime,
+        stepsCompleted: 1,
+        totalSteps: 1,
+        timestamp: new Date().toISOString(),
         output: {
           type: 'webhook',
-          url,
+          url: sanitizedUrl,
           method,
           status: response.status,
           statusText: response.statusText,
@@ -66,7 +83,7 @@ export class WebhookExecutor extends BaseExecutor {
       return result;
       
     } catch (error) {
-      return this.handleError(error, startTime);
+      return this.handleError(error, startTime, 1, 0);
     }
   }
   
@@ -95,6 +112,25 @@ export class WebhookExecutor extends BaseExecutor {
     }
   }
   
+  private sanitizeHeaders(headers: Record<string, string>): Record<string, string> {
+    const sanitized: Record<string, string> = {};
+    
+    for (const [key, value] of Object.entries(headers)) {
+      const keyValidation = securityService.sanitizeTextInput(key, 100);
+      const valueValidation = securityService.sanitizeTextInput(value, 500);
+      
+      if (keyValidation.isValid && valueValidation.isValid) {
+        sanitized[keyValidation.sanitizedInput || key] = valueValidation.sanitizedInput || value;
+      }
+    }
+    
+    return sanitized;
+  }
+  
+  private sanitizeBody(body: any): any {
+    return securityService.sanitizeObject(body, 5);
+  }
+
   private processHeaders(headers: Record<string, string>, variables: Record<string, any>): Record<string, string> {
     const processed: Record<string, string> = {};
     

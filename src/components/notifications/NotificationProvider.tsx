@@ -10,8 +10,6 @@ import { useAppDispatch, useAppSelector } from '../../store';
 import { 
   initializeNotifications, 
   registerPushToken,
-  selectIsNotificationInitialized,
-  selectPushToken,
 } from '../../store/slices/notificationSlice';
 import { RootState } from '../../store';
 import NotificationHandler from '../../services/notifications/NotificationHandler';
@@ -36,9 +34,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const dispatch = useAppDispatch();
   const navigation = useNavigationSafe();
   
-  const user = useAppSelector((state: RootState) => state.auth.user);
-  const isInitialized = useAppSelector(selectIsNotificationInitialized);
-  const pushToken = useAppSelector(selectPushToken);
+  const user = useAppSelector((state: RootState) => state.auth?.user);
+  // Fix selectors to handle potentially undefined state
+  const isInitialized = useAppSelector((state: RootState) => state.notifications?.isInitialized ?? false);
+  const pushToken = useAppSelector((state: RootState) => state.notifications?.pushToken ?? null);
   
   const initializationAttempted = useRef(false);
   const tokenRegistrationAttempted = useRef(false);

@@ -306,6 +306,9 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
         <TouchableOpacity
           style={styles.toggleOption}
           onPress={() => setPublicLinkEnabled(!publicLinkEnabled)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: publicLinkEnabled }}
         >
           <Icon
             name={publicLinkEnabled ? 'checkbox-marked' : 'checkbox-blank-outline'}
@@ -323,6 +326,9 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
         <TouchableOpacity
           style={styles.toggleOption}
           onPress={() => setEmbedData(!embedData)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: embedData }}
         >
           <Icon
             name={embedData ? 'checkbox-marked' : 'checkbox-blank-outline'}
@@ -343,6 +349,9 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
           style={[styles.actionButton, styles.primaryButton]}
           onPress={handleQuickShare}
           disabled={loading}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: loading }}
         >
           <Icon name="share" size={20} color="white" />
           <Text style={styles.primaryButtonText}>
@@ -353,6 +362,8 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
         <TouchableOpacity
           style={[styles.actionButton, styles.secondaryButton]}
           onPress={handleCopyLink}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
         >
           <Icon name="content-copy" size={20} color="#6200ee" />
           <Text style={styles.secondaryButtonText}>Copy Link</Text>
@@ -435,6 +446,9 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
             style={[styles.actionButton, styles.primaryButton, isSharingQR && styles.disabledButton]}
             onPress={shareQRCode}
             disabled={isSharingQR || isSavingQR}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isSharingQR || isSavingQR }}
           >
             <Icon name="share" size={20} color="white" />
             <Text style={styles.primaryButtonText}>
@@ -446,6 +460,9 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
             style={[styles.actionButton, styles.secondaryButton, isSavingQR && styles.disabledButton]}
             onPress={saveQRToCameraRoll}
             disabled={isSharingQR || isSavingQR}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isSharingQR || isSavingQR }}
           >
             <Icon name="content-save" size={20} color="#6200ee" />
             <Text style={styles.secondaryButtonText}>
@@ -674,7 +691,13 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
     >
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity 
+            onPress={onClose} 
+            style={styles.closeButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Close modal"
+          >
             <Icon name="close" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Share Automation</Text>
@@ -699,6 +722,10 @@ export const ShareAutomationModal: React.FC<ShareAutomationModalProps> = ({
               key={tab.key}
               style={[styles.tab, activeTab === tab.key && styles.activeTab]}
               onPress={() => setActiveTab(tab.key as any)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="tab"
+              accessibilityLabel={`${tab.label} tab`}
+              accessibilityState={{ selected: activeTab === tab.key }}
             >
               <Icon
                 name={tab.icon}

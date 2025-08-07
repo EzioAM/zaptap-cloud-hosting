@@ -18,6 +18,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
 import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -29,6 +30,22 @@ import Animated, {
   withTiming,
   interpolate,
 } from 'react-native-reanimated';
+import { qrService } from '../../services/qr/QRService';
+import { nfcService } from '../../services/nfc/NFCService';
+import {
+  initializeScanning,
+  startScanning,
+  stopScanning,
+  processScanData,
+  selectIsScanning,
+  selectScanType,
+  selectNFCState,
+  selectQRState,
+  selectCurrentScan,
+  selectIsProcessing,
+} from '../../store/slices/scanSlice';
+import type { AppDispatch, RootState } from '../../store';
+import { EventLogger } from '../../utils/EventLogger';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -43,26 +60,88 @@ interface RecentScan {
 export default function ScannerScreen() {
   const theme = useSafeTheme();
   const navigation = useNavigation();
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  
+  // Redux selectors
+  const isScanning = useSelector(selectIsScanning);
+  const scanType = useSelector(selectScanType);
+  const nfcState = useSelector(selectNFCState);
+  const qrState = useSelector(selectQRState);
+  const currentScan = useSelector(selectCurrentScan);
+  const isProcessing = useSelector(selectIsProcessing);
+  
+  // Local state
   const [scanMode, setScanMode] = useState<'qr' | 'nfc'>('qr');
-  const [isScanning, setIsScanning] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [scanStartTime, setScanStartTime] = useState<number>(0);
   
   // Animation values
   const scanLineY = useSharedValue(0);
   const successScale = useSharedValue(0);
   const pulseScale = useSharedValue(1);
 
+  // Initialize scanning services on mount
   useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
+    dispatch(initializeScanning());
+    
+    // Initialize QR service
+    qrService.initialize();
+    
+    // Cleanup on unmount
+    return () => {
+      dispatch(stopScanning());
+      qrService.cleanup();
+      nfcService.cleanup();
+    };
+  }, [dispatch]);
+
+  // Handle scan mode changes and permissions
+  useEffect(() => {
+    if (scanMode === 'qr' && !qrState.hasPermission) {
+      // Request camera permission for QR scanning
+      Camera.requestCameraPermissionsAsync()
+        .then(({ status }) => {
+          if (status !== 'granted') {
+            Alert.alert(
+              'Camera Permission Required',
+              'Camera permission is needed to scan QR codes. Please grant permission in your device settings.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => {
+                  // On iOS, this will open the Settings app
+                  if (Platform.OS === 'ios') {
+                    // Expo doesn't provide direct settings access, but users can go manually
+                    Alert.alert('Settings', 'Please go to Settings > Privacy & Security > Camera and enable access for this app.');
+                  }
+                }}
+              ]
+            );
+          }
+        })
+        .catch(error => {
+          EventLogger.error('Scanner', 'Error requesting camera permission:', error);
+          Alert.alert('Permission Error', 'Failed to request camera permission.');
+        });
+    } else if (scanMode === 'nfc' && !nfcState.isSupported) {
+      Alert.alert(
+        'NFC Not Supported',
+        'NFC is not supported on this device. Please use QR code scanning instead.',
+        [{ text: 'Switch to QR', onPress: () => setScanMode('qr') }]
+      );
+    } else if (scanMode === 'nfc' && nfcState.isSupported && !nfcState.isEnabled) {
+      Alert.alert(
+        'NFC Disabled',
+        'NFC is disabled on your device. Please enable it in your device settings to use NFC scanning.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Switch to QR', onPress: () => setScanMode('qr') }
+        ]
+      );
+    }
+  }, [scanMode, qrState.hasPermission, nfcState.isSupported, nfcState.isEnabled]);
 
   // Scan line animation
   useEffect(() => {
@@ -106,63 +185,70 @@ export default function ScannerScreen() {
   const handleBarCodeScanned = useCallback(({ data }: { data: string }) => {
     if (!isScanning || isProcessing) return;
 
-    setIsProcessing(true);
-    setIsScanning(false);
+    setScanStartTime(Date.now());
+    dispatch(stopScanning());
     Vibration.vibrate(100);
 
-    // Process the scanned data
-    processScannedData(data, 'qr');
-  }, [isScanning, isProcessing]);
+    // Process the scanned data through Redux
+    dispatch(processScanData({ type: 'qr', data }));
+    
+    // Also use QR service for additional processing
+    qrService.handleCameraScanResult(
+      data,
+      (result) => {
+        if (result.success && result.data?.metadata?.automationId) {
+          const newScan: RecentScan = {
+            id: Date.now().toString(),
+            type: 'qr',
+            data,
+            timestamp: new Date(),
+            automationName: result.data.metadata.title || 'Automation #' + result.data.metadata.automationId.slice(0, 6),
+          };
+          setRecentScans(prev => [newScan, ...prev.slice(0, 4)]);
+          
+          setShowSuccess(true);
+          successScale.value = withSpring(1, {}, () => {
+            successScale.value = withTiming(0, { duration: 500 });
+          });
+        }
+      },
+      scanStartTime
+    );
+  }, [isScanning, isProcessing, dispatch, scanStartTime]);
 
   const processScannedData = async (data: string, type: 'qr' | 'nfc') => {
-    try {
-      // Parse the data to extract automation ID
-      const url = new URL(data);
-      const automationId = url.searchParams.get('automation') || 
-                          url.pathname.split('/').pop();
-
-      if (automationId) {
-        // Add to recent scans
-        const newScan: RecentScan = {
-          id: Date.now().toString(),
-          type,
-          data,
-          timestamp: new Date(),
-          automationName: 'Automation #' + automationId.slice(0, 6),
-        };
-        setRecentScans(prev => [newScan, ...prev.slice(0, 4)]);
-
-        // Show success animation
-        setShowSuccess(true);
-        successScale.value = withSpring(1, {}, () => {
-          successScale.value = withTiming(0, { duration: 500 });
-        });
-
-        // Navigate to automation after delay
-        setTimeout(() => {
-          navigation.navigate('AutomationDetails' as never, { 
-            automationId 
-          } as never);
-        }, 1500);
-      } else {
-        throw new Error('Invalid automation code');
-      }
-    } catch (error) {
-      Alert.alert(
-        'Invalid Code',
-        'This code does not contain a valid automation.',
-        [
-          { text: 'Try Again', onPress: resetScanner }
-        ]
-      );
-    } finally {
-      setIsProcessing(false);
-    }
+    // This is now handled by Redux - keeping for backward compatibility with manual entry
+    dispatch(processScanData({ type, data }));
   };
 
+  // Handle successful scan from Redux state
+  useEffect(() => {
+    if (currentScan && currentScan.automation) {
+      const newScan: RecentScan = {
+        id: currentScan.id,
+        type: currentScan.type,
+        data: currentScan.data,
+        timestamp: new Date(currentScan.timestamp),
+        automationName: currentScan.automation.title || 'Automation #' + currentScan.automation.id.slice(0, 6),
+      };
+      setRecentScans(prev => [newScan, ...prev.slice(0, 4)]);
+      
+      setShowSuccess(true);
+      successScale.value = withSpring(1, {}, () => {
+        successScale.value = withTiming(0, { duration: 500 });
+      });
+      
+      // Navigate to automation after delay
+      setTimeout(() => {
+        navigation.navigate('AutomationDetails' as never, { 
+          automationId: currentScan.automation?.id 
+        } as never);
+      }, 1500);
+    }
+  }, [currentScan, navigation]);
+
   const resetScanner = () => {
-    setIsScanning(true);
-    setIsProcessing(false);
+    dispatch(startScanning(scanMode));
     setShowSuccess(false);
   };
 
@@ -205,7 +291,11 @@ export default function ScannerScreen() {
   const renderModeSwitcher = () => (
     <View style={[styles.modeSwitcher, { backgroundColor: theme.colors?.surface || '#fff' }]}>
       <TouchableOpacity
-        onPress={() => setScanMode('qr')}
+        onPress={() => {
+          setScanMode('qr');
+          dispatch(stopScanning());
+          dispatch(startScanning('qr'));
+        }}
         style={[
           styles.modeButton,
           scanMode === 'qr' && { backgroundColor: theme.colors?.primary || '#6200ee' }
@@ -225,7 +315,11 @@ export default function ScannerScreen() {
       </TouchableOpacity>
       
       <TouchableOpacity
-        onPress={() => setScanMode('nfc')}
+        onPress={() => {
+          setScanMode('nfc');
+          dispatch(stopScanning());
+          dispatch(startScanning('nfc'));
+        }}
         style={[
           styles.modeButton,
           scanMode === 'nfc' && { backgroundColor: theme.colors?.primary || '#6200ee' }
@@ -248,7 +342,7 @@ export default function ScannerScreen() {
 
   const renderQRScanner = () => (
     <View style={styles.scannerContainer}>
-      {hasPermission === false ? (
+      {!qrState.hasPermission ? (
         <View style={styles.permissionContainer}>
           <MaterialCommunityIcons 
             name="camera-off" 
@@ -329,14 +423,32 @@ export default function ScannerScreen() {
         Hold your device near an NFC tag
       </Text>
       
-      {Platform.OS === 'ios' && (
-        <TouchableOpacity
-          style={[styles.nfcButton, { backgroundColor: theme.colors?.primary || '#6200ee' }]}
-          onPress={() => Alert.alert('NFC', 'NFC scanning will be implemented with react-native-nfc-manager')}
-        >
-          <Text style={styles.nfcButtonText}>Start Scanning</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={[styles.nfcButton, { backgroundColor: theme.colors?.primary || '#6200ee' }]}
+        onPress={() => {
+          if (nfcState.isSupported) {
+            if (nfcState.isEnabled) {
+              // Start NFC scanning
+              nfcService.startNFCReader((automationId, metadata) => {
+                const data = `shortcuts-like://automation/${automationId}`;
+                dispatch(processScanData({ type: 'nfc', data }));
+              }).catch(error => {
+                Alert.alert('NFC Error', error.message || 'Failed to start NFC scanning');
+              });
+            } else {
+              Alert.alert('NFC Disabled', 'Please enable NFC in your device settings.');
+            }
+          } else {
+            Alert.alert('NFC Not Supported', 'NFC is not supported on this device.');
+          }
+        }}
+        disabled={!nfcState.isSupported || isProcessing}
+      >
+        <Text style={styles.nfcButtonText}>
+          {isProcessing ? 'Processing...' : 
+           nfcState.isListening ? 'Scanning...' : 'Start NFC Scan'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 

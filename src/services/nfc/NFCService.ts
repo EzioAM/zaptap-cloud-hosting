@@ -79,17 +79,34 @@ export class NFCService {
 
       const enabled = await NfcManager.isEnabled();
       if (!enabled) {
-        Alert.alert(
-          'NFC Disabled',
-          'NFC is disabled on your device. Please enable it in your device settings to use NFC features.',
-          [
-            { text: 'Cancel' },
-            { 
-              text: 'Open Settings', 
-              onPress: () => NfcManager.goToNfcSetting() 
-            }
-          ]
-        );
+        // Check for platform-specific NFC settings access
+        if (Platform.OS === 'android') {
+          Alert.alert(
+            'NFC Disabled',
+            'NFC is disabled on your device. Please enable it in your device settings to use NFC features.',
+            [
+              { text: 'Cancel' },
+              { 
+                text: 'Open Settings', 
+                onPress: () => {
+                  try {
+                    NfcManager.goToNfcSetting();
+                  } catch (error) {
+                    EventLogger.warn('NFC', 'Could not open NFC settings:', error);
+                    Alert.alert('Settings', 'Please go to Settings > Connected devices > NFC and enable NFC.');
+                  }
+                }
+              }
+            ]
+          );
+        } else {
+          // iOS doesn't have user-toggleable NFC settings, it's always enabled if supported
+          Alert.alert(
+            'NFC Unavailable',
+            'NFC functionality is not available. This may be due to hardware limitations or iOS restrictions.',
+            [{ text: 'OK' }]
+          );
+        }
         return false;
       }
 

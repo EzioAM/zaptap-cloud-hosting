@@ -113,6 +113,7 @@ export const Card: React.FC<CardProps> = ({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={disabled}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         style={[
           animatedStyle,
           animatedShadowStyle,
@@ -123,6 +124,8 @@ export const Card: React.FC<CardProps> = ({
           disabled && cardStyles.disabled,
           style,
         ]}
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
         {...pressableProps}
       >
         {gradient && variant === 'gradient' && (

@@ -160,7 +160,10 @@ export const TrendingCard: React.FC<TrendingCardProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       activeOpacity={1}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       style={[styles.container, style]}
+      accessibilityRole="button"
+      accessibilityLabel={`Trending automation: ${automation.title}`}
     >
       <Animated.View
         style={[
@@ -287,6 +290,9 @@ export const TrendingCard: React.FC<TrendingCardProps> = ({
               style={styles.creator}
               onPress={handleCreatorPress}
               activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={`View creator: ${automation.createdBy.username}`}
             >
               <View style={styles.creatorAvatar}>
                 {automation.createdBy.avatar ? (

@@ -212,9 +212,11 @@ const initializeBackgroundServices = async () => {
           targetLaunchTime: 2500,
           targetFPS: 50,
           maxMemoryUsage: 200,
-          enableNavigationPreloading: true,
+          enableNavigationPreloading: false, // CHANGED: Disable to prevent blocking
           enableCaching: true,
           enableAnimationOptimization: true,
+          allowTouchBlocking: false, // ENSURE: Never block touch events
+          maxDeferDelay: 16, // ENSURE: Maximum 1 frame delay
         });
       } catch (perfError) {
         console.warn('Performance optimizer initialization failed:', perfError);
@@ -335,8 +337,15 @@ const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
   console.log('🔄 FullApp rendering with GestureHandlerRootView');
 
   return (
-    // TOUCH FIX: Ensure GestureHandlerRootView is configured properly for touch handling
-    <GestureHandlerRootView style={{ flex: 1 }} shouldActivateOnStart={false}>
+    // TOUCH FIX: Optimally configured GestureHandlerRootView for touch handling
+    <GestureHandlerRootView 
+      style={{ flex: 1 }} 
+      shouldActivateOnStart={false}
+      simultaneousHandlers={null}
+      enableTrackpadTwoFingerGesture={false}
+      // Ensure optimal touch event handling
+      touchAction="auto"
+    >
       <SafeAppWrapper enableProtection={__DEV__} maxRenderCycles={100}>
         <SafeAreaProvider>
           <ReduxProvider store={store}>

@@ -5,17 +5,38 @@
  * without creating circular dependencies.
  */
 
-// Re-export types from store without importing the store itself
-export type RootState = any; // Will be properly typed when store is fully initialized
-export type AppDispatch = any; // Will be properly typed when store is fully initialized
+// Lazy type definitions that avoid circular dependencies
+export type RootState = {
+  auth: AuthState;
+  offline: import('./slices/offlineSlice').OfflineState;
+  notifications: import('../types/notifications').NotificationState;
+  automation: import('./slices/automationSlice').AutomationState;
+  deployment: import('./slices/deploymentSlice').DeploymentState;
+  scan: import('./slices/scanSlice').ScanState;
+  ui: import('./slices/uiSlice').UIState;
+  errors: ErrorState;
+  // API slices
+  automationApi: any;
+  analyticsApi: any;
+  dashboardApi: any;
+  searchApi: any;
+};
+
+// AppDispatch type without circular dependency
+export type AppDispatch = import('@reduxjs/toolkit').ThunkDispatch<RootState, any, import('@reduxjs/toolkit').AnyAction> & import('@reduxjs/toolkit').Dispatch<import('@reduxjs/toolkit').AnyAction>;
 
 // Auth state shape for external services
 export interface AuthState {
-  accessToken?: string;
-  isAuthenticated?: boolean;
-  user?: any;
-  isLoading?: boolean;
-  error?: string | null;
+  user: any;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isRecovering: boolean;
+  lastErrorTimestamp: number | null;
+  consecutiveErrors: number;
+  sessionValid: boolean;
 }
 
 // Network state shape

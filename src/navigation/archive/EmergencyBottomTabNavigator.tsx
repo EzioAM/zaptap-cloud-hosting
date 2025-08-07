@@ -188,7 +188,7 @@ const ProfileScreenComponent = () => {
   return <EmergencyScreen title="Profile" />;
 };
 
-export const ModernBottomTabNavigator = () => {
+export const EmergencyBottomTabNavigator = () => {
   EventLogger.debug('Navigation', '🚨 EmergencyBottomTabNavigator rendering...');
   
   return (

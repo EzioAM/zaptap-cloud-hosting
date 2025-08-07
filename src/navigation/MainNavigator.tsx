@@ -17,6 +17,7 @@ import { OnboardingFlow } from '../screens/onboarding/OnboardingFlow';
 import { TutorialScreen } from '../screens/onboarding/TutorialScreen';
 import SignInScreen from '../screens/auth/SignInScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import PrivacyScreen from '../screens/placeholder/PrivacyScreen';
 import TermsScreen from '../screens/placeholder/TermsScreen';
 import HelpScreen from '../screens/placeholder/HelpScreen';
@@ -162,12 +163,11 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         }}
       >
         {(props) => (
-          // TOUCH FIX: Configure GestureHandlerRootView to not interfere with touches
-          <GestureHandlerRootView style={{ flex: 1 }} shouldActivateOnStart={false}>
-            <NavigationErrorBoundary context="BottomTabNavigator">
-              <ModernBottomTabNavigator {...props} />
-            </NavigationErrorBoundary>
-          </GestureHandlerRootView>
+          // TOUCH FIX: Remove duplicate GestureHandlerRootView to prevent touch blocking
+          // The root App.tsx already has GestureHandlerRootView, we don't need another one here
+          <NavigationErrorBoundary context="BottomTabNavigator">
+            <ModernBottomTabNavigator {...props} />
+          </NavigationErrorBoundary>
         )}
       </Stack.Screen>
       <Stack.Screen
@@ -239,6 +239,11 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         name="SignUp"
         component={SignUpScreen}
         options={{ title: 'Sign Up' }}
+      />
+      <Stack.Screen
+        name="ResetPassword"
+        component={ResetPasswordScreen}
+        options={{ title: 'Reset Password' }}
       />
       <Stack.Screen
         name="Privacy"

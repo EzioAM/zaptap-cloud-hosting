@@ -35,7 +35,7 @@ import NFCWriter from '../../components/nfc/NFCWriter';
 import QRGenerator from '../../components/qr/QRGenerator';
 import StarRating from '../../components/reviews/StarRating';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../types/navigation';
+import { RootStackParamList } from '../../navigation/types';
 import { ShareAutomationModal } from '../../components/sharing/ShareAutomationModal';
 import { FullScreenModal } from '../../components/common/FullScreenModal';
 import { VersionHistoryModal } from '../../components/versions/VersionHistoryModal';

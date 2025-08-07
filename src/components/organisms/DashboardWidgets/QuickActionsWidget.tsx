@@ -26,6 +26,8 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       onPress={onPress}
       activeOpacity={0.7}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel={`${label} quick action`}
     >
       <LinearGradient
         colors={gradient}

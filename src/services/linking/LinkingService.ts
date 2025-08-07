@@ -109,9 +109,16 @@ export class LinkingService {
         return this.parseAppSchemeLink(url);
       }
 
-      // Handle universal links (https://zaptap.app/...)
-      if (smartLinkService.isSmartLink(url)) {
+      // Handle universal links (https://zaptap.cloud or https://www.zaptap.cloud)
+      if (url.includes('zaptap.cloud') || smartLinkService.isSmartLink(url)) {
         return this.parseUniversalLink(url);
+      }
+
+      // Handle legacy shortcutslike.app domain
+      if (url.includes('shortcutslike.app')) {
+        // Convert old domain to new domain format
+        const newUrl = url.replace('shortcutslike.app', 'zaptap.cloud');
+        return this.parseUniversalLink(newUrl);
       }
 
       return null;
@@ -154,10 +161,23 @@ export class LinkingService {
       
       case 'reset-password':
         return {
-          type: 'reset-password',
+          type: 'reset-password' as any,
           data: {
             access_token: urlObj.searchParams.get('access_token'),
-            refresh_token: urlObj.searchParams.get('refresh_token')
+            refresh_token: urlObj.searchParams.get('refresh_token'),
+            type: urlObj.searchParams.get('type')
+          }
+        };
+      
+      case 'auth':
+        // Handle auth callbacks from Supabase
+        return {
+          type: 'auth-callback' as any,
+          data: {
+            access_token: urlObj.searchParams.get('access_token'),
+            refresh_token: urlObj.searchParams.get('refresh_token'),
+            error: urlObj.searchParams.get('error'),
+            error_description: urlObj.searchParams.get('error_description')
           }
         };
       
@@ -223,6 +243,14 @@ export class LinkingService {
       
       case 'emergency':
         await this.handleEmergencyLink(linkData);
+        break;
+      
+      case 'reset-password' as any:
+        await this.handlePasswordReset(linkData);
+        break;
+      
+      case 'auth-callback' as any:
+        await this.handleAuthCallback(linkData);
         break;
       
       default:
@@ -581,10 +609,75 @@ export class LinkingService {
   }
 
   /**
+   * Handle password reset deep link
+   */
+  private async handlePasswordReset(linkData: any) {
+    try {
+      const { access_token, refresh_token, type } = linkData.data || {};
+      
+      if (type === 'recovery' && access_token) {
+        // Set the new session
+        const { error } = await supabase.auth.setSession({
+          access_token,
+          refresh_token
+        });
+        
+        if (error) {
+          Alert.alert('Password Reset Error', 'Failed to set new session. Please try again.');
+          return;
+        }
+        
+        // Navigate to password reset screen
+        this.navigationRef?.navigate('ResetPassword' as any);
+      } else {
+        Alert.alert('Invalid Link', 'This password reset link is invalid or expired.');
+      }
+    } catch (error) {
+      this.logger.error('Failed to handle password reset', { error });
+      Alert.alert('Error', 'Failed to process password reset link.');
+    }
+  }
+
+  /**
+   * Handle auth callback deep link
+   */
+  private async handleAuthCallback(linkData: any) {
+    try {
+      const { access_token, refresh_token, error, error_description } = linkData.data || {};
+      
+      if (error) {
+        this.logger.error('Auth callback error', { error, error_description });
+        Alert.alert('Authentication Error', error_description || 'Authentication failed.');
+        return;
+      }
+      
+      if (access_token && refresh_token) {
+        // Set the new session
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token,
+          refresh_token
+        });
+        
+        if (sessionError) {
+          Alert.alert('Authentication Error', 'Failed to establish session.');
+          return;
+        }
+        
+        // Navigate to home screen
+        this.navigationRef?.navigate('MainTabs' as any);
+      }
+    } catch (error) {
+      this.logger.error('Failed to handle auth callback', { error });
+      Alert.alert('Error', 'Failed to complete authentication.');
+    }
+  }
+
+  /**
    * Generate deep link for sharing
    */
   generateDeepLink(automationId: string, type: 'automation' | 'share' | 'emergency' = 'automation'): string {
-    return `shortcuts-like://${type}/${automationId}`;
+    // Use the new zaptap scheme
+    return `zaptap://${type}/${automationId}`;
   }
 
   /**

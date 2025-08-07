@@ -311,7 +311,7 @@ const DiscoverScreen: React.FC = memo(() => {
       }
     } catch (error) {
       EventLogger.error('DiscoverScreen', 'Category selection failed', error as Error, {
-        category,
+        categoryId,
         userId: user?.id,
       });
       showFeedback('error', 'Failed to update category');
@@ -325,7 +325,7 @@ const DiscoverScreen: React.FC = memo(() => {
       triggerHaptic('light');
     } catch (error) {
       EventLogger.error('DiscoverScreen', 'Search operation failed', error as Error, {
-        searchQuery: newQuery,
+        searchQuery: query,
         userId: user?.id,
         connectionState: isConnected,
       });
@@ -379,7 +379,7 @@ const DiscoverScreen: React.FC = memo(() => {
     } catch (error) {
       EventLogger.error('DiscoverScreen', 'Like toggle operation failed', error as Error, {
         automationId,
-        action: automation.hasLiked ? 'unlike' : 'like',
+        action: isLiked ? 'unlike' : 'like',
         userId: user?.id,
       });
       showFeedback('error', 'Failed to update favorites');
@@ -408,7 +408,6 @@ const DiscoverScreen: React.FC = memo(() => {
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (error) {
       EventLogger.error('DiscoverScreen', 'Load more operation failed', error as Error, {
-        currentPage: page,
         userId: user?.id,
       });
     } finally {
@@ -432,7 +431,7 @@ const DiscoverScreen: React.FC = memo(() => {
     } catch (error) {
       EventLogger.error('DiscoverScreen', 'Automation filtering failed', error as Error, {
         selectedCategory,
-        searchQuery: query,
+        searchQuery,
         userId: user?.id,
       });
       return [];
