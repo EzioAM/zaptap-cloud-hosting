@@ -173,34 +173,105 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
    * Initialize network monitoring
    */
   useEffect(() => {
-    // Add event listeners
-    syncManager.addEventListener('network_changed', handleSyncEvent);
-    syncManager.addEventListener('sync_started', handleSyncEvent);
-    syncManager.addEventListener('sync_progress', handleSyncEvent);
-    syncManager.addEventListener('sync_completed', handleSyncEvent);
-    syncManager.addEventListener('sync_failed', handleSyncEvent);
-    syncManager.addEventListener('operation_completed', handleSyncEvent);
-    syncManager.addEventListener('operation_failed', handleSyncEvent);
+    let mounted = true;
+    
+    const initialize = async () => {
+      try {
+        logger.info('NetworkContext: Initializing network monitoring');
+        
+        // Add event listeners
+        syncManager.addEventListener('network_changed', handleSyncEvent);
+        syncManager.addEventListener('sync_started', handleSyncEvent);
+        syncManager.addEventListener('sync_progress', handleSyncEvent);
+        syncManager.addEventListener('sync_completed', handleSyncEvent);
+        syncManager.addEventListener('sync_failed', handleSyncEvent);
+        syncManager.addEventListener('operation_completed', handleSyncEvent);
+        syncManager.addEventListener('operation_failed', handleSyncEvent);
 
-    // Get initial state
-    const initialNetworkInfo = syncManager.getNetworkInfo();
-    if (initialNetworkInfo) {
-      setNetworkInfo(initialNetworkInfo);
-    }
+        if (!mounted) return;
+        
+        // Get initial state with timeout fallback
+        const timeoutId = setTimeout(() => {
+          if (mounted && !networkInfo) {
+            logger.warn('NetworkContext: Network state fetch timeout, using fallback');
+            setNetworkInfo({
+              isConnected: false,
+              type: 'unknown',
+              isInternetReachable: null,
+              details: null,
+            });
+          }
+        }, 5000);
+        
+        try {
+          const initialNetworkInfo = syncManager.getNetworkInfo();
+          if (mounted) {
+            clearTimeout(timeoutId);
+            if (initialNetworkInfo) {
+              logger.info('NetworkContext: Got initial network info', initialNetworkInfo);
+              setNetworkInfo(initialNetworkInfo);
+            } else {
+              logger.info('NetworkContext: No initial network info, will wait for first event');
+              // Set a temporary offline state while waiting
+              setNetworkInfo({
+                isConnected: false,
+                type: 'unknown',
+                isInternetReachable: null,
+                details: null,
+              });
+            }
+          }
+        } catch (error) {
+          if (mounted) {
+            clearTimeout(timeoutId);
+            logger.error('NetworkContext: Error getting initial network info', { error });
+          }
+        }
 
-    setIsSyncing(syncManager.isSyncing());
-    setSyncProgress(syncManager.getSyncProgress());
-    updateQueueStats();
+        if (!mounted) return;
+        
+        // Set initial sync state
+        setIsSyncing(syncManager.isSyncing());
+        setSyncProgress(syncManager.getSyncProgress());
+        
+        // Update queue stats
+        await updateQueueStats();
+        
+        logger.info('NetworkContext: Network monitoring initialized successfully');
+      } catch (error) {
+        if (mounted) {
+          logger.error('NetworkContext: Failed to initialize network monitoring', { error });
+          // Set fallback state
+          setNetworkInfo({
+            isConnected: false,
+            type: 'unknown',
+            isInternetReachable: null,
+            details: null,
+          });
+        }
+      }
+    };
+    
+    // Initialize with a small delay to ensure proper setup
+    const initTimeoutId = setTimeout(initialize, 100);
 
     // Cleanup on unmount
     return () => {
-      syncManager.removeEventListener('network_changed', handleSyncEvent);
-      syncManager.removeEventListener('sync_started', handleSyncEvent);
-      syncManager.removeEventListener('sync_progress', handleSyncEvent);
-      syncManager.removeEventListener('sync_completed', handleSyncEvent);
-      syncManager.removeEventListener('sync_failed', handleSyncEvent);
-      syncManager.removeEventListener('operation_completed', handleSyncEvent);
-      syncManager.removeEventListener('operation_failed', handleSyncEvent);
+      mounted = false;
+      clearTimeout(initTimeoutId);
+      
+      try {
+        syncManager.removeEventListener('network_changed', handleSyncEvent);
+        syncManager.removeEventListener('sync_started', handleSyncEvent);
+        syncManager.removeEventListener('sync_progress', handleSyncEvent);
+        syncManager.removeEventListener('sync_completed', handleSyncEvent);
+        syncManager.removeEventListener('sync_failed', handleSyncEvent);
+        syncManager.removeEventListener('operation_completed', handleSyncEvent);
+        syncManager.removeEventListener('operation_failed', handleSyncEvent);
+        logger.info('NetworkContext: Network monitoring cleanup completed');
+      } catch (error) {
+        logger.error('NetworkContext: Error during cleanup', { error });
+      }
     };
   }, [handleSyncEvent, updateQueueStats]);
 

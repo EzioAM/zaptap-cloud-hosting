@@ -40,6 +40,7 @@ class SupabaseClientWithRetry {
   private isOnline: boolean = true;
   private retryCount: number = 3;
   private retryDelay: number = 1000;
+  private networkUnsubscribe: (() => void) | null = null;
 
   constructor() {
     this.client = createClient(supabaseUrl, supabaseAnonKey, {
@@ -66,11 +67,67 @@ class SupabaseClientWithRetry {
       },
     });
 
-    // Monitor network connectivity
-    NetInfo.addEventListener(state => {
-      this.isOnline = state.isConnected ?? true;
-      EventLogger.debug('client', 'Network status:', this.isOnline ? 'Online' : 'Offline');
-    });
+    // Initialize network monitoring
+    this.initializeNetworkMonitoring();
+  }
+
+  private initializeNetworkMonitoring() {
+    try {
+      // Configure NetInfo for consistent behavior with main network service
+      NetInfo.configure({
+        reachabilityUrl: 'https://clients3.google.com/generate_204',
+        reachabilityTest: async (response) => response.status === 204,
+        reachabilityLongTimeout: 60 * 1000, // 60s
+        reachabilityShortTimeout: 5 * 1000, // 5s
+        reachabilityRequestTimeout: 15 * 1000, // 15s
+        reachabilityShouldRun: () => true,
+      });
+
+      // Monitor network connectivity
+      this.networkUnsubscribe = NetInfo.addEventListener(state => {
+        const wasOnline = this.isOnline;
+        this.isOnline = Boolean(state.isConnected && state.isInternetReachable !== false);
+        
+        if (wasOnline !== this.isOnline) {
+          EventLogger.info('SupabaseClient', 'Network status changed:', {
+            isOnline: this.isOnline,
+            connectionType: state.type,
+            isInternetReachable: state.isInternetReachable
+          });
+        }
+      });
+
+      // Get initial network state
+      NetInfo.fetch().then(state => {
+        this.isOnline = Boolean(state.isConnected && state.isInternetReachable !== false);
+        EventLogger.debug('SupabaseClient', 'Initial network status:', {
+          isOnline: this.isOnline,
+          connectionType: state.type,
+          isInternetReachable: state.isInternetReachable
+        });
+      }).catch(error => {
+        EventLogger.error('SupabaseClient', 'Failed to get initial network status:', error as Error);
+      });
+    } catch (error) {
+      EventLogger.error('SupabaseClient', 'Failed to initialize network monitoring:', error as Error);
+    }
+  }
+
+  // Method to get network status
+  getNetworkStatus() {
+    return this.isOnline;
+  }
+
+  // Cleanup method
+  cleanup() {
+    try {
+      if (this.networkUnsubscribe) {
+        this.networkUnsubscribe();
+        this.networkUnsubscribe = null;
+      }
+    } catch (error) {
+      EventLogger.error('SupabaseClient', 'Error during cleanup:', error as Error);
+    }
   }
 
   // Get the underlying Supabase client
@@ -86,31 +143,71 @@ class SupabaseClientWithRetry {
       try {
         // Check network status before attempting
         if (!this.isOnline) {
-          throw new Error('No network connection');
+          throw new Error('No network connection - offline mode');
         }
 
-        return await operation();
+        const result = await operation();
+        
+        // If we succeeded after retries, log it
+        if (attempt > 0) {
+          EventLogger.info('SupabaseClient', `Operation succeeded on attempt ${attempt + 1}`);
+        }
+        
+        return result;
       } catch (error: any) {
         lastError = error;
-        EventLogger.error('client', 'Attempt ${attempt + 1} failed:', error.message as Error);
+        const errorMessage = error.message || 'Unknown error';
+        
+        EventLogger.warn('SupabaseClient', `Attempt ${attempt + 1}/${this.retryCount} failed:`, {
+          error: errorMessage,
+          code: error.code,
+          isOnline: this.isOnline
+        });
 
-        // Don't retry on auth errors or validation errors
-        if (error.code === '42501' || // permission denied
-            error.code === '23503' || // foreign key violation
-            error.code === '23505' || // unique violation
-            error.code === '23514' || // check violation
-            error.code === 'PGRST301' || // JWT expired
-            error.message?.includes('JWT')) {
+        // Don't retry on specific error conditions
+        const nonRetryableErrors = [
+          '42501', // permission denied
+          '23503', // foreign key violation
+          '23505', // unique violation
+          '23514', // check violation
+          'PGRST301', // JWT expired
+        ];
+        
+        const isAuthError = error.message?.includes('JWT') || error.message?.includes('auth');
+        const isValidationError = nonRetryableErrors.includes(error.code);
+        const isNetworkOffline = !this.isOnline;
+        
+        if (isAuthError || isValidationError) {
+          EventLogger.info('SupabaseClient', 'Non-retryable error, failing immediately:', {
+            error: errorMessage,
+            isAuthError,
+            isValidationError
+          });
           throw error;
         }
 
-        // Wait before retrying
+        // If network went offline during operation, don't retry
+        if (isNetworkOffline) {
+          EventLogger.info('SupabaseClient', 'Network went offline, not retrying');
+          throw new Error('Network connection lost during operation');
+        }
+
+        // Wait before retrying with exponential backoff
         if (attempt < this.retryCount - 1) {
-          await new Promise(resolve => setTimeout(resolve, this.retryDelay * (attempt + 1)));
+          const delay = this.retryDelay * Math.pow(2, attempt);
+          EventLogger.debug('SupabaseClient', `Waiting ${delay}ms before retry`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          // Check network status again after delay
+          if (!this.isOnline) {
+            EventLogger.info('SupabaseClient', 'Network offline after delay, not retrying');
+            throw new Error('Network connection lost during retry delay');
+          }
         }
       }
     }
 
+    EventLogger.error('SupabaseClient', `All ${this.retryCount} attempts failed, giving up`);
     throw lastError;
   }
 }

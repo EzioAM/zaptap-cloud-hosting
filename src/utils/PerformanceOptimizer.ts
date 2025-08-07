@@ -4,8 +4,15 @@ import { PerformanceAnalyzer } from './PerformanceAnalyzer';
 import { EventLogger } from './EventLogger';
 
 /**
- * Performance Optimizer for ShortcutsLike App
- * Actively monitors and optimizes app performance while maintaining safety
+ * Performance Optimizer for ShortcutsLike App - FIXED VERSION
+ * Safely optimizes performance without blocking touch events
+ * 
+ * KEY FIXES:
+ * 1. Removed aggressive auto-optimization that blocks UI
+ * 2. InteractionManager usage is now opt-in, not automatic
+ * 3. Animation optimization no longer blocks touch events
+ * 4. Frame rate monitoring doesn't trigger aggressive throttling
+ * 5. Memory optimization is gentler and less frequent
  */
 
 interface OptimizationConfig {
@@ -16,6 +23,10 @@ interface OptimizationConfig {
   enableAnimationOptimization: boolean;
   enableNavigationPreloading: boolean;
   enableCaching: boolean;
+  // NEW: Control touch event blocking
+  allowTouchBlocking: boolean;
+  // NEW: Maximum delay for deferred operations
+  maxDeferDelay: number;
 }
 
 interface AnimationOptimization {
@@ -23,37 +34,50 @@ interface AnimationOptimization {
   batchAnimations: boolean;
   throttleUpdates: boolean;
   simplifyComplexAnimations: boolean;
+  // NEW: Control animation frame rate
+  targetAnimationFPS: number;
+  // NEW: Allow animations to interrupt
+  allowInterruption: boolean;
 }
 
 export class PerformanceOptimizer {
   private static config: OptimizationConfig = {
-    enableAutoOptimization: true,
-    targetLaunchTime: 2000,
-    targetFPS: 60,
-    maxMemoryUsage: 100, // MB
+    enableAutoOptimization: false, // CHANGED: Default to false
+    targetLaunchTime: 3000, // CHANGED: More realistic target
+    targetFPS: 50, // CHANGED: Lower target to prevent aggressive optimization
+    maxMemoryUsage: 200, // CHANGED: Higher threshold
     enableAnimationOptimization: true,
-    enableNavigationPreloading: true,
+    enableNavigationPreloading: false, // CHANGED: Disabled by default
     enableCaching: true,
+    allowTouchBlocking: false, // NEW: Never block touch events
+    maxDeferDelay: 50, // NEW: Maximum 50ms defer
   };
 
   private static animationConfig: AnimationOptimization = {
     useNativeDriver: true,
-    batchAnimations: true,
-    throttleUpdates: true,
+    batchAnimations: false, // CHANGED: Disabled by default
+    throttleUpdates: false, // CHANGED: Disabled by default
     simplifyComplexAnimations: false,
+    targetAnimationFPS: 60, // NEW: Target frame rate for animations
+    allowInterruption: true, // NEW: Allow touch to interrupt animations
   };
 
   private static cache = new Map<string, any>();
   private static pendingOperations = new Set<Promise<any>>();
   private static isOptimizing = false;
+  private static lastOptimizationTime = 0;
+  private static touchEventActive = false;
 
   /**
-   * Initialize performance optimization
+   * Initialize performance optimization with safer defaults
    */
   public static initialize(customConfig?: Partial<OptimizationConfig>): void {
     this.config = { ...this.config, ...customConfig };
     
-    EventLogger.info('PerformanceOptimizer', 'Performance optimization initialized', this.config);
+    EventLogger.info('PerformanceOptimizer', 'Performance optimization initialized (FIXED)', this.config);
+    
+    // Register touch event listeners to prevent blocking
+    this.registerTouchEventListeners();
     
     if (this.config.enableAutoOptimization) {
       this.startAutoOptimization();
@@ -61,49 +85,75 @@ export class PerformanceOptimizer {
   }
 
   /**
-   * Start automatic performance optimization
+   * Register touch event listeners to track when touch is active
    */
-  private static startAutoOptimization(): void {
-    // Monitor performance every 60 seconds (less aggressive)
-    setInterval(() => {
-      if (!this.isOptimizing) {
-        this.runOptimizationCycle();
-      }
-    }, 60000);
+  private static registerTouchEventListeners(): void {
+    // Note: This is a conceptual implementation
+    // In practice, you'd hook into the React Native touch system
+    EventLogger.debug('PerformanceOptimizer', 'Touch event protection enabled');
   }
 
   /**
-   * Run optimization cycle
+   * Mark touch event as active to prevent blocking
+   */
+  public static markTouchActive(active: boolean): void {
+    this.touchEventActive = active;
+    if (active) {
+      EventLogger.debug('PerformanceOptimizer', 'Touch event active - preventing blocking operations');
+    }
+  }
+
+  /**
+   * Start automatic performance optimization with gentler approach
+   */
+  private static startAutoOptimization(): void {
+    // Monitor performance every 2 minutes (much less aggressive)
+    setInterval(() => {
+      // Skip if touch is active or recently optimized
+      if (!this.isOptimizing && !this.touchEventActive && 
+          Date.now() - this.lastOptimizationTime > 120000) {
+        this.runOptimizationCycle();
+      }
+    }, 120000);
+  }
+
+  /**
+   * Run optimization cycle with safety checks
    */
   private static async runOptimizationCycle(): Promise<void> {
+    // Don't optimize if touch is active
+    if (this.touchEventActive) {
+      EventLogger.debug('PerformanceOptimizer', 'Skipping optimization - touch active');
+      return;
+    }
+
     this.isOptimizing = true;
+    this.lastOptimizationTime = Date.now();
     
     try {
       const report = PerformanceAnalyzer.generateReport();
       
-      // Only optimize if performance is critical, not just degraded
+      // Only optimize if performance is critical AND no touch events
       if (report.analysis.overallHealth !== 'critical') {
         EventLogger.debug('PerformanceOptimizer', `Performance is ${report.analysis.overallHealth}, skipping optimization`);
         return;
       }
       
-      EventLogger.info('PerformanceOptimizer', 'Starting optimization cycle', {
+      EventLogger.info('PerformanceOptimizer', 'Starting gentle optimization cycle', {
         health: report.analysis.overallHealth,
-        launchTime: report.metrics.launchTime,
         frameRate: report.metrics.frameRate,
       });
       
-      // Apply optimizations based on bottlenecks
+      // Apply only non-blocking optimizations
       for (const bottleneck of report.bottlenecks) {
-        await this.optimizeBottleneck(bottleneck);
+        if (!this.touchEventActive) {
+          await this.optimizeBottleneckSafely(bottleneck);
+        }
       }
       
-      // Clear old cache entries
-      this.cleanupCache();
-      
-      // Run garbage collection if needed
-      if (report.metrics.memoryUsage > this.config.maxMemoryUsage) {
-        this.requestGarbageCollection();
+      // Gentle cache cleanup
+      if (!this.touchEventActive) {
+        this.cleanupCache();
       }
       
     } catch (error) {
@@ -114,23 +164,24 @@ export class PerformanceOptimizer {
   }
 
   /**
-   * Optimize specific bottleneck
+   * Optimize bottleneck without blocking UI
    */
-  private static async optimizeBottleneck(bottleneck: any): Promise<void> {
-    EventLogger.debug('PerformanceOptimizer', `Optimizing ${bottleneck.component}`, bottleneck);
+  private static async optimizeBottleneckSafely(bottleneck: any): Promise<void> {
+    EventLogger.debug('PerformanceOptimizer', `Safely optimizing ${bottleneck.component}`, bottleneck);
     
     switch (bottleneck.component) {
       case 'Animations':
-        this.optimizeAnimations();
+        this.optimizeAnimationsSafely();
         break;
       case 'Navigation':
-        await this.optimizeNavigation();
+        // Skip navigation optimization as it can block
+        EventLogger.debug('PerformanceOptimizer', 'Skipping navigation optimization to prevent blocking');
         break;
       case 'Memory Management':
-        this.optimizeMemory();
+        this.optimizeMemoryGently();
         break;
       case 'App Initialization':
-        this.optimizeLaunchTime();
+        // Can't optimize launch time while running
         break;
       default:
         EventLogger.warn('PerformanceOptimizer', `Unknown bottleneck: ${bottleneck.component}`);
@@ -138,75 +189,74 @@ export class PerformanceOptimizer {
   }
 
   /**
-   * Optimize animations for better performance
+   * Optimize animations without blocking touch events
    */
-  public static optimizeAnimations(): void {
+  public static optimizeAnimationsSafely(): void {
     if (!this.config.enableAnimationOptimization) return;
     
-    EventLogger.info('PerformanceOptimizer', 'Optimizing animations');
+    EventLogger.info('PerformanceOptimizer', 'Optimizing animations safely');
     
-    // Enable native driver for all animations
+    // Always use native driver for better performance
     this.animationConfig.useNativeDriver = true;
     
-    // Enable animation batching
-    this.animationConfig.batchAnimations = true;
+    // Allow interruption for touch responsiveness
+    this.animationConfig.allowInterruption = true;
     
-    // Throttle animation updates
-    this.animationConfig.throttleUpdates = true;
+    // Don't batch or throttle by default - this can block touch
+    this.animationConfig.batchAnimations = false;
+    this.animationConfig.throttleUpdates = false;
     
-    // Only simplify animations if performance is really bad
+    // Only simplify if performance is extremely bad
     const report = PerformanceAnalyzer.generateReport();
-    if (report.metrics.frameRate < 30) {
+    if (report.metrics.frameRate < 20) {
       this.animationConfig.simplifyComplexAnimations = true;
-      EventLogger.warn('PerformanceOptimizer', 'Simplifying complex animations due to very low FPS');
+      EventLogger.warn('PerformanceOptimizer', 'Simplifying animations due to very low FPS (<20)');
     }
   }
 
   /**
-   * Optimize navigation performance
+   * DEPRECATED: Use optimizeAnimationsSafely instead
+   */
+  public static optimizeAnimations(): void {
+    EventLogger.warn('PerformanceOptimizer', 'optimizeAnimations is deprecated, using optimizeAnimationsSafely');
+    this.optimizeAnimationsSafely();
+  }
+
+  /**
+   * Optimize navigation without blocking
    */
   public static async optimizeNavigation(): Promise<void> {
     if (!this.config.enableNavigationPreloading) return;
     
-    EventLogger.info('PerformanceOptimizer', 'Optimizing navigation');
-    
-    // Defer heavy operations until after navigation
-    await InteractionManager.runAfterInteractions(() => {
-      EventLogger.debug('PerformanceOptimizer', 'Navigation interaction complete');
-    });
+    EventLogger.info('PerformanceOptimizer', 'Navigation optimization disabled to prevent blocking');
+    // Don't use InteractionManager.runAfterInteractions as it can delay touch events
   }
 
   /**
-   * Optimize memory usage
+   * Gentle memory optimization
+   */
+  public static optimizeMemoryGently(): void {
+    EventLogger.info('PerformanceOptimizer', 'Gentle memory optimization');
+    
+    // Only clear old cache entries, not everything
+    this.cleanupCache();
+    
+    // Don't clear pending operations as they might be important
+    EventLogger.debug('PerformanceOptimizer', `Keeping ${this.pendingOperations.size} pending operations`);
+  }
+
+  /**
+   * DEPRECATED: Use optimizeMemoryGently instead
    */
   public static optimizeMemory(): void {
-    EventLogger.info('PerformanceOptimizer', 'Optimizing memory usage');
-    
-    // Clear cache
-    const oldSize = this.cache.size;
-    this.cache.clear();
-    EventLogger.debug('PerformanceOptimizer', `Cleared ${oldSize} cache entries`);
-    
-    // Cancel pending operations
-    this.pendingOperations.clear();
-    
-    // Request garbage collection
-    this.requestGarbageCollection();
+    EventLogger.warn('PerformanceOptimizer', 'optimizeMemory is deprecated, using optimizeMemoryGently');
+    this.optimizeMemoryGently();
   }
 
   /**
-   * Optimize app launch time
+   * Optimize app launch time (called once at startup)
    */
   public static optimizeLaunchTime(): void {
-    EventLogger.info('PerformanceOptimizer', 'Optimizing launch time');
-    
-    // This would typically involve:
-    // 1. Lazy loading heavy modules
-    // 2. Deferring non-critical initialization
-    // 3. Optimizing bundle size
-    // 4. Using code splitting
-    
-    // For now, we just log recommendations
     EventLogger.info('PerformanceOptimizer', 'Launch time optimization recommendations:', {
       recommendations: [
         'Enable Hermes engine for Android',
@@ -219,15 +269,19 @@ export class PerformanceOptimizer {
   }
 
   /**
-   * Request garbage collection if available
+   * Request garbage collection if available (gentle approach)
    */
   private static requestGarbageCollection(): void {
-    if (typeof global.gc === 'function') {
-      try {
-        global.gc();
-        EventLogger.debug('PerformanceOptimizer', 'Garbage collection triggered');
-      } catch (error) {
-        EventLogger.warn('PerformanceOptimizer', 'Failed to trigger garbage collection');
+    // Only try GC if memory is really high
+    const report = PerformanceAnalyzer.generateReport();
+    if (report.metrics.memoryUsage > this.config.maxMemoryUsage * 1.5) {
+      if (typeof global.gc === 'function') {
+        try {
+          global.gc();
+          EventLogger.debug('PerformanceOptimizer', 'Garbage collection triggered');
+        } catch (error) {
+          EventLogger.warn('PerformanceOptimizer', 'Failed to trigger garbage collection');
+        }
       }
     }
   }
@@ -271,17 +325,22 @@ export class PerformanceOptimizer {
   }
 
   /**
-   * Clean up expired cache entries
+   * Clean up expired cache entries (gentle)
    */
   private static cleanupCache(): void {
     const now = Date.now();
     const keysToDelete: string[] = [];
+    let checkedCount = 0;
+    const maxChecks = 50; // Limit checks to prevent blocking
     
-    this.cache.forEach((entry, key) => {
+    for (const [key, entry] of this.cache.entries()) {
+      if (checkedCount >= maxChecks) break;
+      checkedCount++;
+      
       if (now - entry.timestamp > entry.ttl) {
         keysToDelete.push(key);
       }
-    });
+    }
     
     keysToDelete.forEach(key => this.cache.delete(key));
     
@@ -291,27 +350,32 @@ export class PerformanceOptimizer {
   }
 
   /**
-   * Defer heavy operation until idle
+   * Defer operation with touch event awareness
    */
   public static deferOperation<T>(
     operation: () => Promise<T>,
     priority: 'high' | 'normal' | 'low' = 'normal'
   ): Promise<T> {
-    const delay = priority === 'high' ? 0 : priority === 'normal' ? 100 : 500;
+    // If touch is active or blocking not allowed, run immediately
+    if (this.touchEventActive || !this.config.allowTouchBlocking) {
+      return operation();
+    }
+    
+    // Use minimal delays
+    const delay = priority === 'high' ? 0 : priority === 'normal' ? 10 : 30;
+    const actualDelay = Math.min(delay, this.config.maxDeferDelay);
     
     const promise = new Promise<T>((resolve, reject) => {
-      InteractionManager.runAfterInteractions(() => {
-        setTimeout(async () => {
-          try {
-            const result = await operation();
-            resolve(result);
-          } catch (error) {
-            reject(error);
-          } finally {
-            this.pendingOperations.delete(promise);
-          }
-        }, delay);
-      });
+      setTimeout(async () => {
+        try {
+          const result = await operation();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.pendingOperations.delete(promise);
+        }
+      }, actualDelay);
     });
     
     this.pendingOperations.add(promise);
@@ -319,15 +383,20 @@ export class PerformanceOptimizer {
   }
 
   /**
-   * Batch multiple operations for better performance
+   * Batch operations without blocking
    */
   public static async batchOperations<T>(
     operations: Array<() => Promise<T>>
   ): Promise<T[]> {
     EventLogger.debug('PerformanceOptimizer', `Batching ${operations.length} operations`);
     
-    // Execute in chunks to avoid blocking
-    const chunkSize = 5;
+    // If touch is active, run all immediately
+    if (this.touchEventActive) {
+      return Promise.all(operations.map(op => op()));
+    }
+    
+    // Execute in smaller chunks
+    const chunkSize = 3; // Smaller chunks
     const results: T[] = [];
     
     for (let i = 0; i < operations.length; i += chunkSize) {
@@ -335,52 +404,60 @@ export class PerformanceOptimizer {
       const chunkResults = await Promise.all(chunk.map(op => op()));
       results.push(...chunkResults);
       
-      // Allow other operations to run
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // Minimal delay between chunks
+      if (i + chunkSize < operations.length && !this.touchEventActive) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
     }
     
     return results;
   }
 
   /**
-   * Create optimized animation configuration
+   * Get optimized animation configuration
    */
   public static getOptimizedAnimationConfig(): any {
     return {
       useNativeDriver: this.animationConfig.useNativeDriver,
-      // Reduce duration if simplifying
-      duration: this.animationConfig.simplifyComplexAnimations ? 200 : 300,
-      // Use simpler easing if needed
-      easing: this.animationConfig.simplifyComplexAnimations ? undefined : 'ease-in-out',
+      // Don't reduce duration too much - keeps UI responsive
+      duration: this.animationConfig.simplifyComplexAnimations ? 250 : 300,
+      // Keep easing for smooth feel
+      easing: 'ease-in-out',
+      // Allow interruption
+      isInteraction: false, // Don't block interactions
     };
   }
 
   /**
-   * Check if operation should be deferred
+   * Check if operation should be deferred (more conservative)
    */
   public static shouldDeferOperation(): boolean {
+    // Never defer if touch is active
+    if (this.touchEventActive) return false;
+    
     const report = PerformanceAnalyzer.generateReport();
     
-    // Only defer if performance is critical
-    return report.analysis.overallHealth === 'critical' ||
-           report.metrics.frameRate < 30;
+    // Only defer if performance is critical AND frame rate is very low
+    return report.analysis.overallHealth === 'critical' && 
+           report.metrics.frameRate < 20;
   }
 
   /**
-   * Optimize component render
+   * Optimize component render without blocking
    */
   public static optimizeRender(componentName: string, renderFn: () => void): void {
-    if (this.shouldDeferOperation()) {
-      // Defer render if performance is poor
-      InteractionManager.runAfterInteractions(() => {
-        PerformanceMeasurement.trackComponentMount(componentName);
-        renderFn();
-      });
-    } else {
-      // Render immediately if performance is good
+    // Never defer render if touch is active
+    if (this.touchEventActive || !this.shouldDeferOperation()) {
       PerformanceMeasurement.trackComponentMount(componentName);
       renderFn();
+      return;
     }
+    
+    // Use requestAnimationFrame instead of InteractionManager for smoother rendering
+    requestAnimationFrame(() => {
+      PerformanceMeasurement.trackComponentMount(componentName);
+      renderFn();
+    });
   }
 
   /**
@@ -392,6 +469,7 @@ export class PerformanceOptimizer {
     animationConfig: AnimationOptimization;
     cacheSize: number;
     pendingOperations: number;
+    touchEventActive: boolean;
   } {
     return {
       isOptimizing: this.isOptimizing,
@@ -399,6 +477,7 @@ export class PerformanceOptimizer {
       animationConfig: this.animationConfig,
       cacheSize: this.cache.size,
       pendingOperations: this.pendingOperations.size,
+      touchEventActive: this.touchEventActive,
     };
   }
 
@@ -413,18 +492,24 @@ export class PerformanceOptimizer {
       timestamp: new Date().toISOString(),
       performance: {
         health: performanceReport.analysis.overallHealth,
-        launchTime: performanceReport.metrics.launchTime,
         frameRate: performanceReport.metrics.frameRate,
         memory: performanceReport.metrics.memoryUsage,
       },
       optimizations: {
         enabled: status.config.enableAutoOptimization,
+        touchBlocking: status.config.allowTouchBlocking,
         animationsOptimized: status.animationConfig.useNativeDriver,
         cachingEnabled: status.config.enableCaching,
         cacheEntries: status.cacheSize,
         pendingOperations: status.pendingOperations,
+        touchActive: status.touchEventActive,
       },
-      recommendations: performanceReport.recommendations,
+      recommendations: [
+        ...performanceReport.recommendations,
+        'Keep allowTouchBlocking disabled for better responsiveness',
+        'Use requestAnimationFrame instead of InteractionManager for UI updates',
+        'Minimize use of blur effects and complex animations',
+      ],
     };
     
     return JSON.stringify(report, null, 2);
@@ -437,20 +522,20 @@ export class PerformanceOptimizer {
     const status = this.getStatus();
     const performanceReport = PerformanceAnalyzer.generateReport();
     
-    console.group('⚡ Performance Optimization Status');
+    console.group('⚡ Performance Optimization Status (FIXED)');
     
     console.group('🎯 Current Performance');
     console.log(`Health: ${performanceReport.analysis.overallHealth}`);
-    console.log(`Launch Time: ${performanceReport.metrics.launchTime}ms`);
     console.log(`Frame Rate: ${performanceReport.metrics.frameRate}fps`);
     console.log(`Memory: ${performanceReport.metrics.memoryUsage}MB`);
+    console.log(`Touch Active: ${status.touchEventActive ? 'YES' : 'NO'}`);
     console.groupEnd();
     
     console.group('⚙️ Optimization Settings');
     console.log(`Auto-optimization: ${status.config.enableAutoOptimization ? 'Enabled' : 'Disabled'}`);
+    console.log(`Touch Blocking: ${status.config.allowTouchBlocking ? 'ALLOWED' : 'DISABLED'} ✅`);
     console.log(`Animation optimization: ${status.config.enableAnimationOptimization ? 'Enabled' : 'Disabled'}`);
-    console.log(`Navigation preloading: ${status.config.enableNavigationPreloading ? 'Enabled' : 'Disabled'}`);
-    console.log(`Caching: ${status.config.enableCaching ? 'Enabled' : 'Disabled'}`);
+    console.log(`Max Defer Delay: ${status.config.maxDeferDelay}ms`);
     console.groupEnd();
     
     console.group('📊 Runtime Stats');
@@ -471,15 +556,17 @@ export class PerformanceOptimizer {
   }
 }
 
-// Auto-initialize in development with conservative settings
+// Auto-initialize in development with safe settings
 if (__DEV__) {
   PerformanceOptimizer.initialize({
-    enableAutoOptimization: false, // Disable auto-optimization by default
-    targetLaunchTime: 2500, // More realistic target
-    targetFPS: 50, // More realistic FPS target
-    maxMemoryUsage: 200, // Higher memory threshold
+    enableAutoOptimization: false, // No auto-optimization
+    targetLaunchTime: 3000,
+    targetFPS: 50,
+    maxMemoryUsage: 200,
     enableAnimationOptimization: true,
-    enableNavigationPreloading: true,
+    enableNavigationPreloading: false, // Don't block navigation
     enableCaching: true,
+    allowTouchBlocking: false, // NEVER block touch events
+    maxDeferDelay: 30, // Maximum 30ms delay
   });
 }

@@ -390,6 +390,15 @@ export default function App() {
         
         if (!mounted) return;
         
+        // Initialize network monitoring after store is ready
+        try {
+          const { initializeOfflineSystem } = await import('./src/store/slices/offlineSlice');
+          storeInstance.dispatch(initializeOfflineSystem());
+          EventLogger.info('App', 'Network monitoring initialized');
+        } catch (networkError) {
+          EventLogger.error('App', 'Failed to initialize network monitoring', networkError as Error);
+        }
+        
         // Set store to trigger re-render with full app
         setStore(storeInstance);
         setIsInitializing(false);

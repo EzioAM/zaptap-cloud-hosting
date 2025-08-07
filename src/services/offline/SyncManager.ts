@@ -1,7 +1,7 @@
 import NetInfo, { NetInfoState, NetInfoStateType } from '@react-native-community/netinfo';
 import { AppState, AppStateStatus } from 'react-native';
 import { offlineQueue, QueuedOperation } from './OfflineQueue';
-import { logger } from '../analytics/AnalyticsService';
+import { EventLogger } from '../../utils/EventLogger';
 
 /**
  * Network connection information
@@ -84,6 +84,8 @@ export class SyncManager {
   private syncInterval: NodeJS.Timeout | null = null;
   private processors = new Map<string, OperationProcessor>();
   private eventListeners = new Map<string, Set<SyncEventListener>>();
+  private networkUnsubscribe: (() => void) | null = null;
+  private appStateSubscription: any = null;
 
   private readonly config: SyncConfig = {
     batchSize: 10,
@@ -122,41 +124,92 @@ export class SyncManager {
    * Initialize network monitoring
    */
   private initializeNetworkMonitoring(): void {
-    // Listen for network state changes
-    NetInfo.addEventListener(this.handleNetworkStateChange.bind(this));
+    try {
+      EventLogger.info('SyncManager', 'Initializing network monitoring');
+      
+      // Configure NetInfo for better reliability
+      NetInfo.configure({
+        reachabilityUrl: 'https://clients3.google.com/generate_204',
+        reachabilityTest: async (response) => response.status === 204,
+        reachabilityLongTimeout: 60 * 1000, // 60s
+        reachabilityShortTimeout: 5 * 1000, // 5s
+        reachabilityRequestTimeout: 15 * 1000, // 15s
+        reachabilityShouldRun: () => true,
+      });
 
-    // Get initial network state
-    NetInfo.fetch().then(this.handleNetworkStateChange.bind(this));
+      // Listen for network state changes
+      const unsubscribe = NetInfo.addEventListener(this.handleNetworkStateChange.bind(this));
+      
+      // Store unsubscribe function for cleanup
+      this.networkUnsubscribe = unsubscribe;
+
+      // Get initial network state with retry logic
+      this.fetchInitialNetworkState();
+      
+      EventLogger.info('SyncManager', 'Network monitoring initialized');
+    } catch (error) {
+      EventLogger.error('SyncManager', 'Failed to initialize network monitoring', error);
+      // Set a fallback offline state
+      this.networkInfo = {
+        isConnected: false,
+        type: 'unknown',
+        isInternetReachable: null,
+        details: null,
+      };
+    }
   }
 
   /**
    * Handle network state changes
    */
   private handleNetworkStateChange(state: NetInfoState): void {
-    const previouslyConnected = this.networkInfo?.isConnected || false;
-    
-    this.networkInfo = {
-      isConnected: state.isConnected || false,
-      type: state.type,
-      isInternetReachable: state.isInternetReachable,
-      details: state.details,
-    };
+    try {
+      const previouslyConnected = this.networkInfo?.isConnected || false;
+      const previousInternetReachable = this.networkInfo?.isInternetReachable;
+      
+      const newNetworkInfo: NetworkInfo = {
+        isConnected: Boolean(state.isConnected),
+        type: state.type || 'unknown',
+        isInternetReachable: state.isInternetReachable,
+        details: state.details,
+      };
+      
+      // Only update if there's a meaningful change
+      const hasChanged = !this.networkInfo || 
+        this.networkInfo.isConnected !== newNetworkInfo.isConnected ||
+        this.networkInfo.type !== newNetworkInfo.type ||
+        this.networkInfo.isInternetReachable !== newNetworkInfo.isInternetReachable;
+      
+      if (hasChanged) {
+        this.networkInfo = newNetworkInfo;
+        
+        EventLogger.info('SyncManager', 'Network state changed', {
+          type: newNetworkInfo.type,
+          isConnected: newNetworkInfo.isConnected,
+          isInternetReachable: newNetworkInfo.isInternetReachable,
+          previouslyConnected,
+          previousInternetReachable,
+        });
 
-    logger.info('SyncManager: Network state changed', {
-      type: state.type,
-      isConnected: state.isConnected,
-      isInternetReachable: state.isInternetReachable,
-    });
+        // Emit network change event
+        this.emitEvent('network_changed', this.networkInfo);
 
-    // Emit network change event
-    this.emitEvent('network_changed', this.networkInfo);
-
-    // Start sync if we just came online
-    if (!previouslyConnected && this.networkInfo.isConnected && this.networkInfo.isInternetReachable) {
-      logger.info('SyncManager: Connection restored, starting sync');
-      this.startSync().catch(error => {
-        logger.error('SyncManager: Failed to start sync after connection restored', { error });
-      });
+        // Start sync if we just came online
+        const isNowOnline = newNetworkInfo.isConnected && newNetworkInfo.isInternetReachable !== false;
+        const wasOffline = !previouslyConnected || previousInternetReachable === false;
+        
+        if (wasOffline && isNowOnline) {
+          EventLogger.info('SyncManager', 'Connection restored, starting sync');
+          // Add a small delay to ensure the connection is stable
+          setTimeout(() => {
+            this.startSync().catch(error => {
+              EventLogger.error('SyncManager', 'Failed to start sync after connection restored', error);
+            });
+          }, 1000);
+        }
+      }
+    } catch (error) {
+      EventLogger.error('SyncManager', 'Error handling network state change', error, { state });
     }
   }
 
@@ -164,8 +217,14 @@ export class SyncManager {
    * Initialize app state monitoring for foreground/background sync
    */
   private initializeAppStateMonitoring(): void {
-    AppState.addEventListener('change', this.handleAppStateChange.bind(this));
-    this.appState = AppState.currentState;
+    try {
+      EventLogger.info('SyncManager', 'Initializing app state monitoring');
+      this.appStateSubscription = AppState.addEventListener('change', this.handleAppStateChange.bind(this));
+      this.appState = AppState.currentState;
+      EventLogger.info('SyncManager', 'App state monitoring initialized', { currentState: this.appState });
+    } catch (error) {
+      EventLogger.error('SyncManager', 'Failed to initialize app state monitoring', error);
+    }
   }
 
   /**
@@ -177,9 +236,9 @@ export class SyncManager {
 
     // Start sync when app comes to foreground
     if (wasInBackground && nextAppState === 'active' && this.config.syncOnAppForeground) {
-      logger.info('SyncManager: App came to foreground, starting sync');
+      EventLogger.info('SyncManager', 'App came to foreground, starting sync');
       this.startSync().catch(error => {
-        logger.error('SyncManager: Failed to start sync on app foreground', { error });
+        EventLogger.error('SyncManager', 'Failed to start sync on app foreground', error);
       });
     }
   }
@@ -196,7 +255,7 @@ export class SyncManager {
       this.syncInterval = setInterval(() => {
         if (this.canSync() && !this.syncInProgress) {
           this.startSync().catch(error => {
-            logger.error('SyncManager: Periodic sync failed', { error });
+            EventLogger.error('SyncManager', 'Periodic sync failed', error);
           });
         }
       }, this.config.syncInterval);
@@ -229,7 +288,7 @@ export class SyncManager {
    */
   public registerProcessor(operationType: string, processor: OperationProcessor): void {
     this.processors.set(operationType, processor);
-    logger.info('SyncManager: Processor registered', { operationType });
+    EventLogger.info('SyncManager', 'Processor registered', { operationType });
   }
 
   /**
@@ -237,7 +296,7 @@ export class SyncManager {
    */
   public unregisterProcessor(operationType: string): void {
     this.processors.delete(operationType);
-    logger.info('SyncManager: Processor unregistered', { operationType });
+    EventLogger.info('SyncManager', 'Processor unregistered', { operationType });
   }
 
   /**
@@ -245,12 +304,12 @@ export class SyncManager {
    */
   public async startSync(): Promise<void> {
     if (this.syncInProgress) {
-      logger.info('SyncManager: Sync already in progress, skipping');
+      EventLogger.info('SyncManager', 'Sync already in progress, skipping');
       return;
     }
 
     if (!this.canSync()) {
-      logger.info('SyncManager: Cannot sync - network not available or app in background');
+      EventLogger.info('SyncManager', 'Cannot sync - network not available or app in background');
       return;
     }
 
@@ -258,13 +317,13 @@ export class SyncManager {
     const startTime = Date.now();
 
     try {
-      logger.info('SyncManager: Starting synchronization');
+      EventLogger.info('SyncManager', 'Starting synchronization');
       this.emitEvent('sync_started');
 
       await this.performSync();
 
       const duration = Date.now() - startTime;
-      logger.info('SyncManager: Synchronization completed', { 
+      EventLogger.info('SyncManager', 'Synchronization completed', { 
         duration,
         completed: this.currentSyncProgress.completed,
         failed: this.currentSyncProgress.failed 
@@ -278,7 +337,7 @@ export class SyncManager {
 
     } catch (error) {
       const duration = Date.now() - startTime;
-      logger.error('SyncManager: Synchronization failed', { error, duration });
+      EventLogger.error('SyncManager', 'Synchronization failed', error, { duration });
       this.emitEvent('sync_failed', { error: error.message, duration });
     } finally {
       this.syncInProgress = false;
@@ -293,7 +352,7 @@ export class SyncManager {
     const readyOperations = offlineQueue.getReadyOperations();
     
     if (readyOperations.length === 0) {
-      logger.info('SyncManager: No operations ready for sync');
+      EventLogger.info('SyncManager', 'No operations ready for sync');
       return;
     }
 
@@ -305,7 +364,7 @@ export class SyncManager {
       inProgress: true,
     };
 
-    logger.info('SyncManager: Processing operations', { total: readyOperations.length });
+    EventLogger.info('SyncManager', 'Processing operations', { total: readyOperations.length });
 
     // Process operations in batches by priority
     for (const priority of this.config.priorityOrder) {
@@ -325,7 +384,7 @@ export class SyncManager {
     
     for (const batch of batches) {
       if (!this.canSync()) {
-        logger.info('SyncManager: Network lost during batch processing, stopping');
+        EventLogger.info('SyncManager', 'Network lost during batch processing, stopping');
         break;
       }
 
@@ -353,7 +412,7 @@ export class SyncManager {
     
     if (!processor) {
       const error = `No processor found for operation type: ${operation.type}`;
-      logger.error('SyncManager: Operation processing failed', { 
+      EventLogger.error('SyncManager', 'Operation processing failed', undefined, { 
         operationId: operation.id, 
         type: operation.type, 
         error 
@@ -368,7 +427,7 @@ export class SyncManager {
     }
 
     if (!processor.canProcess(operation)) {
-      logger.info('SyncManager: Operation cannot be processed at this time', { 
+      EventLogger.info('SyncManager', 'Operation cannot be processed at this time', { 
         operationId: operation.id, 
         type: operation.type 
       });
@@ -383,7 +442,7 @@ export class SyncManager {
       this.currentSyncProgress.currentOperation = `${operation.type}:${operation.id}`;
       this.emitEvent('sync_progress', { ...this.currentSyncProgress });
 
-      logger.info('SyncManager: Processing operation', { 
+      EventLogger.info('SyncManager', 'Processing operation', { 
         operationId: operation.id, 
         type: operation.type,
         attempt: operation.retryCount + 1 
@@ -401,16 +460,16 @@ export class SyncManager {
         type: operation.type 
       });
 
-      logger.info('SyncManager: Operation processed successfully', { 
+      EventLogger.info('SyncManager', 'Operation processed successfully', { 
         operationId: operation.id, 
         type: operation.type 
       });
 
     } catch (error) {
-      logger.error('SyncManager: Operation processing failed', { 
+      EventLogger.error('SyncManager', 'Operation processing failed', error as Error, { 
         operationId: operation.id, 
         type: operation.type, 
-        error: error.message,
+        errorMessage: (error as Error).message,
         attempt: operation.retryCount + 1 
       });
 
@@ -467,7 +526,7 @@ export class SyncManager {
    * Force sync (even if conditions not met)
    */
   public async forceSync(): Promise<void> {
-    logger.info('SyncManager: Force sync requested');
+    EventLogger.info('SyncManager', 'Force sync requested');
     this.syncInProgress = false; // Reset flag to allow force sync
     await this.startSync();
   }
@@ -480,7 +539,7 @@ export class SyncManager {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
     }
-    logger.info('SyncManager: Sync stopped');
+    EventLogger.info('SyncManager', 'Sync stopped');
   }
 
   /**
@@ -494,7 +553,7 @@ export class SyncManager {
       this.startPeriodicSync();
     }
     
-    logger.info('SyncManager: Configuration updated', newConfig);
+    EventLogger.info('SyncManager', 'Configuration updated', newConfig);
   }
 
   /**
@@ -533,7 +592,7 @@ export class SyncManager {
         try {
           listener(event);
         } catch (error) {
-          logger.error('SyncManager: Event listener error', { eventType: type, error });
+          EventLogger.error('SyncManager', 'Event listener error', error, { eventType: type });
         }
       });
     }
@@ -568,12 +627,69 @@ export class SyncManager {
   }
 
   /**
+   * Add method to fetch initial network state with retry
+   */
+  private async fetchInitialNetworkState(): Promise<void> {
+    let attempts = 0;
+    const maxAttempts = 3;
+    const retryDelay = 1000; // 1 second
+
+    while (attempts < maxAttempts) {
+      try {
+        EventLogger.info('SyncManager', 'Fetching initial network state', { attempt: attempts + 1 });
+        const state = await NetInfo.fetch();
+        this.handleNetworkStateChange(state);
+        EventLogger.info('SyncManager', 'Initial network state fetched successfully');
+        return;
+      } catch (error) {
+        attempts++;
+        EventLogger.warn('SyncManager', 'Failed to fetch network state', { 
+          attempt: attempts, 
+          maxAttempts, 
+          error 
+        });
+        
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay * attempts));
+        } else {
+          // Set fallback state after all retries failed
+          EventLogger.error('SyncManager', 'All network fetch attempts failed, setting fallback state');
+          this.networkInfo = {
+            isConnected: false,
+            type: 'unknown',
+            isInternetReachable: null,
+            details: null,
+          };
+          this.emitEvent('network_changed', this.networkInfo);
+        }
+      }
+    }
+  }
+
+  /**
    * Cleanup on app termination
    */
   public cleanup(): void {
-    this.stopSync();
-    this.eventListeners.clear();
-    logger.info('SyncManager: Cleanup completed');
+    try {
+      this.stopSync();
+      
+      // Clean up network monitoring
+      if (this.networkUnsubscribe) {
+        this.networkUnsubscribe();
+        this.networkUnsubscribe = null;
+      }
+      
+      // Clean up app state monitoring
+      if (this.appStateSubscription) {
+        this.appStateSubscription.remove();
+        this.appStateSubscription = null;
+      }
+      
+      this.eventListeners.clear();
+      EventLogger.info('SyncManager', 'Cleanup completed');
+    } catch (error) {
+      EventLogger.error('SyncManager', 'Error during cleanup', error);
+    }
   }
 }
 
