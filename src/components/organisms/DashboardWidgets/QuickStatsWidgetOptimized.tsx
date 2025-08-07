@@ -6,6 +6,7 @@ import {
   Platform,
   Animated,
   InteractionManager,
+  TouchableOpacity,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -245,6 +246,7 @@ const StatItem: React.FC<StatItemProps> = memo(({
   const translateY = useOptimizedAnimatedValue(20);
   const { batchAnimations } = useBatchAnimations();
   const reducedMotion = useReducedMotion();
+  const buttonScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (reducedMotion) {
@@ -266,6 +268,34 @@ const StatItem: React.FC<StatItemProps> = memo(({
     });
   }, [delay, reducedMotion]);
 
+  const handlePress = () => {
+    console.log(`DEBUG: StatItem pressed - ${label}: ${value}`);
+    // Add haptic feedback
+    if (Platform.OS !== 'web') {
+      try {
+        require('expo-haptics').impactAsync(require('expo-haptics').ImpactFeedbackStyle.Light);
+      } catch (error) {
+        // Haptics not available
+      }
+    }
+    
+    // Scale animation for visual feedback
+    Animated.sequence([
+      Animated.spring(buttonScale, {
+        toValue: 0.95,
+        tension: 300,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+      Animated.spring(buttonScale, {
+        toValue: 1,
+        tension: 300,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   const optimizedStyle = useMemo(() => 
     PlatformOptimizer.optimizeStyle({
       transform: [{ scale }, { translateY }],
@@ -275,36 +305,43 @@ const StatItem: React.FC<StatItemProps> = memo(({
   const gradient = gradientColors || defaultGradients.subtle.colors;
 
   return (
-    <Animated.View style={[styles.statItem, optimizedStyle]}>
-      <LinearGradient
-        colors={gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.statGradient}
+    <Animated.View style={[styles.statItem, optimizedStyle, { transform: [{ scale: buttonScale }] }]}>
+      <TouchableOpacity
+        onPress={handlePress}
+        activeOpacity={0.8}
+        style={styles.statTouchable}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <View style={styles.statContent}>
-          <View style={styles.iconContainer}>
-            {showProgressRing && (
-              <ProgressRing 
-                progress={typeof value === 'number' ? Math.min(value, 100) : 50} 
+        <LinearGradient
+          colors={gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.statGradient}
+        >
+          <View style={styles.statContent}>
+            <View style={styles.iconContainer}>
+              {showProgressRing && (
+                <ProgressRing 
+                  progress={typeof value === 'number' ? Math.min(value, 100) : 50} 
+                  color={color} 
+                />
+              )}
+              <MaterialCommunityIcons 
+                name={icon as any} 
+                size={24} 
                 color={color} 
+                style={showProgressRing ? styles.iconWithRing : undefined}
               />
+            </View>
+            {typeof value === 'number' ? (
+              <AnimatedCounter value={value} color={theme.colors.text} />
+            ) : (
+              <Text style={[styles.statValue, { color: theme.colors.text }]}>{value}</Text>
             )}
-            <MaterialCommunityIcons 
-              name={icon as any} 
-              size={24} 
-              color={color} 
-              style={showProgressRing ? styles.iconWithRing : undefined}
-            />
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
           </View>
-          {typeof value === 'number' ? (
-            <AnimatedCounter value={value} color={theme.colors.text} />
-          ) : (
-            <Text style={[styles.statValue, { color: theme.colors.text }]}>{value}</Text>
-          )}
-          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
-        </View>
-      </LinearGradient>
+        </LinearGradient>
+      </TouchableOpacity>
     </Animated.View>
   );
 });
@@ -432,6 +469,9 @@ const styles = StyleSheet.create({
   statItem: {
     width: '50%',
     padding: 6,
+  },
+  statTouchable: {
+    borderRadius: 12,
   },
   statGradient: {
     borderRadius: 12,

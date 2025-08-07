@@ -65,13 +65,14 @@ import { ANIMATION_CONFIG } from '../../constants/animations';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 // Feature flags for progressive enhancement
+// PERFORMANCE FIX: Disabled performance-heavy features to restore touch responsiveness
 const FEATURE_FLAGS = {
-  ENHANCED_ANIMATIONS: Platform.OS !== 'web',
+  ENHANCED_ANIMATIONS: false, // DISABLED - was blocking main thread
   HAPTIC_FEEDBACK: Platform.OS !== 'web',
-  BLUR_EFFECTS: Platform.OS !== 'web',
-  PARALLAX_SCROLLING: Platform.OS !== 'web',
+  BLUR_EFFECTS: false, // DISABLED - major performance impact on touch events
+  PARALLAX_SCROLLING: false, // DISABLED - use regular ScrollView for better performance
   GRADIENT_HEADERS: true,
-  STAGGERED_ANIMATIONS: Platform.OS !== 'web',
+  STAGGERED_ANIMATIONS: false, // DISABLED - was creating animation cascade
   ENHANCED_WIDGETS: true,
   STATUS_BAR_ANIMATION: Platform.OS !== 'web',
 };
@@ -255,9 +256,10 @@ const ModernHomeScreen: React.FC = memo(() => {
   // Navigation handlers with haptic feedback
   const handleNavigateToBuilder = useCallback(() => {
     try {
+      console.log('DEBUG: handleNavigateToBuilder called');
       triggerHaptic('light');
       EventLogger.userAction('navigate_to_builder', 'ModernHomeScreen');
-      navigation.navigate('BuildScreen' as never);
+      navigation.navigate('BuildTab' as never);
     } catch (error) {
       EventLogger.error('ModernHomeScreen', 'Navigation to builder failed', error as Error);
       showFeedback('error', 'Failed to navigate to builder');
@@ -266,9 +268,10 @@ const ModernHomeScreen: React.FC = memo(() => {
 
   const handleNavigateToDiscover = useCallback(() => {
     try {
+      console.log('DEBUG: handleNavigateToDiscover called');
       triggerHaptic('light');
       EventLogger.userAction('navigate_to_discover', 'ModernHomeScreen');
-      navigation.navigate('DiscoverScreen' as never);
+      navigation.navigate('DiscoverTab' as never);
     } catch (error) {
       EventLogger.error('ModernHomeScreen', 'Navigation to discover failed', error as Error);
       showFeedback('error', 'Failed to navigate to discover');
@@ -277,9 +280,10 @@ const ModernHomeScreen: React.FC = memo(() => {
 
   const handleNavigateToLibrary = useCallback(() => {
     try {
+      console.log('DEBUG: handleNavigateToLibrary called');
       triggerHaptic('light');
       EventLogger.userAction('navigate_to_library', 'ModernHomeScreen');
-      navigation.navigate('LibraryScreen' as never);
+      navigation.navigate('LibraryTab' as never);
     } catch (error) {
       EventLogger.error('ModernHomeScreen', 'Navigation to library failed', error as Error);
       showFeedback('error', 'Failed to navigate to library');
@@ -369,8 +373,14 @@ const ModernHomeScreen: React.FC = memo(() => {
             subtitle="What would you like to automate today?"
             rightComponent={
               <TouchableOpacity
-                onPress={() => navigation.navigate('Profile' as never)}
+                onPress={() => {
+                  console.log('DEBUG: Profile button pressed (GradientHeader)');
+                  triggerHaptic('light');
+                  navigation.navigate('Profile' as never);
+                }}
                 style={styles.profileButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                activeOpacity={0.7}
               >
                 <MaterialCommunityIcons 
                   name="account-circle" 
@@ -400,8 +410,14 @@ const ModernHomeScreen: React.FC = memo(() => {
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => navigation.navigate('Profile' as never)}
+            onPress={() => {
+              console.log('DEBUG: Profile button pressed (regular header)');
+              triggerHaptic('light');
+              navigation.navigate('Profile' as never);
+            }}
             style={styles.profileButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
           >
             <MaterialCommunityIcons 
               name="account-circle" 
@@ -436,7 +452,7 @@ const ModernHomeScreen: React.FC = memo(() => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
-          scrollEventThrottle={16}
+          scrollEventThrottle={100} // PERFORMANCE FIX: Reduced from 16 to prevent event flooding
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -464,6 +480,7 @@ const ModernHomeScreen: React.FC = memo(() => {
                 ],
               }
             ]}
+            pointerEvents="box-none" // PERFORMANCE FIX: Allow touch events to pass through
           >
             {isLoading ? (
               <StatsSkeletonWidget />
@@ -499,6 +516,7 @@ const ModernHomeScreen: React.FC = memo(() => {
                 ],
               }
             ]}
+            pointerEvents="box-none" // PERFORMANCE FIX: Allow touch events to pass through
           >
             {isLoading ? (
               <ActionsSkeletonWidget />
@@ -539,6 +557,7 @@ const ModernHomeScreen: React.FC = memo(() => {
                 ],
               }
             ]}
+            pointerEvents="box-none" // PERFORMANCE FIX: Allow touch events to pass through
           >
             {isLoading ? (
               <FeaturedSkeletonWidget />
@@ -583,6 +602,7 @@ const ModernHomeScreen: React.FC = memo(() => {
                 ],
               }
             ]}
+            pointerEvents="box-none" // PERFORMANCE FIX: Allow touch events to pass through
           >
             {isLoading ? (
               <ActivitySkeletonWidget />
@@ -622,6 +642,7 @@ const ModernHomeScreen: React.FC = memo(() => {
               </Text>
             </View>
           )}
+
         </ScrollComponent>
       </Animated.View>
 
@@ -636,8 +657,12 @@ const ModernHomeScreen: React.FC = memo(() => {
       >
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-          onPress={handleNavigateToBuilder}
+          onPress={() => {
+            console.log('DEBUG: FAB button pressed');
+            handleNavigateToBuilder();
+          }}
           activeOpacity={0.8}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <LinearGradient
             colors={[theme.colors.primary, theme.colors.primaryContainer]}
@@ -707,6 +732,10 @@ const styles = StyleSheet.create({
   },
   profileButton: {
     padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   blurOverlay: {
     position: 'absolute',
@@ -755,6 +784,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     overflow: 'hidden',
+    minWidth: 44, // Ensure minimum touch target
+    minHeight: 44,
   },
   fabGradient: {
     flex: 1,

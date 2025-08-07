@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -25,6 +25,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       style={styles.actionButton}
       onPress={onPress}
       activeOpacity={0.7}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
       <LinearGradient
         colors={gradient}
@@ -45,34 +46,78 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   );
 };
 
-export const QuickActionsWidget: React.FC = () => {
+interface QuickActionsWidgetProps {
+  theme?: any;
+  onCreateAutomation?: () => void;
+  onBrowseAutomations?: () => void;
+  onViewLibrary?: () => void;
+}
+
+export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
+  theme: propTheme,
+  onCreateAutomation,
+  onBrowseAutomations,
+  onViewLibrary,
+}) => {
   const navigation = useNavigation<any>();
   const theme = useSafeTheme();
+
+  const handleCreateAutomation = useCallback(() => {
+    console.log('DEBUG: QuickActionsWidget - handleCreateAutomation called');
+    if (onCreateAutomation) {
+      onCreateAutomation();
+    } else {
+      navigation.navigate('BuildTab');
+    }
+  }, [onCreateAutomation, navigation]);
+
+  const handleScanTag = useCallback(() => {
+    console.log('DEBUG: QuickActionsWidget - handleScanTag called');
+    if (onBrowseAutomations) {
+      onBrowseAutomations();
+    } else {
+      navigation.navigate('DiscoverTab');
+    }
+  }, [onBrowseAutomations, navigation]);
+
+  const handleViewLibrary = useCallback(() => {
+    console.log('DEBUG: QuickActionsWidget - handleViewLibrary called');
+    if (onViewLibrary) {
+      onViewLibrary();
+    } else {
+      navigation.navigate('LibraryTab');
+    }
+  }, [onViewLibrary, navigation]);
+
+  const handleDiscover = useCallback(() => {
+    console.log('DEBUG: QuickActionsWidget - handleDiscover called');
+    navigation.navigate('DiscoverTab');
+  }, [navigation]);
 
   const actions = [
     {
       icon: 'plus-circle',
       label: 'Create',
       gradient: ['#6366F1', '#818CF8'],
-      onPress: () => navigation.navigate('AutomationBuilder'),
+      onPress: handleCreateAutomation,
     },
     {
       icon: 'qrcode-scan',
       label: 'Scan',
       gradient: ['#EC4899', '#F472B6'],
-      onPress: () => navigation.navigate('Scanner'),
+      onPress: handleScanTag,
     },
     {
       icon: 'import',
       label: 'Import',
       gradient: ['#10B981', '#34D399'],
-      onPress: () => navigation.navigate('LibraryTab'), // TODO: Replace with Import when implemented
+      onPress: handleViewLibrary,
     },
     {
       icon: 'compass',
       label: 'Discover',
       gradient: ['#F59E0B', '#FCD34D'],
-      onPress: () => navigation.navigate('DiscoverTab'),
+      onPress: handleDiscover,
     },
   ];
 

@@ -110,13 +110,10 @@ export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = React.memo(
       {
         useNativeDriver: true,
         listener: (event: { nativeEvent: { contentOffset: { y: number } } }) => {
-          // Prevent potential recursion from onScroll handler
+          // PERFORMANCE FIX: Direct call without setTimeout to prevent recursion and improve performance
           if (onScroll && typeof onScroll === 'function') {
             try {
-              // Use setTimeout to break potential recursion chain
-              setTimeout(() => {
-                onScroll(event);
-              }, 0);
+              onScroll(event);
             } catch (error) {
               console.warn('ParallaxScrollView: onScroll handler error:', error);
             }
@@ -130,7 +127,7 @@ export const ParallaxScrollView: React.FC<ParallaxScrollViewProps> = React.memo(
       <Animated.ScrollView
         style={styles.container}
         onScroll={handleScroll}
-        scrollEventThrottle={1}
+        scrollEventThrottle={16} // PERFORMANCE FIX: Increased from 1 to reduce event frequency
         showsVerticalScrollIndicator={showsVerticalScrollIndicator}
         refreshControl={refreshControl}
         contentContainerStyle={[

@@ -8,13 +8,15 @@ interface GradientHeaderProps {
   subtitle?: string;
   colors?: string[];
   style?: ViewStyle;
+  rightComponent?: React.ReactNode;
 }
 
 export const GradientHeader: React.FC<GradientHeaderProps> = ({
   title,
   subtitle,
   colors,
-  style
+  style,
+  rightComponent
 }) => {
   const theme = useSafeTheme();
   const gradientColors = colors || ['#6366F1', '#8B5CF6', '#EC4899'];
@@ -26,8 +28,17 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
       end={{ x: 1, y: 1 }}
       style={[styles.container, style]}
     >
-      <Text style={styles.title}>{title}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      <View style={styles.contentContainer}>
+        <View style={styles.textContainer}>
+          <Text style={styles.title}>{title}</Text>
+          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        </View>
+        {rightComponent && (
+          <View style={styles.rightComponentContainer}>
+            {rightComponent}
+          </View>
+        )}
+      </View>
     </LinearGradient>
   );
 };
@@ -38,6 +49,17 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+  },
+  contentContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  textContainer: {
+    flex: 1,
+  },
+  rightComponentContainer: {
+    marginLeft: 16,
   },
   title: {
     fontSize: 28,

@@ -147,8 +147,14 @@ const ActionButton3D: React.FC<ActionButtonProps> = ({
       ]}
     >
       <AnimatedPressable
-        onPress={onPress}
-        onPressIn={handlePressIn}
+        onPress={() => {
+          console.log(`DEBUG: ActionButton3D pressed - ${label}`);
+          onPress();
+        }}
+        onPressIn={() => {
+          console.log(`DEBUG: ActionButton3D pressIn - ${label}`);
+          handlePressIn();
+        }}
         onPressOut={handlePressOut}
         style={[
           styles.actionButton3D,
@@ -239,7 +245,19 @@ const ActionButton3D: React.FC<ActionButtonProps> = ({
   );
 };
 
-export const QuickActionsWidgetEnhanced: React.FC = () => {
+interface QuickActionsWidgetEnhancedProps {
+  theme?: any;
+  onCreateAutomation?: () => void;
+  onBrowseAutomations?: () => void;
+  onViewLibrary?: () => void;
+}
+
+export const QuickActionsWidgetEnhanced: React.FC<QuickActionsWidgetEnhancedProps> = ({
+  theme: propTheme,
+  onCreateAutomation,
+  onBrowseAutomations,
+  onViewLibrary,
+}) => {
   const theme = useSafeTheme();
   const navigation = useNavigation();
   const containerScale = useRef(new Animated.Value(0.95)).current;
@@ -254,18 +272,33 @@ export const QuickActionsWidgetEnhanced: React.FC = () => {
   }, []);
 
   const handleCreateAutomation = () => {
+    console.log('DEBUG: QuickActionsWidget - handleCreateAutomation called');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.navigate('AutomationBuilder' as never);
+    if (onCreateAutomation) {
+      onCreateAutomation();
+    } else {
+      navigation.navigate('BuildTab' as never);
+    }
   };
 
   const handleScanTag = () => {
+    console.log('DEBUG: QuickActionsWidget - handleScanTag called');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.navigate('Scanner' as never);
+    if (onBrowseAutomations) {
+      onBrowseAutomations();
+    } else {
+      navigation.navigate('DiscoverTab' as never);
+    }
   };
 
   const handleImportAutomation = () => {
+    console.log('DEBUG: QuickActionsWidget - handleImportAutomation called');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.navigate('Discover' as never);
+    if (onViewLibrary) {
+      onViewLibrary();
+    } else {
+      navigation.navigate('DiscoverTab' as never);
+    }
   };
 
   return (

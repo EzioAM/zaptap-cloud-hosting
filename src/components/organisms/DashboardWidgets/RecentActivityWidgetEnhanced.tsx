@@ -379,7 +379,20 @@ export const RecentActivityWidgetEnhanced: React.FC = () => {
                 Recent Runs
               </Text>
             </View>
-            <TouchableOpacity style={styles.viewAllButton}>
+            <TouchableOpacity 
+              style={styles.viewAllButton}
+              onPress={() => {
+                console.log('DEBUG: RecentActivity View All pressed');
+                try {
+                  require('expo-haptics').impactAsync(require('expo-haptics').ImpactFeedbackStyle.Light);
+                } catch (error) {
+                  // Haptics not available
+                }
+                // Navigate to activity screen or call onViewAll if available
+              }}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Text style={[styles.viewAllText, { color: theme.colors?.primary || '#6366F1' }]}>
                 View All
               </Text>
@@ -474,6 +487,8 @@ const styles = StyleSheet.create({
   viewAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 4,
+    borderRadius: 8,
   },
   viewAllText: {
     ...typography.labelMedium,
