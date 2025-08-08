@@ -224,6 +224,14 @@ export const glassEffects = {
   },
 };
 
+// Helper function to safely get gradient colors
+export const getSafeGradientColors = (gradient: GradientDefinition | undefined | null, fallback?: string[]): string[] => {
+  if (!gradient || !gradient.colors || gradient.colors.length < 2) {
+    return fallback || ['#6366F1', '#8B5CF6'];
+  }
+  return gradient.colors;
+};
+
 // Utility functions
 export const getGradientStyle = (gradient: GradientDefinition, forWeb = false) => {
   if (forWeb || Platform.OS === 'web') {

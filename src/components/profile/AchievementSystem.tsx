@@ -47,6 +47,13 @@ const RARITY_GRADIENTS = {
   legendary: ['#FF6B00', '#E65100'],
 };
 
+const getSafeGradientColors = (rarity: string, unlocked: boolean): string[] => {
+  if (!unlocked) {
+    return ['#424242', '#303030'];
+  }
+  return RARITY_GRADIENTS[rarity as keyof typeof RARITY_GRADIENTS] || RARITY_GRADIENTS.common;
+};
+
 const AnimatedAchievement: React.FC<{
   achievement: Achievement;
   index: number;
@@ -182,7 +189,7 @@ const AnimatedAchievement: React.FC<{
         />
         
         <LinearGradient
-          colors={achievement.unlocked ? RARITY_GRADIENTS[achievement.rarity] : ['#424242', '#303030']}
+          colors={getSafeGradientColors(achievement.rarity, achievement.unlocked)}
           style={[styles.achievementGradient, !achievement.unlocked && styles.lockedAchievement]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -338,22 +345,36 @@ const AchievementHeader: React.FC<{
 };
 
 export const AchievementSystem: React.FC<AchievementSystemProps> = ({
-  achievements,
+  achievements = [],
   onAchievementPress,
   showConfetti,
 }) => {
-  const totalPoints = achievements.reduce((sum, a) => sum + (a.unlocked ? a.points : 0), 0);
-  const unlockedCount = achievements.filter(a => a.unlocked).length;
+  // Ensure achievements is always an array
+  const safeAchievements = achievements || [];
+  const totalPoints = safeAchievements.reduce((sum, a) => sum + (a.unlocked ? a.points : 0), 0);
+  const unlockedCount = safeAchievements.filter(a => a.unlocked).length;
+
+  if (safeAchievements.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.emptyState}>
+          <MaterialCommunityIcons name="trophy-outline" size={48} color="#999" />
+          <Text style={styles.emptyText}>No achievements yet</Text>
+          <Text style={styles.emptySubtext}>Complete automations to unlock achievements!</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <AchievementHeader
         totalPoints={totalPoints}
         unlockedCount={unlockedCount}
-        totalCount={achievements.length}
+        totalCount={safeAchievements.length}
       />
       <View style={styles.achievementsList}>
-        {achievements.map((achievement, index) => (
+        {safeAchievements.map((achievement, index) => (
           <AnimatedAchievement
             key={achievement.id}
             achievement={achievement}
@@ -537,5 +558,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     marginLeft: 4,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    marginTop: 40,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
   },
 });

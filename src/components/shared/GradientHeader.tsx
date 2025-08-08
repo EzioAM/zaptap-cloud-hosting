@@ -19,7 +19,10 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
   rightComponent
 }) => {
   const theme = useSafeTheme();
-  const gradientColors = colors || ['#6366F1', '#8B5CF6', '#EC4899'];
+  // Ensure we always have valid gradient colors
+  const gradientColors = (colors && colors.length >= 2) 
+    ? colors 
+    : ['#6366F1', '#8B5CF6', '#EC4899'];
 
   return (
     <LinearGradient

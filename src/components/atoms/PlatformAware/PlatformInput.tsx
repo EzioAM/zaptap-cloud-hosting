@@ -18,6 +18,7 @@ import Animated, {
 import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { usePlatform } from '../../../hooks/usePlatform';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { useOptimizedTextInput } from '../../../utils/textInputFixes';
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
@@ -160,6 +161,17 @@ export const PlatformInput = forwardRef<TextInput, PlatformInputProps>(({
     setIsFocused(false);
     onBlur?.(event);
   }, [onBlur]);
+
+  // Apply iOS text input optimizations
+  const optimizedProps = useOptimizedTextInput({
+    ...textInputProps,
+    value,
+    onFocus: handleFocus,
+    onBlur: handleBlur,
+    editable: !disabled && !loading,
+    selectionColor: platformConfig.selectionColor,
+    placeholderTextColor: colors.text.tertiary,
+  });
 
   // Platform-specific input styles
   const inputStyles = useMemo(() => {
@@ -375,12 +387,6 @@ export const PlatformInput = forwardRef<TextInput, PlatformInputProps>(({
         {/* Text input */}
         <TextInput
           ref={ref}
-          value={value}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          editable={!disabled && !loading}
-          selectionColor={platformConfig.selectionColor}
-          placeholderTextColor={colors.text.tertiary}
           style={[
             inputStyles,
             {
@@ -390,7 +396,7 @@ export const PlatformInput = forwardRef<TextInput, PlatformInputProps>(({
             },
             inputStyle,
           ]}
-          {...textInputProps}
+          {...optimizedProps}
         />
 
         {/* Right icon */}

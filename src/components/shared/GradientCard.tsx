@@ -13,7 +13,10 @@ export const GradientCard: React.FC<GradientCardProps> = ({
   colors,
   style
 }) => {
-  const gradientColors = colors || ['#6366F1', '#8B5CF6'];
+  // Ensure we always have valid gradient colors
+  const gradientColors = (colors && colors.length >= 2) 
+    ? colors 
+    : ['#6366F1', '#8B5CF6'];
 
   return (
     <LinearGradient

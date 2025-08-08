@@ -16,7 +16,7 @@ import { Card } from '../../atoms/Card';
 import { IconButton } from '../../atoms/IconButton';
 import { Badge } from '../../atoms/Badge';
 import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
-import { theme } from '../../../theme';
+import { lightTheme } from '../../../theme';
 import { AutomationStep, StepType } from '../../../types';
 import { useHaptic } from '../../../hooks/useHaptic';
 
@@ -131,8 +131,8 @@ export const StepCard: React.FC<StepCardProps> = ({
   onDelete,
   readonly = false,
 }) => {
-  const theme = useSafeTheme();
-  const colors = theme.colors;
+  const safeTheme = useSafeTheme();
+  const colors = safeTheme.colors;
   const { trigger } = useHaptic();
   
   const icon = stepIcons[step.type] || 'help-circle';
@@ -228,7 +228,7 @@ export const StepCard: React.FC<StepCardProps> = ({
                     icon="delete"
                     size="small"
                     onPress={handleDelete}
-                    style={{ marginLeft: theme.spacing.xs }}
+                    style={{ marginLeft: safeTheme.spacing?.xs || 4 }}
                   />
                   <MaterialCommunityIcons
                     name="drag"
@@ -253,16 +253,26 @@ export const StepCard: React.FC<StepCardProps> = ({
   );
 };
 
+// Use lightTheme as fallback for static styles
+const themeForStyles = lightTheme || {
+  spacing: { xs: 4, sm: 8, md: 16, lg: 24 },
+  tokens: { borderRadius: { lg: 12 } },
+  typography: {
+    bodyLarge: { fontSize: 16, lineHeight: 24 },
+    caption: { fontSize: 12, lineHeight: 16 }
+  }
+};
+
 const styles = StyleSheet.create({
   container: {
-    marginBottom: theme.spacing.sm,
+    marginBottom: themeForStyles.spacing?.sm || 8,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
+    paddingVertical: themeForStyles.spacing?.sm || 8,
+    paddingHorizontal: themeForStyles.spacing?.md || 16,
   },
   leftSection: {
     flexDirection: 'row',
@@ -272,10 +282,10 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: theme.tokens.borderRadius.lg,
+    borderRadius: themeForStyles.tokens?.borderRadius?.lg || 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.sm,
+    marginRight: themeForStyles.spacing?.sm || 8,
   },
   stepInfo: {
     flex: 1,
@@ -283,21 +293,23 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.xs,
+    marginBottom: themeForStyles.spacing?.xs || 4,
   },
   stepLabel: {
-    ...theme.typography.bodyLarge,
+    fontSize: themeForStyles.typography?.bodyLarge?.fontSize || 16,
+    lineHeight: themeForStyles.typography?.bodyLarge?.lineHeight || 24,
     fontWeight: '600',
-    marginRight: theme.spacing.sm,
+    marginRight: themeForStyles.spacing?.sm || 8,
   },
   stepDescription: {
-    ...theme.typography.caption,
+    fontSize: themeForStyles.typography?.caption?.fontSize || 12,
+    lineHeight: themeForStyles.typography?.caption?.lineHeight || 16,
   },
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   dragHandle: {
-    marginLeft: theme.spacing.sm,
+    marginLeft: themeForStyles.spacing?.sm || 8,
   },
 });

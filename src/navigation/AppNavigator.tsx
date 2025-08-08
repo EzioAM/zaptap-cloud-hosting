@@ -12,6 +12,7 @@ import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { OnboardingFlow } from '../screens/onboarding/OnboardingFlow';
 import { NotificationProvider } from '../components/notifications/NotificationProvider';
 import { EventLogger } from '../utils/EventLogger';
+import { NavigationHelper } from '../services/navigation/NavigationHelper';
 
 // Error Boundaries and Recovery
 import { BaseErrorBoundary, NavigationErrorBoundary } from '../components/ErrorBoundaries';
@@ -108,8 +109,10 @@ const AppNavigatorContent = React.memo(() => {
     setTimeout(() => {
       if (navigationRef.current?.isReady()) {
         try {
+          // Initialize NavigationHelper with ref
+          NavigationHelper.setNavigationRef(navigationRef.current);
           linkingService.initialize(navigationRef.current);
-          EventLogger.debug('Navigation', '✅ Linking service initialized');
+          EventLogger.debug('Navigation', '✅ Linking service and NavigationHelper initialized');
         } catch (error) {
           EventLogger.error('Navigation', 'Failed to initialize linking service:', error as Error);
         }

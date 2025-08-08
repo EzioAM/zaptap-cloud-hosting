@@ -30,6 +30,7 @@ import { useGetMyAutomationsQuery, useGetPublicAutomationsQuery } from '../../st
 import { useUserRole } from '../../hooks/useUserRole';
 import { useConnection } from '../../contexts/ConnectionContext';
 import * as Haptics from 'expo-haptics';
+import { NavigationHelper } from '../../services/navigation/NavigationHelper';
 
 // Components
 import { DeveloperSection } from '../../components/developer/DeveloperSection';
@@ -354,7 +355,7 @@ const ModernProfileScreen: React.FC = memo(() => {
             try {
               triggerHaptic('heavy');
               await dispatch(signOut()).unwrap();
-              navigation.navigate('Auth' as never);
+              NavigationHelper.reset([{ name: 'MainTabs' }]);
               showFeedbackMessage('success', 'Signed out successfully');
             } catch (error) {
               EventLogger.error('ModernProfile', 'Sign out error:', error as Error);
@@ -519,7 +520,11 @@ const ModernProfileScreen: React.FC = memo(() => {
           }
         >
           {/* Profile Header Card */}
-          <View style={[styles.profileCard, { backgroundColor: theme.colors.primary }]}>
+          <LinearGradient
+            colors={['#6366F1', '#8B5CF6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.profileCard}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
                 {user?.user_metadata?.avatar_url ? (
@@ -528,13 +533,16 @@ const ModernProfileScreen: React.FC = memo(() => {
                     style={styles.avatar}
                   />
                 ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                    <MaterialCommunityIcons
-                      name="account"
-                      size={40}
-                      color="white"
-                    />
-                  </View>
+                  <LinearGradient
+                    colors={['#FF6B6B', '#FF8E53']}
+                    style={[styles.avatar, styles.avatarPlaceholder]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.avatarInitial}>
+                      {user?.email?.charAt(0)?.toUpperCase() || user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                    </Text>
+                  </LinearGradient>
                 )}
                 <View style={styles.completionBadge}>
                   <Animated.View
@@ -568,7 +576,7 @@ const ModernProfileScreen: React.FC = memo(() => {
                 </Text>
               </View>
             </View>
-          </View>
+          </LinearGradient>
 
           {/* Guest User Message */}
           {!isAuthenticated && (
@@ -664,10 +672,32 @@ const ModernProfileScreen: React.FC = memo(() => {
           >
             {activeTab === 'overview' && (
               <View>
+                <SafeAnimatedMenuSection
+                  section={{
+                    title: "Account",
+                    items: [
+                      {
+                        icon: 'account-edit',
+                        label: 'Edit Profile',
+                        onPress: () => NavigationHelper.navigate('EditProfile'),
+                      },
+                      {
+                        icon: 'cog',
+                        label: 'Settings',
+                        onPress: () => NavigationHelper.navigate('Settings'),
+                      },
+                    ],
+                    collapsible: false,
+                    initiallyExpanded: true,
+                  }}
+                  sectionIndex={0}
+                  theme={theme}
+                />
+                
                 {/* Settings Section */}
                 <SafeAnimatedMenuSection
                   section={{
-                    title: "Settings",
+                    title: "Preferences",
                     items: [
                       {
                         icon: 'bell',
@@ -686,12 +716,12 @@ const ModernProfileScreen: React.FC = memo(() => {
                       {
                         icon: 'shield-account',
                         label: 'Privacy & Security',
-                        onPress: () => navigation.navigate('PrivacySettings' as never),
+                        onPress: () => NavigationHelper.navigate('Privacy'),
                       },
                       {
                         icon: 'help-circle',
                         label: 'Help & Support',
-                        onPress: () => navigation.navigate('HelpSupport' as never),
+                        onPress: () => NavigationHelper.navigate('Help'),
                       },
                     ],
                     collapsible: false,
@@ -703,7 +733,7 @@ const ModernProfileScreen: React.FC = memo(() => {
 
                 {/* Developer Section */}
                 {FEATURE_FLAGS.DEVELOPER_MODE && isDeveloper && (
-                  <DeveloperSection theme={theme} />
+                  <DeveloperSection navigation={navigation} theme={theme} />
                 )}
 
                 {/* Sign Out Button - Only show if authenticated */}
@@ -725,7 +755,7 @@ const ModernProfileScreen: React.FC = memo(() => {
                   <View style={styles.signOutContainer}>
                     <TouchableOpacity
                       style={[styles.signOutButton, { backgroundColor: theme.colors.primary }]}
-                      onPress={() => navigation.navigate('Auth' as never)}
+                      onPress={() => navigation.navigate('SignIn' as never)}
                     >
                       <Text style={[styles.signOutButtonText, { color: 'white' }]}>
                         Sign In
@@ -745,8 +775,11 @@ const ModernProfileScreen: React.FC = memo(() => {
 
             {activeTab === 'activity' && FEATURE_FLAGS.ACTIVITY_TIMELINE && (
               <ActivityTimeline
-                theme={theme}
-                userId={user?.id}
+                activities={[]} // Pass empty array to prevent undefined error
+                onActivityPress={(activity) => {
+                  // Handle activity press
+                  console.log('Activity pressed:', activity);
+                }}
               />
             )}
           </Animated.View>
@@ -820,6 +853,11 @@ const styles = StyleSheet.create({
     margin: 20,
     padding: 20,
     borderRadius: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   profileHeader: {
     flexDirection: 'row',
@@ -835,9 +873,21 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   avatarPlaceholder: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  avatarInitial: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   completionBadge: {
     position: 'absolute',
@@ -847,29 +897,39 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: 'rgba(255,255,255,0.3)',
     borderRadius: 2,
+    overflow: 'hidden',
   },
   completionBar: {
     height: '100%',
-    backgroundColor: 'white',
+    backgroundColor: '#4CAF50',
     borderRadius: 2,
   },
   profileInfo: {
     flex: 1,
   },
   profileName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 4,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   profileEmail: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
     marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   profileCompletion: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   statsGrid: {
     flexDirection: 'row',

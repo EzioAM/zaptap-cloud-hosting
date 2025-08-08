@@ -145,15 +145,30 @@ const CategoryChip: React.FC<CategoryChipProps> = ({ category, delay = 0 }) => {
       'entertainment': 'cosmic',
       'developer': 'primary',
     };
-    return categoryMap[cat.toLowerCase()] || 'primary';
+    const gradientKey = categoryMap[cat.toLowerCase()] || 'primary';
+    // Validate gradient exists and has colors
+    if (!gradients[gradientKey] || !gradients[gradientKey].colors || gradients[gradientKey].colors.length < 2) {
+      return 'primary'; // Fallback to primary which we know is valid
+    }
+    return gradientKey;
   };
+
+  const gradientKey = getCategoryGradient(category);
+  const gradient = gradients[gradientKey];
+  
+  // Ensure we have valid gradient data
+  const colors = (gradient && gradient.colors && gradient.colors.length >= 2) 
+    ? gradient.colors 
+    : ['#6366F1', '#8B5CF6']; // Fallback colors
+  const start = gradient?.start || { x: 0, y: 0 };
+  const end = gradient?.end || { x: 1, y: 1 };
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <LinearGradient
-        colors={gradients[getCategoryGradient(category)].colors}
-        start={gradients[getCategoryGradient(category)].start}
-        end={gradients[getCategoryGradient(category)].end}
+        colors={colors}
+        start={start}
+        end={end}
         style={styles.categoryChip}
       >
         <Text style={styles.categoryText}>{category}</Text>
@@ -297,10 +312,10 @@ export const FeaturedAutomationWidgetEnhanced: React.FC = () => {
             ]}
           >
             <LinearGradient
-              colors={['transparent', 'rgba(255,255,255,0.5)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFillObject}
+            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFillObject}
             />
           </Animated.View>
           <EnhancedLoadingSkeleton 
@@ -599,13 +614,15 @@ const styles = StyleSheet.create({
   ctaContainer: {
     position: 'relative',
     alignItems: 'center',
+    alignSelf: 'center', // Center the container
+    width: 180, // Fixed width to constrain the glow effect
   },
   ctaGlow: {
     position: 'absolute',
-    top: -10,
-    left: -10,
-    right: -10,
-    bottom: -10,
+    top: -8,
+    left: -8,
+    right: -8,
+    bottom: -8,
     backgroundColor: '#EC4899',
     borderRadius: 16,
     ...Platform.select({
@@ -622,8 +639,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingHorizontal: 40,
     borderRadius: 12,
+    minWidth: 160, // Ensure button has consistent size
     ...Platform.select({
       ios: {
         shadowColor: '#000',

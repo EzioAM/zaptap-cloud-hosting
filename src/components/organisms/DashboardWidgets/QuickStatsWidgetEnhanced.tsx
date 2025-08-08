@@ -374,7 +374,6 @@ const StatCard3D: React.FC<StatCardProps> = ({
   }, []);
 
   const handlePress = useCallback(() => {
-    console.log(`DEBUG: StatCard3D pressed - ${label}: ${value}`);
     if (onPress) {
       onPress();
     } else {
@@ -540,7 +539,6 @@ export const QuickStatsWidgetEnhanced: React.FC<QuickStatsWidgetEnhancedProps> =
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    console.log('DEBUG: QuickStatsWidget refresh requested');
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
@@ -558,8 +556,24 @@ export const QuickStatsWidgetEnhanced: React.FC<QuickStatsWidgetEnhancedProps> =
       gradientKey: 'ocean' as keyof typeof gradients,
       delay: 0,
       onPress: () => {
-        console.log('DEBUG: Navigate to executions');
-        // navigation.navigate('ExecutionsTab' as never);
+        Alert.alert(
+          '📊 Today\'s Executions',
+          `You've run ${stats?.totalExecutions || 0} automations today!\n\n` +
+          `Success rate: ${stats?.successRate || 0}%\n` +
+          `Average execution time: ${stats?.averageTime || 0}ms\n\n` +
+          `Keep up the great work automating your tasks! 🚀`,
+          [
+            { text: 'View Library', onPress: () => {
+              try {
+                // @ts-ignore
+                navigation.navigate('LibraryTab');
+              } catch (e) {
+                console.warn('Navigation to LibraryTab failed:', e);
+              }
+            }},
+            { text: 'OK', style: 'default' }
+          ]
+        );
       },
     },
     {
@@ -572,7 +586,29 @@ export const QuickStatsWidgetEnhanced: React.FC<QuickStatsWidgetEnhancedProps> =
       isPercentage: true,
       pulseIntensity: 1.08,
       onPress: () => {
-        console.log('DEBUG: Navigate to success analytics');
+        const successRate = stats?.successRate || 0;
+        const totalRuns = stats?.totalExecutions || 0;
+        const successfulRuns = Math.round((successRate / 100) * totalRuns);
+        const failedRuns = totalRuns - successfulRuns;
+        
+        Alert.alert(
+          '✅ Success Rate Analysis',
+          `Your current success rate is ${successRate}%\n\n` +
+          `📊 Breakdown:\n` +
+          `• Successful runs: ${successfulRuns}\n` +
+          `• Failed runs: ${failedRuns}\n` +
+          `• Total runs today: ${totalRuns}\n\n` +
+          (successRate >= 90 ? '🎉 Excellent performance!' : 
+           successRate >= 70 ? '👍 Good job! Room for improvement.' :
+           '💡 Check failed automations for issues.'),
+          [
+            { text: 'View Stats', onPress: () => {
+              // Analytics screen doesn't exist, just close the alert
+              // In a real app, you might navigate to a stats/analytics section
+            }},
+            { text: 'OK' }
+          ]
+        );
       },
     },
     {
@@ -583,7 +619,23 @@ export const QuickStatsWidgetEnhanced: React.FC<QuickStatsWidgetEnhancedProps> =
       gradientKey: 'warning' as keyof typeof gradients,
       delay: 200,
       onPress: () => {
-        console.log('DEBUG: Navigate to performance metrics');
+        const avgTime = stats?.averageTime || 0;
+        const avgSeconds = (avgTime / 1000).toFixed(2);
+        
+        Alert.alert(
+          '⚡ Performance Metrics',
+          `Average execution time: ${avgTime}ms (${avgSeconds}s)\n\n` +
+          `📈 Performance Analysis:\n` +
+          (avgTime < 500 ? '• Lightning fast! ⚡ Excellent performance\n' :
+           avgTime < 1000 ? '• Good speed! Most automations run quickly\n' :
+           avgTime < 3000 ? '• Moderate speed. Consider optimizing complex automations\n' :
+           '• Slower performance. Review your automations for optimization\n') +
+          `\n💡 Tips for faster execution:\n` +
+          `• Reduce unnecessary delays\n` +
+          `• Optimize webhook calls\n` +
+          `• Simplify complex conditions`,
+          [{ text: 'Got it!' }]
+        );
       },
     },
     {
@@ -595,10 +647,34 @@ export const QuickStatsWidgetEnhanced: React.FC<QuickStatsWidgetEnhancedProps> =
       delay: 300,
       pulseIntensity: 1.1,
       onPress: () => {
-        console.log('DEBUG: Navigate to time savings report');
+        const timeSaved = stats?.timeSaved || 0;
+        const hours = Math.floor(timeSaved / 60);
+        const minutes = timeSaved % 60;
+        const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} minutes`;
+        
+        Alert.alert(
+          '⏰ Time Savings Report',
+          `You've saved ${timeStr} today with automation!\n\n` +
+          `🎯 Impact Analysis:\n` +
+          `• ${stats?.totalExecutions || 0} tasks automated\n` +
+          `• ${(timeSaved * 5).toFixed(0)} manual clicks saved\n` +
+          `• More time for important work\n\n` +
+          `📊 This Month: ~${(timeSaved * 30).toFixed(0)} minutes saved\n` +
+          `📊 This Year: ~${(timeSaved * 365 / 60).toFixed(0)} hours saved\n\n` +
+          `Keep automating to save even more time! 🚀`,
+          [
+            { text: 'Create New Automation', onPress: () => {
+              try {
+                // @ts-ignore
+                navigation.navigate('Build');
+              } catch (e) {}
+            }},
+            { text: 'Awesome!' }
+          ]
+        );
       },
     },
-  ], [stats]);
+  ], [stats, navigation]);
 
   if (isLoading) {
     return (

@@ -95,7 +95,7 @@ interface ActivityItem {
   id: string;
   name: string;
   status: 'success' | 'error' | 'running';
-  timestamp: Date;
+  timestamp: Date | string | undefined;
   executionTime?: number;
   automationType?: string;
 }
@@ -108,9 +108,18 @@ interface TimelineItemProps {
   onRetry?: (id: string) => void;
 }
 
-const getRelativeTime = (date: Date): string => {
+const getRelativeTime = (date: Date | string | undefined | null): string => {
+  // Handle null/undefined/invalid dates
+  if (!date) return 'Unknown';
+  
+  // Convert string to Date if needed
+  const dateObj = date instanceof Date ? date : new Date(date);
+  
+  // Check for invalid date
+  if (isNaN(dateObj.getTime())) return 'Unknown';
+  
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
+  const diff = now.getTime() - dateObj.getTime();
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -146,13 +155,17 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [timeAgo, setTimeAgo] = useState(getRelativeTime(activity.timestamp));
+  const [isSwiping, setIsSwiping] = useState(false);
 
   // Update relative time every minute
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeAgo(getRelativeTime(activity.timestamp));
-    }, 60000);
-    return () => clearInterval(interval);
+    // Only set up interval if we have a valid timestamp
+    if (activity.timestamp) {
+      const interval = setInterval(() => {
+        setTimeAgo(getRelativeTime(activity.timestamp));
+      }, 60000);
+      return () => clearInterval(interval);
+    }
   }, [activity.timestamp]);
 
   // Entry animation
@@ -201,12 +214,14 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
         return Math.abs(gestureState.dx) > 10;
       },
       onPanResponderGrant: () => {
+        setIsSwiping(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       },
       onPanResponderMove: (evt, gestureState) => {
         translateX.setValue(gestureState.dx);
       },
       onPanResponderRelease: (evt, gestureState) => {
+        setIsSwiping(false);
         if (gestureState.dx > 100) {
           // Swipe right - retry action
           Animated.timing(translateX, {
@@ -347,23 +362,35 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
         </View>
       </View>
 
-      {/* Swipe action hints */}
-      <View style={styles.swipeActions}>
-        <View style={[styles.retryAction, { backgroundColor: '#2196F3' }]}>
-          <MaterialCommunityIcons name="refresh" size={24} color="#FFFFFF" />
+      {/* Swipe action hints - Hidden behind the main content */}
+      {isSwiping && (
+        <View style={styles.swipeActions} pointerEvents="none">
+          <View style={[styles.retryAction, { backgroundColor: '#2196F3' }]}>
+            <MaterialCommunityIcons name="refresh" size={24} color="#FFFFFF" />
+          </View>
+          <View style={[styles.deleteAction, { backgroundColor: '#FF5252' }]}>
+            <MaterialCommunityIcons name="delete" size={24} color="#FFFFFF" />
+          </View>
         </View>
-        <View style={[styles.deleteAction, { backgroundColor: '#FF5252' }]}>
-          <MaterialCommunityIcons name="delete" size={24} color="#FFFFFF" />
-        </View>
-      </View>
+      )}
     </Animated.View>
   );
 };
 
 export const RecentActivityWidgetEnhanced: React.FC = () => {
   const theme = useSafeTheme();
-  const { data: activities, isLoading, error } = useGetRecentActivityQuery();
+  const { data: activityData, isLoading, error } = useGetRecentActivityQuery();
   const containerScale = useRef(new Animated.Value(0.95)).current;
+  
+  // Map API response to component's expected format
+  const activities = activityData?.map(activity => ({
+    id: activity.id,
+    name: activity.automation?.title || 'Unknown',
+    status: activity.status === 'failed' ? 'error' : activity.status === 'success' ? 'success' : 'running',
+    timestamp: activity.createdAt,
+    executionTime: activity.executionTime,
+    automationType: activity.automation?.icon || 'automation'
+  })) || [];
 
   useEffect(() => {
     Animated.spring(containerScale, {
@@ -376,11 +403,15 @@ export const RecentActivityWidgetEnhanced: React.FC = () => {
 
   const handleDelete = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // TODO: Implement delete functionality
+    // For now, just log internally
     EventLogger.debug('RecentActivityWidgetEnhanced', 'Delete activity:', id);
   };
 
   const handleRetry = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // TODO: Implement retry functionality
+    // For now, just log internally
     EventLogger.debug('RecentActivityWidgetEnhanced', 'Retry activity:', id);
   };
 
@@ -406,7 +437,7 @@ export const RecentActivityWidgetEnhanced: React.FC = () => {
     );
   }
 
-  if (error || !activities || activities.length === 0) {
+  if (error || activities.length === 0) {
     return (
       <View style={[styles.container, styles.emptyContainer, { backgroundColor: theme.colors?.surface || '#fff' }]}>
         <MaterialCommunityIcons 
@@ -449,13 +480,27 @@ export const RecentActivityWidgetEnhanced: React.FC = () => {
             <TouchableOpacity 
               style={styles.viewAllButton}
               onPress={() => {
-                console.log('DEBUG: RecentActivity View All pressed');
                 try {
-                  require('expo-haptics').impactAsync(require('expo-haptics').ImpactFeedbackStyle.Light);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 } catch (error) {
                   // Haptics not available
                 }
-                // Navigate to activity screen or call onViewAll if available
+                // Navigate to ExecutionHistory screen if available
+                try {
+                  // Can't call hooks inside event handlers - need to use navigation from component scope
+                  Alert.alert(
+                    'View All Activity',
+                    'Navigate to the Library tab to see your full automation history.',
+                    [
+                      { text: 'Go to Library', onPress: () => {
+                        // This would need to be handled by parent component
+                      }},
+                      { text: 'Cancel' }
+                    ]
+                  );
+                } catch (error) {
+                  // Navigation not available or route doesn't exist
+                }
               }}
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -613,6 +658,8 @@ const styles = StyleSheet.create({
   activityContent: {
     borderRadius: 12,
     padding: 12,
+    backgroundColor: '#FFFFFF',
+    zIndex: 1,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -663,6 +710,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    marginLeft: 8,
   },
   statusText: {
     ...typography.labelSmall,
@@ -679,21 +727,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    zIndex: -1,
+    zIndex: -10,
+    opacity: 0.3,
   },
   retryAction: {
-    width: 60,
-    height: '100%',
+    width: 48,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 24,
+    backgroundColor: '#2196F3',
   },
   deleteAction: {
-    width: 60,
-    height: '100%',
+    width: 48,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 24,
+    backgroundColor: '#FF5252',
   },
 });
 

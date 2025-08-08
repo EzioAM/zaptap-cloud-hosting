@@ -242,12 +242,54 @@ const ModernHomeScreen: React.FC = memo(() => {
   // Get greeting based on time of day
   const getGreeting = useCallback(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
   }, []);
 
   const greeting = useMemo(() => getGreeting(), [getGreeting]);
+  
+  // Format user's name with proper capitalization
+  const formatUserName = useCallback((user: any) => {
+    if (!user) return 'User';
+    
+    // First try to use first and last name if available
+    if (user.first_name || user.last_name) {
+      const firstName = user.first_name || '';
+      const lastName = user.last_name || '';
+      return `${firstName} ${lastName}`.trim() || 'User';
+    }
+    
+    // Then try full_name from metadata
+    if (user.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+    
+    // Then try name field
+    if (user.name && user.name !== 'User') {
+      return user.name;
+    }
+    
+    // Finally, fall back to email parsing
+    let name = user.email;
+    if (!name) return 'User';
+    
+    // If it's an email, extract and format the username part
+    if (name.includes('@')) {
+      name = name.split('@')[0];
+    }
+    
+    // Replace dots, underscores, and dashes with spaces
+    name = name.replace(/[._-]/g, ' ');
+    
+    // Capitalize each word
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }, []);
+  
+  const userName = useMemo(() => formatUserName(user), [user, formatUserName]);
 
   // Enhanced widget selection based on feature flags
   const QuickStatsComponent = FEATURE_FLAGS.ENHANCED_WIDGETS ? QuickStatsWidgetSimple : QuickStatsWidget;
@@ -258,7 +300,6 @@ const ModernHomeScreen: React.FC = memo(() => {
   // Navigation handlers with haptic feedback
   const handleNavigateToBuilder = useCallback(() => {
     try {
-      console.log('DEBUG: handleNavigateToBuilder called');
       triggerHaptic('light');
       EventLogger.userAction('navigate_to_builder', 'ModernHomeScreen');
       navigation.navigate('BuildTab' as never);
@@ -270,7 +311,6 @@ const ModernHomeScreen: React.FC = memo(() => {
 
   const handleNavigateToDiscover = useCallback(() => {
     try {
-      console.log('DEBUG: handleNavigateToDiscover called');
       triggerHaptic('light');
       EventLogger.userAction('navigate_to_discover', 'ModernHomeScreen');
       navigation.navigate('DiscoverTab' as never);
@@ -282,7 +322,6 @@ const ModernHomeScreen: React.FC = memo(() => {
 
   const handleNavigateToLibrary = useCallback(() => {
     try {
-      console.log('DEBUG: handleNavigateToLibrary called');
       triggerHaptic('light');
       EventLogger.userAction('navigate_to_library', 'ModernHomeScreen');
       navigation.navigate('LibraryTab' as never);
@@ -371,24 +410,30 @@ const ModernHomeScreen: React.FC = memo(() => {
       {FEATURE_FLAGS.GRADIENT_HEADERS ? (
         <Animated.View style={{ opacity: headerOpacity }}>
           <GradientHeader 
-            title={`${greeting}, ${user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}!`}
+            title={`${greeting}, ${userName}!`}
             subtitle="What would you like to automate today?"
             rightComponent={
               <TouchableOpacity
                 onPress={() => {
-                  console.log('DEBUG: Profile button pressed (GradientHeader)');
                   triggerHaptic('light');
-                  navigation.navigate('Profile' as never);
+                  navigation.navigate('ProfileTab' as never);
                 }}
                 style={styles.profileButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 activeOpacity={0.7}
               >
-                <MaterialCommunityIcons 
-                  name="account-circle" 
-                  size={32} 
-                  color="white" 
-                />
+                <LinearGradient
+                  colors={['#8B5CF6', '#EC4899', '#F472B6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.avatarGradient}
+                >
+                  <MaterialCommunityIcons 
+                    name="account" 
+                    size={24} 
+                    color="white" 
+                  />
+                </LinearGradient>
               </TouchableOpacity>
             }
           />
@@ -408,24 +453,30 @@ const ModernHomeScreen: React.FC = memo(() => {
               {greeting}
             </Text>
             <Text style={[styles.userName, { color: theme.colors.primary }]}>
-              {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
+              {userName}
             </Text>
           </View>
           <TouchableOpacity
             onPress={() => {
-              console.log('DEBUG: Profile button pressed (regular header)');
               triggerHaptic('light');
-              navigation.navigate('Profile' as never);
+              navigation.navigate('ProfileTab' as never);
             }}
             style={styles.profileButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             activeOpacity={0.7}
           >
-            <MaterialCommunityIcons 
-              name="account-circle" 
-              size={32} 
-              color={theme.colors.onSurface} 
-            />
+            <LinearGradient
+              colors={['#8B5CF6', '#EC4899', '#F472B6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.avatarGradient}
+            >
+              <MaterialCommunityIcons 
+                name="account" 
+                size={24} 
+                color="white" 
+              />
+            </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
       )}
@@ -581,7 +632,19 @@ const ModernHomeScreen: React.FC = memo(() => {
                     EventLogger.userAction('view_automation_details', 'ModernHomeScreen', {
                       automationId: automation?.id,
                     });
-                    navigation.navigate('AutomationDetails' as never, { automation } as never);
+                    // Check if automation exists before navigating
+                    if (automation && automation.id) {
+                      navigation.navigate('AutomationDetails' as never, { 
+                        automationId: automation.id,
+                        automation: automation 
+                      } as never);
+                    } else {
+                      Alert.alert(
+                        'Automation Details',
+                        'This automation is not available for detailed view.',
+                        [{ text: 'OK' }]
+                      );
+                    }
                   }}
                 />
               </WidgetErrorBoundary>
@@ -624,7 +687,8 @@ const ModernHomeScreen: React.FC = memo(() => {
                   onViewAll={() => {
                     triggerHaptic('light');
                     EventLogger.userAction('view_all_activity', 'ModernHomeScreen');
-                    navigation.navigate('ActivityScreen' as never);
+                    // Navigate to Library tab to see activity
+                    navigation.navigate('LibraryTab' as never);
                   }}
                 />
               </WidgetErrorBoundary>
@@ -659,10 +723,7 @@ const ModernHomeScreen: React.FC = memo(() => {
       >
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-          onPress={() => {
-            console.log('DEBUG: FAB button pressed');
-            handleNavigateToBuilder();
-          }}
+          onPress={handleNavigateToBuilder}
           activeOpacity={0.8}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
@@ -742,11 +803,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   profileButton: {
-    padding: 4,
+    padding: 0,
     minWidth: 44,
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarGradient: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   blurOverlay: {
     position: 'absolute',

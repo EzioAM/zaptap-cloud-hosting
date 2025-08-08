@@ -19,6 +19,7 @@ import { AuthInitializer } from './src/components/auth/AuthInitializer';
 import { AnalyticsProvider } from './src/contexts/AnalyticsContext';
 import { EventLogger } from './src/utils/EventLogger';
 import { SafeAppWrapper } from './src/utils/SafeAppWrapper';
+import { TextInputOptimizer } from './src/utils/textInputFixes';
 
 // Initialize services
 let servicesInitialized = false;
@@ -139,6 +140,9 @@ export default function App() {
     const initializeApp = async () => {
       try {
         console.log('📱 Initializing ShortcutsLike app...');
+        
+        // Initialize text input optimizations for iOS
+        TextInputOptimizer.initialize();
         
         // Initialize store
         const storeInstance = await initializeStore();

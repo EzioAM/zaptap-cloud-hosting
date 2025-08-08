@@ -29,7 +29,6 @@ import { MockCodeImplementationService as CodeImplementationService, Implementat
 import { AICollaborationView } from './AICollaborationView';
 import { AIConfigurationHelper } from './AIConfigurationHelper';
 import Constants from 'expo-constants';
-import { EventLogger } from '../../utils/EventLogger';
 
 export const ResearchDashboardEnhanced: React.FC = () => {
   const [researchTopic, setResearchTopic] = useState('');
@@ -91,10 +90,10 @@ export const ResearchDashboardEnhanced: React.FC = () => {
       const allTopics = [...new Set([...topics, ...smartTopics])].slice(0, 12);
       setDynamicTopics(allTopics);
       
-      EventLogger.debug('ResearchDashboardEnhanced', '🔍 Dynamic research topics loaded:', allTopics.length);
-      EventLogger.debug('ResearchDashboardEnhanced', '⚠️ High-priority insights:', insights.length);
+      console.log('ResearchDashboardEnhanced: Dynamic research topics loaded:', allTopics.length);
+      console.log('ResearchDashboardEnhanced: High-priority insights:', insights.length);
     } catch (error) {
-      EventLogger.error('ResearchDashboardEnhanced', 'Failed to load dynamic topics:', error as Error);
+      console.error('ResearchDashboardEnhanced: Failed to load dynamic topics:', error);
       // Use smart fallback topics
       const aiService = new ImprovedAIResearchService();
       const fallbackTopics = await aiService.generateSmartTopics();
@@ -134,7 +133,7 @@ export const ResearchDashboardEnhanced: React.FC = () => {
           // Try collaborative AI research first
           const collaborativeService = new CollaborativeAIResearchService();
           
-          EventLogger.debug('ResearchDashboardEnhanced', '🤝 Starting collaborative AI research...');
+          console.log('ResearchDashboardEnhanced: Starting collaborative AI research...');
           setShowCollaboration(true);
           
           // Simulate real-time collaboration updates
@@ -172,7 +171,7 @@ export const ResearchDashboardEnhanced: React.FC = () => {
             
             return;
           } catch (collabError) {
-            EventLogger.debug('ResearchDashboardEnhanced', 'Collaborative AI not available, falling back...');
+            console.log('ResearchDashboardEnhanced: Collaborative AI not available, falling back...');
             setShowCollaboration(false);
           }
         }
@@ -199,7 +198,7 @@ export const ResearchDashboardEnhanced: React.FC = () => {
         }));
         
         setLocalResults(researchTopics);
-        EventLogger.debug('ResearchDashboardEnhanced', '✅ Research completed: ${results.length} results');
+        console.log(`ResearchDashboardEnhanced: Research completed: ${results.length} results`);
       } else {
         // Fallback to pure local research
         const localResult = LocalResearchService.getResearch(topic);
@@ -211,7 +210,7 @@ export const ResearchDashboardEnhanced: React.FC = () => {
         }
       }
     } catch (error) {
-      EventLogger.error('ResearchDashboardEnhanced', 'Research failed:', error as Error);
+      console.error('ResearchDashboardEnhanced: Research failed:', error);
       Alert.alert(
         'Research Error',
         'Unable to complete research. Please try again.',
@@ -245,7 +244,7 @@ export const ResearchDashboardEnhanced: React.FC = () => {
           break;
       }
     } catch (error) {
-      EventLogger.error('ResearchDashboardEnhanced', 'Implementation failed:', error as Error);
+      console.error('ResearchDashboardEnhanced: Implementation failed:', error);
       Alert.alert('Implementation Error', error.message || 'Failed to implement changes');
     } finally {
       setImplementing(false);
@@ -415,16 +414,16 @@ export const ResearchDashboardEnhanced: React.FC = () => {
     setResearchTopic(insight.researchTopic);
     
     try {
-      EventLogger.debug('ResearchDashboardEnhanced', '🤖 Starting AI research for:', insight.researchTopic);
+      console.log('ResearchDashboardEnhanced: Starting AI research for:', insight.researchTopic);
       
       // Initialize improved AI research service
       const aiResearchService = new ImprovedAIResearchService();
       
       const configStatus = aiResearchService.getConfigStatus();
-      EventLogger.debug('ResearchDashboardEnhanced', '🚀 AI Research Service Config:', configStatus);
+      console.log('ResearchDashboardEnhanced: AI Research Service Config:', configStatus);
       
       if (!configStatus.anyConfigured) {
-        EventLogger.debug('ResearchDashboardEnhanced', '⚠️ AI APIs not configured, using enhanced local research');
+        console.log('ResearchDashboardEnhanced: AI APIs not configured, using enhanced local research');
       }
       
       // Create comprehensive research query with codebase context
@@ -444,13 +443,13 @@ export const ResearchDashboardEnhanced: React.FC = () => {
         ]
       };
 
-      EventLogger.debug('ResearchDashboardEnhanced', '📝 Research query created:', researchQuery.topic);
+      console.log('ResearchDashboardEnhanced: Research query created:', researchQuery.topic);
 
       // Query both AI services for comprehensive insights
       const aiResults = await aiResearchService.researchAppImprovements(researchQuery);
       
       if (aiResults && aiResults.length > 0) {
-        EventLogger.debug('ResearchDashboardEnhanced', '✅ AI research completed:', aiResults.length, 'providers responded');
+        console.log(`ResearchDashboardEnhanced: AI research completed: ${aiResults.length} providers responded`);
         
         // Convert AI results to our ResearchTopic format
         const researchTopic: ResearchTopic = {
@@ -477,7 +476,7 @@ export const ResearchDashboardEnhanced: React.FC = () => {
         researchTopic.recommendations = [...new Set(researchTopic.recommendations)].slice(0, 10);
         researchTopic.codeExamples = [...new Set(researchTopic.codeExamples)].slice(0, 5);
 
-        EventLogger.debug('ResearchDashboardEnhanced', '📊 Research processed:', {
+        console.log('ResearchDashboardEnhanced: Research processed:', {
           insights: researchTopic.insights.length,
           recommendations: researchTopic.recommendations.length,
           codeExamples: researchTopic.codeExamples.length
@@ -495,7 +494,7 @@ export const ResearchDashboardEnhanced: React.FC = () => {
         );
       } else {
         // Fallback to local research
-        EventLogger.debug('ResearchDashboardEnhanced', '⚠️ AI research failed, using local fallback');
+        console.log('ResearchDashboardEnhanced: AI research failed, using local fallback');
         const localResult = LocalResearchService.getResearch(insight.researchTopic);
         if (localResult) {
           setLocalResults([localResult]);
@@ -513,7 +512,7 @@ export const ResearchDashboardEnhanced: React.FC = () => {
         }
       }
     } catch (error) {
-      EventLogger.error('ResearchDashboardEnhanced', 'Research failed:', error as Error);
+      console.error('ResearchDashboardEnhanced: Research failed:', error);
       Alert.alert(
         'Research Failed',
         `Unable to complete research: ${error.message}\n\nPlease try again or select a different topic.`,

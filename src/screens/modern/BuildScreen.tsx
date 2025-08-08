@@ -416,7 +416,7 @@ const BuildScreen: React.FC = memo(() => {
       templates = AutomationTemplateService.getTemplatesByCategory(selectedTemplateCategory);
     }
     
-    return templates.slice(0, 8); // Show first 8 for quick templates
+    return templates.slice(0, 6); // Show first 6 for a 2x3 grid
   }, [selectedTemplateCategory]);
 
   // Filter step types based on search and category
@@ -568,7 +568,7 @@ const BuildScreen: React.FC = memo(() => {
       <TouchableOpacity
         style={styles.templateCard}
         onPress={() => handleUseTemplate(item)}
-        activeOpacity={0.9}
+        activeOpacity={0.85}
       >
         <LinearGradient
           colors={safeGradient}
@@ -603,7 +603,15 @@ const BuildScreen: React.FC = memo(() => {
     const isSelected = selectedTemplateCategory === category;
     const displayName = category === 'all' ? 'All' : 
                        category === 'popular' ? 'Popular' :
+                       category === 'productivity' ? 'Productivity' :
+                       category === 'emergency' ? 'Emergency' :
                        AutomationTemplateService.getCategories().find(c => c.id === category)?.name || category;
+    
+    const iconName = category === 'all' ? 'view-grid' :
+                    category === 'popular' ? 'star' :
+                    category === 'productivity' ? 'briefcase' :
+                    category === 'emergency' ? 'alert' :
+                    'folder';
     
     return (
       <TouchableOpacity
@@ -615,7 +623,14 @@ const BuildScreen: React.FC = memo(() => {
           }
         ]}
         onPress={() => setSelectedTemplateCategory(category)}
+        activeOpacity={0.7}
       >
+        <MaterialCommunityIcons 
+          name={iconName as any} 
+          size={16} 
+          color={isSelected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant}
+          style={{ marginRight: 6 }}
+        />
         <Text
           style={[
             styles.templateCategoryChipText,
@@ -623,6 +638,8 @@ const BuildScreen: React.FC = memo(() => {
               color: isSelected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant,
             }
           ]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
         >
           {displayName}
         </Text>
@@ -831,23 +848,26 @@ const BuildScreen: React.FC = memo(() => {
             </View>
             
             {/* Template Category Filter */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.templateCategoryScroll}
-              contentContainerStyle={styles.templateCategoryScrollContent}
-            >
-              {templateCategories.slice(0, 5).map(renderTemplateCategoryChip)}
-            </ScrollView>
+            <View style={{ height: 60, marginBottom: 16, overflow: 'visible' }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.templateCategoryScrollContent}
+                alwaysBounceHorizontal={false}
+                bounces={false}
+              >
+                {templateCategories.slice(0, 5).map(renderTemplateCategoryChip)}
+              </ScrollView>
+            </View>
             
-            <FlatList
-              data={getFilteredTemplates()}
-              renderItem={({ item }) => renderTemplate({ item })}
-              keyExtractor={item => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.templatesList}
-            />
+            <View style={styles.templatesGrid}>
+              {getFilteredTemplates().map((template) => (
+                <View key={template.id} style={styles.templateGridItem}>
+                  {renderTemplate({ item: template })}
+                </View>
+              ))}
+            </View>
           </View>
 
           {/* Steps Section */}
@@ -1010,12 +1030,13 @@ const BuildScreen: React.FC = memo(() => {
             </View>
 
             {/* Categories */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.categoryScroll}
-              contentContainerStyle={styles.categoryScrollContent}
-            >
+            <View style={{ height: 60, marginBottom: 20, overflow: 'visible' }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.categoryScrollContent}
+              >
               {categories.map(category => (
                 <TouchableOpacity
                   key={category}
@@ -1043,7 +1064,8 @@ const BuildScreen: React.FC = memo(() => {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+              </ScrollView>
+            </View>
 
             {/* Step count indicator */}
             <View style={styles.stepCountContainer}>
@@ -1173,8 +1195,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
   },
   headerContent: {
     flexDirection: 'row',
@@ -1197,19 +1221,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 32,
   },
   // New styles for layout with steps
   contentWithSteps: {
     flex: 1,
   },
   scrollContentWithSteps: {
-    paddingBottom: 10,
+    paddingBottom: 16,
   },
   stepsSection: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
   },
   stepsList: {
     flex: 1,
@@ -1218,14 +1242,14 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   section: {
-    marginHorizontal: 20,
-    marginBottom: 24,
+    marginHorizontal: 24,
+    marginBottom: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   viewAllButton: {
     flexDirection: 'row',
@@ -1237,12 +1261,17 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   card: {
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 8,
+    borderRadius: 20,
+    padding: 24,
+    marginTop: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   input: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   textArea: {
     textAlignVertical: 'top',
@@ -1255,35 +1284,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   // Template styles
-  templateCategoryScroll: {
-    marginBottom: 16,
-  },
   templateCategoryScrollContent: {
-    paddingLeft: 20,
+    paddingLeft: 24,
+    paddingRight: 16,
+    alignItems: 'center',
+    height: 60,
+    paddingVertical: 8,
   },
   templateCategoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
+    paddingHorizontal: 18,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
   },
   templateCategoryChipText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+    lineHeight: 16,
   },
   templatesList: {
-    paddingLeft: 20,
+    paddingLeft: 24,
+    paddingRight: 8,
+  },
+  templatesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -8,
+  },
+  templateGridItem: {
+    width: '50%',
+    paddingHorizontal: 8,
+    marginBottom: 16,
   },
   templateCard: {
-    width: 200,
-    height: 160,
-    marginRight: 16,
-    borderRadius: 16,
+    width: '100%',
+    height: 180,
+    borderRadius: 20,
     overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   templateGradient: {
     flex: 1,
-    padding: 16,
+    padding: 20,
     justifyContent: 'space-between',
   },
   templateHeader: {
@@ -1292,29 +1343,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   templateName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 4,
-    marginTop: 8,
+    marginBottom: 6,
+    marginTop: 12,
+    letterSpacing: 0.3,
   },
   templateDescription: {
-    fontSize: 12,
+    fontSize: 13,
     color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 8,
-    lineHeight: 16,
+    marginBottom: 12,
+    lineHeight: 18,
   },
   templateStepCount: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
   },
   templateStepCountText: {
     color: 'white',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
   templateMeta: {
     flexDirection: 'row',
@@ -1322,28 +1375,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   templateTime: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 11,
     fontWeight: '500',
+    letterSpacing: 0.2,
   },
   stepsContainer: {
     marginTop: 8,
   },
   // Step card styles
   stepCard: {
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginVertical: 4,
+    borderRadius: 16,
+    marginHorizontal: 4,
+    marginVertical: 6,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   stepCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 18,
   },
   stepNumber: {
     width: 24,
@@ -1420,10 +1474,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   footer: {
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     borderTopWidth: 1,
     borderTopColor: 'rgba(139, 92, 246, 0.1)',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   progressContainer: {
     marginBottom: 16,
@@ -1517,33 +1576,38 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
+    marginHorizontal: 24,
+    marginBottom: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 16,
   },
   searchInput: {
     flex: 1,
     marginLeft: 12,
     fontSize: 16,
   },
-  categoryScroll: {
-    maxHeight: 50,
-    marginBottom: 16,
-  },
   categoryScrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    paddingVertical: 8,
+    height: 60,
   },
   categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 8,
+    paddingHorizontal: 18,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
   },
   categoryChipText: {
     fontSize: 14,
     fontWeight: '600',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+    lineHeight: 16,
   },
   stepTypesContainer: {
     flex: 1,
@@ -1552,8 +1616,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stepTypesListContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
   },
   noResultsContainer: {
     flex: 1,
@@ -1584,19 +1648,19 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   stepTypeItem: {
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
-    elevation: 1,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   stepTypeItemGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   stepTypeIcon: {
     width: 48,

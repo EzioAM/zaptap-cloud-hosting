@@ -8,9 +8,17 @@ import { EventLogger } from '../../utils/EventLogger';
     id: string;
     email: string;
     name: string;
+    first_name?: string;
+    last_name?: string;
     avatar_url?: string;
     role?: string;
+    company?: string;
+    phone?: string;
+    bio?: string;
+    location?: string;
+    website?: string;
     created_at?: string;
+    user_metadata?: any;
   }
 
   interface AuthState {
@@ -56,8 +64,17 @@ import { EventLogger } from '../../utils/EventLogger';
         user: {
           id: data.user.id,
           email: data.user.email!,
-          name: data.user.user_metadata?.name || 'User',
+          name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || 'User',
+          first_name: data.user.user_metadata?.first_name,
+          last_name: data.user.user_metadata?.last_name,
           avatar_url: data.user.user_metadata?.avatar_url || DEFAULT_AVATAR,
+          role: data.user.user_metadata?.role,
+          company: data.user.user_metadata?.company,
+          phone: data.user.user_metadata?.phone,
+          bio: data.user.user_metadata?.bio,
+          location: data.user.user_metadata?.location,
+          website: data.user.user_metadata?.website,
+          user_metadata: data.user.user_metadata,
         },
         accessToken: data.session.access_token,
         refreshToken: data.session.refresh_token,

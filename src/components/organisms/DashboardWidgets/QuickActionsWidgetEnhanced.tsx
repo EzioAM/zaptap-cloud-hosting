@@ -202,7 +202,7 @@ const ActionButton3D: React.FC<ActionButtonProps> = ({
     ]).start();
   };
 
-  const gradient = gradients[gradientKey];
+  const gradient = gradients[gradientKey] || gradients.primary || { colors: ['#6366F1', '#8B5CF6'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } };
   const rippleScale = rippleAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.5, 2],
@@ -221,14 +221,8 @@ const ActionButton3D: React.FC<ActionButtonProps> = ({
       ]}
     >
       <AnimatedPressable
-        onPress={() => {
-          console.log(`DEBUG: ActionButton3D pressed - ${label}`);
-          onPress();
-        }}
-        onPressIn={() => {
-          console.log(`DEBUG: ActionButton3D pressIn - ${label}`);
-          handlePressIn();
-        }}
+        onPress={onPress}
+        onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={[
           styles.actionButton3D,
@@ -288,9 +282,9 @@ const ActionButton3D: React.FC<ActionButtonProps> = ({
         />
 
         <LinearGradient
-          colors={gradient && gradient.colors && gradient.colors.length >= 2 ? gradient.colors : ['#8B5CF6', '#7C3AED']}
-          start={gradient?.start || { x: 0, y: 0 }}
-          end={gradient?.end || { x: 1, y: 1 }}
+          colors={gradient.colors && gradient.colors.length >= 2 ? gradient.colors : ['#8B5CF6', '#7C3AED']}
+          start={gradient.start || { x: 0, y: 0 }}
+          end={gradient.end || { x: 1, y: 1 }}
           style={styles.gradientButton}
         >
           {/* Ripple effect */}
@@ -347,18 +341,32 @@ export const QuickActionsWidgetEnhanced: React.FC<QuickActionsWidgetEnhancedProp
   }, []);
 
   const handleCreateAutomation = () => {
-    console.log('DEBUG: QuickActionsWidget - handleCreateAutomation called');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      // Haptics not available
+    }
     if (onCreateAutomation) {
       onCreateAutomation();
     } else {
-      navigation.navigate('BuildTab' as never);
+      try {
+        navigation.navigate('BuildTab' as never);
+      } catch (error) {
+        Alert.alert(
+          'Create Automation',
+          'Navigate to the Build tab to create a new automation.',
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 
   const handleScanTag = () => {
-    console.log('DEBUG: QuickActionsWidget - handleScanTag called');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      // Haptics not available
+    }
     // Open scanner modal instead of navigating to discover
     setShowScanner(true);
   };
@@ -380,12 +388,23 @@ export const QuickActionsWidgetEnhanced: React.FC<QuickActionsWidgetEnhancedProp
   };
 
   const handleImportAutomation = () => {
-    console.log('DEBUG: QuickActionsWidget - handleImportAutomation called');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      // Haptics not available
+    }
     if (onViewLibrary) {
       onViewLibrary();
     } else {
-      navigation.navigate('DiscoverTab' as never);
+      try {
+        navigation.navigate('DiscoverTab' as never);
+      } catch (error) {
+        Alert.alert(
+          'Import Automation',
+          'Navigate to the Discover tab to browse and import automations.',
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 

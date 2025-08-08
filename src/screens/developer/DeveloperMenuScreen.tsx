@@ -29,7 +29,6 @@ import { DeveloperService } from '../../services/developer/DeveloperService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase/client';
 import Constants from 'expo-constants';
-import { EventLogger } from '../../utils/EventLogger';
 import { onboardingManager } from '../../utils/OnboardingManager';
 
 interface DeveloperMenuScreenProps {
@@ -62,18 +61,18 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
         );
       }
     } catch (error) {
-      EventLogger.error('DeveloperMenu', 'Error checking developer access:', error as Error);
-      setHasAccess(false);
-      Alert.alert(
-        'Error',
-        'Unable to verify access permissions.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack()
-          }
-        ]
-      );
+    console.error('DeveloperMenu - Error checking developer access:', error);
+    setHasAccess(false);
+    Alert.alert(
+    'Error',
+    'Unable to verify access permissions.',
+    [
+    {
+    text: 'OK',
+    onPress: () => navigation.goBack()
+    }
+    ]
+    );
     }
   };
 
@@ -325,13 +324,14 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
               onPress={async () => {
                 try {
                   const debugBundle = await DeveloperService.exportDebugBundle();
-                  EventLogger.debug('DeveloperMenu', 'DEVELOPER_DEBUG_BUNDLE:', debugBundle);
+                  console.log('DEVELOPER_DEBUG_BUNDLE:', debugBundle);
                   Alert.alert(
                     'Debug Bundle Exported',
                     'Complete debug bundle has been exported to console logs. Check console for DEVELOPER_DEBUG_BUNDLE.',
                     [{ text: 'OK' }]
                   );
                 } catch (error) {
+                  console.error('Failed to export debug bundle:', error);
                   Alert.alert('Error', 'Failed to export debug bundle');
                 }
               }}

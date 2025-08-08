@@ -1,17 +1,90 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { View, StyleSheet, Platform, Text } from 'react-native';
+import { View, StyleSheet, Platform, Text, Animated } from 'react-native';
 import { useUnifiedTheme } from '../contexts/ThemeCompatibilityShim';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventLogger } from '../utils/EventLogger';
 
 // Import consolidated screens
 import ModernHomeScreen from '../screens/modern/ModernHomeScreen';
-import BuildScreen from '../screens/modern/BuildScreen';
+import ModernAutomationBuilder from '../screens/modern/ModernAutomationBuilder';
 import DiscoverScreen from '../screens/modern/DiscoverScreen';
 import LibraryScreen from '../screens/modern/LibraryScreen';
 import ModernProfileScreen from '../screens/modern/ModernProfileScreen';
+
+// Animated Tab Icon Component
+const AnimatedTabIcon = ({ focused, color, iconName }: { focused: boolean; color: string; iconName: keyof typeof MaterialCommunityIcons.glyphMap }) => {
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0.8)).current;
+  
+  useEffect(() => {
+    if (focused) {
+      // Create subtle vertical bounce animation when tab is focused
+      Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(bounceAnim, {
+              toValue: -2.5,  // Bounce up by 2.5px
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacityAnim, {
+              toValue: 1,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.parallel([
+            Animated.timing(bounceAnim, {
+              toValue: 0,  // Return to original position
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacityAnim, {
+              toValue: 0.7,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+          ]),
+        ])
+      ).start();
+    } else {
+      // Stop animation when not focused
+      bounceAnim.stopAnimation();
+      opacityAnim.stopAnimation();
+      bounceAnim.setValue(0);
+      opacityAnim.setValue(0.8);
+    }
+    
+    return () => {
+      bounceAnim.stopAnimation();
+      opacityAnim.stopAnimation();
+    };
+  }, [focused, bounceAnim, opacityAnim]);
+  
+  return (
+    <View style={styles.iconContainer}>
+      <MaterialCommunityIcons 
+        name={iconName} 
+        size={24} 
+        color={color}
+      />
+      {focused && (
+        <Animated.View 
+          style={[
+            styles.activeIndicator, 
+            { 
+              backgroundColor: color,
+              transform: [{ translateY: bounceAnim }],
+              opacity: opacityAnim,
+            }
+          ]} 
+        />
+      )}
+    </View>
+  );
+};
 
 const Tab = createBottomTabNavigator();
 
@@ -108,7 +181,6 @@ export const ModernBottomTabNavigator = () => {
             return {
               tabBarIcon: ({ focused, color, size }) => {
                 let iconName: keyof typeof MaterialCommunityIcons.glyphMap;
-                const iconSize = 24;
 
                 switch (route.name) {
                   case 'HomeTab':
@@ -132,14 +204,11 @@ export const ModernBottomTabNavigator = () => {
 
                 try {
                   return (
-                    <View style={styles.iconContainer}>
-                      <MaterialCommunityIcons 
-                        name={iconName} 
-                        size={iconSize} 
-                        color={color || '#6200ee'}
-                      />
-                      {focused && <View style={[styles.activeIndicator, { backgroundColor: color || '#6200ee' }]} />}
-                    </View>
+                    <AnimatedTabIcon 
+                      focused={focused} 
+                      color={color || '#6200ee'} 
+                      iconName={iconName}
+                    />
                   );
                 } catch (iconError) {
                   EventLogger.warn('Navigation', 'Tab icon render error:', iconError);
@@ -232,7 +301,7 @@ export const ModernBottomTabNavigator = () => {
       />
       <Tab.Screen
         name="BuildTab"
-        component={BuildScreen}
+        component={ModernAutomationBuilder}
         options={{
           tabBarLabel: 'Build',
           tabBarAccessibilityLabel: 'Build Tab',
@@ -298,7 +367,7 @@ const styles = StyleSheet.create({
   },
   activeIndicator: {
     position: 'absolute',
-    bottom: -12,  // Move further down to avoid text overlap
+    bottom: -16,  // Dropped down for better spacing from text
     width: 24,    // Slightly wider for better visibility
     height: 3,
     borderRadius: 2,

@@ -63,19 +63,19 @@ export const AnimatedCategoryChips: React.FC<AnimatedCategoryChipsProps> = ({
           Animated.timing(animValue, {
             toValue: isSelected ? 1 : 0,
             duration: 300,
-            useNativeDriver: false,
+            useNativeDriver: false,  // Changed to false since we're animating colors
           }),
           Animated.loop(
             Animated.sequence([
               Animated.timing(glowValue, {
                 toValue: isSelected ? 1 : 0,
                 duration: 1000,
-                useNativeDriver: true,
+                useNativeDriver: false,  // Changed to false for consistency
               }),
               Animated.timing(glowValue, {
                 toValue: isSelected ? 0.3 : 0,
                 duration: 1000,
-                useNativeDriver: true,
+                useNativeDriver: false,  // Changed to false for consistency
               }),
             ]),
             { iterations: isSelected ? -1 : 0 }
@@ -83,7 +83,7 @@ export const AnimatedCategoryChips: React.FC<AnimatedCategoryChipsProps> = ({
           Animated.timing(iconValue, {
             toValue: isSelected ? 1 : 0,
             duration: 200,
-            useNativeDriver: true,
+            useNativeDriver: true,  // Keep true for transform animations
           }),
         ]).start();
       }

@@ -278,9 +278,13 @@ class FeaturedAutomationRotator {
     }
     
     const selected = SAMPLE_AUTOMATIONS[this.currentIndex];
+    // Generate a proper UUID format for the sample automation
+    // Using a deterministic UUID based on index for consistency
+    const sampleUuid = `550e8400-e29b-41d4-a716-44665544000${this.currentIndex}`;
+    
     return {
       ...selected,
-      id: `sample_${this.currentIndex}`,
+      id: sampleUuid,
       createdBy: 'zaptap_team',
       lastFeatured: today
     };
@@ -611,14 +615,7 @@ const dashboardApi = createApi({
           // Use smart rotation to select featured automation
           const featured = FeaturedAutomationRotator.selectFeaturedAutomation(allAutomations);
 
-          if (featured) {
-            EventLogger.debug('Dashboard', 'Featured automation selected', {
-              id: featured.id,
-              title: featured.title,
-              engagementScore: featured.engagementScore,
-              isTrending: featured.isTrending
-            });
-          }
+          // Featured automation selected successfully
 
           return { data: featured };
 

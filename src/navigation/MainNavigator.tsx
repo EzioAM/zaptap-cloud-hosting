@@ -6,18 +6,19 @@ import { ModernBottomTabNavigator } from './ModernBottomTabNavigator';
 // import { ModernBottomTabNavigator } from './EmergencyBottomTabNavigator';
 import AutomationBuilderScreen from '../screens/automation/AutomationBuilderScreen';
 import AutomationDetailsScreen from '../screens/automation/AutomationDetailsScreen';
+import { ExecutionHistoryScreen } from '../screens/ExecutionHistoryScreen';
 import TemplatesScreen from '../screens/automation/TemplatesScreen';
 import LocationTriggersScreen from '../screens/automation/LocationTriggersScreen';
 import ReviewsScreen from '../screens/automation/ReviewsScreen';
 import { DeveloperMenuScreen } from '../screens/developer/DeveloperMenuScreen';
 import ModernReviewsScreenSafe from '../screens/modern/ModernReviewsScreenSafe';
 import ModernCommentsScreen from '../screens/modern/ModernCommentsScreen';
-import SettingsScreen from '../screens/SettingsScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { OnboardingFlow } from '../screens/onboarding/OnboardingFlow';
 import { TutorialScreen } from '../screens/onboarding/TutorialScreen';
 import SignInScreen from '../screens/auth/SignInScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
+import EnhancedSignUpScreen from '../screens/auth/EnhancedSignUpScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import PrivacyScreen from '../screens/placeholder/PrivacyScreen';
 import TermsScreen from '../screens/placeholder/TermsScreen';
@@ -28,6 +29,7 @@ import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
 import EmailPreferencesScreen from '../screens/settings/EmailPreferencesScreen';
 import PrivacyPolicyScreen from '../screens/placeholder/PrivacyPolicyScreen';
+import EnhancedSettingsScreen from '../screens/settings/EnhancedSettingsScreen';
 import ScannerScreen from '../screens/modern/ScannerScreen';
 import { RootStackParamList } from './types';
 import { EventLogger } from '../utils/EventLogger';
@@ -207,6 +209,11 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         options={{ title: 'Location Triggers' }}
       />
       <Stack.Screen
+        name="ExecutionHistory"
+        component={ExecutionHistoryScreen}
+        options={{ title: 'Execution History' }}
+      />
+      <Stack.Screen
         name="Reviews"
         component={ReviewsScreen}
         options={{ title: 'Reviews' }}
@@ -228,8 +235,8 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
       />
       <Stack.Screen
         name="Settings"
-        component={SettingsScreen}
-        options={{ title: 'Settings' }}
+        component={EnhancedSettingsScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="WelcomeScreen"
@@ -253,8 +260,8 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
       />
       <Stack.Screen
         name="SignUp"
-        component={SignUpScreen}
-        options={{ title: 'Sign Up' }}
+        component={EnhancedSignUpScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="ResetPassword"
@@ -289,7 +296,7 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
       <Stack.Screen
         name="EditProfile"
         component={EditProfileScreen}
-        options={{ title: 'Edit Profile' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="ChangePassword"

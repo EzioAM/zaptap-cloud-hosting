@@ -15,6 +15,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUnifiedTheme } from '../../contexts/UnifiedThemeProvider';
 import { createInputStyle, createTextStyle } from '../../utils/ThemeUtils';
+import { useOptimizedTextInput } from '../../utils/textInputFixes';
 
 export interface ThemedInputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -62,6 +63,14 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
   };
+
+  // Apply iOS text input optimizations
+  const optimizedProps = useOptimizedTextInput({
+    ...textInputProps,
+    onFocus: handleFocus,
+    onBlur: handleBlur,
+    secureTextEntry: showPassword ? !isPasswordVisible : secureTextEntry,
+  });
 
   const getInputStyles = () => {
     const baseStyles = createInputStyle(theme, hasError);
@@ -172,13 +181,10 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
           ref={ref}
           style={[getInputStyles(), styles.input]}
           placeholderTextColor={theme.colors.text.tertiary}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          secureTextEntry={showPassword ? !isPasswordVisible : secureTextEntry}
           accessibilityLabel={label}
           accessibilityHint={helperText}
           accessibilityRequired={required}
-          {...textInputProps}
+          {...optimizedProps}
         />
         
         {renderRightIcon()}

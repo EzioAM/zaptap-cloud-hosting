@@ -20,23 +20,22 @@ interface ErrorBoundaryProps {
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
   context?: string;
-  level?: 'screen' | 'component' | 'navigation';
+  level?: 'screen' | 'component' | 'navigation' | 'widget';
   showDetails?: boolean;
+  widgetName?: string;
+  minimal?: boolean;
 }
 
 /**
- * Base Error Boundary Component
+ * Base Error Boundary Component - Fixed
  */
 export class BaseErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      errorInfo: null,
-      errorCount: 0,
-    };
-  }
+  state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+    errorInfo: null,
+    errorCount: 0,
+  };
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return {
@@ -97,20 +96,124 @@ export class BaseErrorBoundary extends Component<ErrorBoundaryProps, ErrorBounda
 /**
  * Navigation-specific Error Boundary - Fixed constructor
  */
-export class NavigationErrorBoundary extends BaseErrorBoundary {
-  constructor(props: ErrorBoundaryProps) {
-    // Pass the props directly to super, don't wrap them
-    super(props);
+export class NavigationErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+    errorInfo: null,
+    errorCount: 0,
+  };
+
+  static getDerivedStateFromError = BaseErrorBoundary.getDerivedStateFromError;
+  
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    const { onError, context = 'Navigation' } = this.props;
+    
+    EventLogger.error('ErrorBoundary', `Error caught in ${context}:`, error, {
+      componentStack: errorInfo.componentStack,
+      context,
+      level: this.props.level || 'navigation',
+    });
+
+    this.setState(prevState => ({
+      errorInfo,
+      errorCount: prevState.errorCount + 1,
+    }));
+
+    if (onError) {
+      onError(error, errorInfo);
+    }
+  }
+
+  handleReset = () => {
+    this.setState({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+    });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return <>{this.props.fallback}</>;
+      }
+
+      return (
+        <ErrorFallback
+          error={this.state.error}
+          errorInfo={this.state.errorInfo}
+          onReset={this.handleReset}
+          context={this.props.context}
+          level={this.props.level}
+          showDetails={this.props.showDetails}
+        />
+      );
+    }
+
+    return this.props.children;
   }
 }
 
 /**
  * Screen-level Error Boundary - Fixed constructor
  */
-export class ScreenErrorBoundary extends BaseErrorBoundary {
-  constructor(props: ErrorBoundaryProps) {
-    // Pass the props directly to super, don't wrap them
-    super(props);
+export class ScreenErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+    errorInfo: null,
+    errorCount: 0,
+  };
+
+  static getDerivedStateFromError = BaseErrorBoundary.getDerivedStateFromError;
+  
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    const { onError, context = 'Screen' } = this.props;
+    
+    EventLogger.error('ErrorBoundary', `Error caught in ${context}:`, error, {
+      componentStack: errorInfo.componentStack,
+      context,
+      level: this.props.level || 'screen',
+    });
+
+    this.setState(prevState => ({
+      errorInfo,
+      errorCount: prevState.errorCount + 1,
+    }));
+
+    if (onError) {
+      onError(error, errorInfo);
+    }
+  }
+
+  handleReset = () => {
+    this.setState({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+    });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return <>{this.props.fallback}</>;
+      }
+
+      return (
+        <ErrorFallback
+          error={this.state.error}
+          errorInfo={this.state.errorInfo}
+          onReset={this.handleReset}
+          context={this.props.context}
+          level={this.props.level}
+          showDetails={this.props.showDetails}
+        />
+      );
+    }
+
+    return this.props.children;
   }
 }
 

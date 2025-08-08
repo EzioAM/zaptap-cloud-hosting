@@ -19,7 +19,11 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   textStyle,
   disabled = false
 }) => {
-  const gradientColors = colors || ['#6366F1', '#8B5CF6'];
+  // Ensure we always have valid gradient colors
+  const gradientColors = (colors && colors.length >= 2) 
+    ? colors 
+    : ['#6366F1', '#8B5CF6'];
+  const disabledColors = ['#9CA3AF', '#6B7280'];
 
   return (
     <TouchableOpacity
@@ -29,7 +33,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
       activeOpacity={0.8}
     >
       <LinearGradient
-        colors={disabled ? ['#9CA3AF', '#6B7280'] : gradientColors}
+        colors={disabled ? disabledColors : gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.gradient}

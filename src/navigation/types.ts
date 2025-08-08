@@ -35,6 +35,7 @@ export type RootStackParamList = {
   Templates: undefined;
   Scanner: undefined;
   LocationTriggers: undefined;
+  ExecutionHistory: undefined;
   Reviews: { 
     automationId: string;
     automation?: AutomationData;

@@ -75,6 +75,45 @@ import { EventLogger } from '../../utils/EventLogger';
       skip: !automationId
     });
 
+    const getDefaultConfig = useCallback((stepType: StepType): Record<string, any> => {
+      switch (stepType) {
+        case 'notification':
+          return { message: 'Hello from automation!' };
+        case 'delay':
+          return { delay: 2000 };
+        case 'variable':
+          return { name: 'myVariable', value: 'Hello World' };
+        case 'get_variable':
+          return { name: 'myVariable', defaultValue: '' };
+        case 'prompt_input':
+          return { title: 'Input Required', message: 'Please enter a value:', defaultValue: '', variableName: 'userInput' };
+        case 'sms':
+          return { phoneNumber: '+1234567890', message: 'Test SMS from automation' };
+        case 'email':
+          return { email: 'test@example.com', subject: 'Test Email', message: 'Hello from automation!' };
+        case 'webhook':
+          return { url: 'https://httpbin.org/post', method: 'POST' };
+        case 'location':
+          return { action: 'get_current', showResult: true };
+        case 'condition':
+          return { condition: 'equals', variable: 'myVariable', value: 'test', trueActions: [], falseActions: [] };
+        case 'loop':
+          return { type: 'count', count: 3, actions: [] };
+        case 'text':
+          return { action: 'combine', text1: 'Hello', text2: 'World', separator: ' ' };
+        case 'math':
+          return { operation: 'add', number1: 10, number2: 5 };
+        case 'photo':
+          return { action: 'take', saveToAlbum: true };
+        case 'clipboard':
+          return { action: 'copy', text: 'Hello World' };
+        case 'app':
+          return { appName: 'Settings', url: '' };
+        default:
+          return {};
+      }
+    }, []);
+
     // Handle route params for editing existing automation or showing QR generator
     // Fixed dependency array to prevent infinite loops
     useEffect(() => {
@@ -92,12 +131,12 @@ import { EventLogger } from '../../utils/EventLogger';
         setAutomationTitle(automation.title);
         
         // Ensure steps are properly structured
-        const loadedSteps = (automation.steps || []).map((step: any) => ({
-          id: step.id || `step_${Date.now()}_${Math.random()}`,
+        const loadedSteps = (automation.steps || []).map((step: any, index: number) => ({
+          id: step.id || `step_${Date.now()}_${index}_${Math.random()}`,
           type: step.type,
-          title: step.title || step.type,
+          title: step.title || step.type || `Step ${index + 1}`,
           enabled: step.enabled !== false,
-          config: step.config || {},
+          config: step.config || getDefaultConfig(step.type),
         }));
         
         setSteps(loadedSteps);
@@ -134,7 +173,8 @@ import { EventLogger } from '../../utils/EventLogger';
       route?.params?.automation?.steps?.length, // Track steps length to detect changes
       route?.params?.showQRGenerator,
       route?.params?.isTemplate,
-      fetchedAutomation?.id // Only track ID to prevent deep comparison issues
+      fetchedAutomation?.id, // Only track ID to prevent deep comparison issues
+      getDefaultConfig // Add getDefaultConfig to dependencies
     ]);
 
     const availableSteps = useMemo(() => [
@@ -203,46 +243,7 @@ import { EventLogger } from '../../utils/EventLogger';
         return newSteps;
       });
       setShowStepPicker(false);
-    }, []);
-
-    const getDefaultConfig = (stepType: StepType): Record<string, any> => {
-      switch (stepType) {
-        case 'notification':
-          return { message: 'Hello from automation!' };
-        case 'delay':
-          return { delay: 2000 };
-        case 'variable':
-          return { name: 'myVariable', value: 'Hello World' };
-        case 'get_variable':
-          return { name: 'myVariable', defaultValue: '' };
-        case 'prompt_input':
-          return { title: 'Input Required', message: 'Please enter a value:', defaultValue: '', variableName: 'userInput' };
-        case 'sms':
-          return { phoneNumber: '+1234567890', message: 'Test SMS from automation' };
-        case 'email':
-          return { email: 'test@example.com', subject: 'Test Email', message: 'Hello from automation!' };
-        case 'webhook':
-          return { url: 'https://httpbin.org/post', method: 'POST' };
-        case 'location':
-          return { action: 'get_current', showResult: true };
-        case 'condition':
-          return { condition: 'equals', variable: 'myVariable', value: 'test', trueActions: [], falseActions: [] };
-        case 'loop':
-          return { type: 'count', count: 3, actions: [] };
-        case 'text':
-          return { action: 'combine', text1: 'Hello', text2: 'World', separator: ' ' };
-        case 'math':
-          return { operation: 'add', number1: 10, number2: 5 };
-        case 'photo':
-          return { action: 'take', saveToAlbum: true };
-        case 'clipboard':
-          return { action: 'copy', text: 'Hello World' };
-        case 'app':
-          return { appName: 'Settings', url: '' };
-        default:
-          return {};
-      }
-    };
+    }, [getDefaultConfig]);
 
     const removeStep = useCallback((index: number) => {
       setSteps(prevSteps => prevSteps.filter((_, i) => i !== index));
@@ -1169,6 +1170,26 @@ import { EventLogger } from '../../utils/EventLogger';
             onPress={() => setUseSafeEditor(!useSafeEditor)}
           />
           <Appbar.Action
+            icon="share-variant"
+            onPress={() => {
+              if (!savedAutomationId) {
+                Alert.alert(
+                  'Save Required',
+                  'Please save your automation before sharing',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Save & Share', onPress: async () => {
+                      await executeAutomation();
+                      setTimeout(() => setShowShareModal(true), 500);
+                    }}
+                  ]
+                );
+              } else {
+                setShowShareModal(true);
+              }
+            }}
+          />
+          <Appbar.Action
             icon="play"
             onPress={executeAutomation}
             disabled={isExecuting}
@@ -1468,201 +1489,234 @@ import { EventLogger } from '../../utils/EventLogger';
     },
     content: {
       flex: 1,
-      padding: 16,
-      paddingBottom: Platform.OS === 'ios' ? 100 : 90,
+      padding: 20,
+      paddingBottom: Platform.OS === 'ios' ? 120 : 110,
     },
     contentWithSteps: {
       flex: 1,
     },
     headerSection: {
-      maxHeight: 150,
-      padding: 16,
+      maxHeight: 180,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 12,
     },
     infoCard: {
-      marginBottom: 16,
+      marginBottom: 20,
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
     },
     title: {
-      fontSize: 20,
+      fontSize: 22,
       fontWeight: '600',
       textAlign: 'center',
+      letterSpacing: 0.3,
     },
     titleContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 12,
+      marginBottom: 16,
+      paddingVertical: 4,
     },
     titleInput: {
-    marginBottom: 12,
-    textAlign: 'center',
+      marginBottom: 16,
+      textAlign: 'center',
+      fontSize: 18,
     },
     editIcon: {
-      marginLeft: 8,
+      marginLeft: 10,
     },
     meta: {
       flexDirection: 'row',
       justifyContent: 'center',
       flexWrap: 'wrap',
-      gap: 8,
+      rowGap: 10,
+      columnGap: 10,
     },
     emptyCard: {
-      marginTop: 32,
+      marginTop: 40,
+      marginHorizontal: 4,
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
     },
     emptyState: {
       alignItems: 'center',
-      padding: 32,
+      padding: 40,
     },
     emptyTitle: {
-      fontSize: 18,
+      fontSize: 20,
       fontWeight: '600',
-      marginTop: 16,
-      marginBottom: 8,
+      marginTop: 20,
+      marginBottom: 12,
+      letterSpacing: 0.3,
     },
     emptyDescription: {
-      fontSize: 14,
+      fontSize: 15,
       color: '#666',
       textAlign: 'center',
-      marginBottom: 24,
-      lineHeight: 20,
+      marginBottom: 32,
+      lineHeight: 22,
+      paddingHorizontal: 20,
     },
     emptyButton: {
-      minWidth: 150,
+      minWidth: 180,
+      paddingVertical: 4,
     },
     stepCard: {
-      marginBottom: 8,
+      marginBottom: 12,
+      marginHorizontal: 4,
+      elevation: 1,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
     },
     stepHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      padding: 4,
     },
     stepInfo: {
       flexDirection: 'row',
       alignItems: 'center',
       flex: 1,
+      paddingVertical: 4,
     },
     stepText: {
-      marginLeft: 12,
+      marginLeft: 16,
       flex: 1,
+      paddingRight: 8,
     },
     stepTitle: {
-      fontSize: 16,
+      fontSize: 17,
       fontWeight: '600',
-      marginBottom: 2,
+      marginBottom: 4,
+      letterSpacing: 0.2,
     },
     stepType: {
       fontSize: 14,
       color: '#666',
-      marginBottom: 2,
+      marginBottom: 4,
     },
     stepConfig: {
-      fontSize: 12,
+      fontSize: 13,
       color: '#999',
-      fontFamily: 'monospace',
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+      lineHeight: 18,
     },
     disabledText: {
       color: '#999',
+      opacity: 0.7,
     },
     stepActions: {
       flexDirection: 'row',
+      gap: 4,
     },
     fab: {
       position: 'absolute',
-      margin: 16,
+      margin: 20,
       right: 0,
-      bottom: Platform.OS === 'ios' ? 90 : 80,
+      bottom: Platform.OS === 'ios' ? 100 : 90,
+      elevation: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
     },
     modalContainer: {
       backgroundColor: 'white',
-      margin: 20,
-      borderRadius: 12,
-      maxHeight: '80%',
+      margin: 24,
+      borderRadius: 16,
+      maxHeight: '85%',
+      elevation: 5,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
     },
     modalContent: {
-      padding: 20,
+      padding: 24,
     },
     modalTitle: {
-      fontSize: 20,
+      fontSize: 22,
       fontWeight: '600',
-      marginBottom: 16,
+      marginBottom: 20,
       textAlign: 'center',
+      letterSpacing: 0.3,
     },
     stepList: {
-      maxHeight: 400,
+      maxHeight: 450,
+      marginBottom: 16,
     },
     stepListItem: {
       borderBottomWidth: 1,
-      borderBottomColor: '#eee',
+      borderBottomColor: '#f0f0f0',
+      paddingVertical: 4,
     },
     bottomSpacer: {
-      height: 80,
+      height: 100,
     },
     configForm: {
-      marginBottom: 16,
+      marginBottom: 20,
+      paddingHorizontal: 4,
     },
     configInput: {
-      marginBottom: 12,
+      marginBottom: 16,
     },
     configLabel: {
       fontSize: 16,
       fontWeight: '500',
-      marginBottom: 8,
-      marginTop: 8,
+      marginBottom: 10,
+      marginTop: 12,
       color: '#333',
+      letterSpacing: 0.2,
     },
     configHelper: {
-      fontSize: 12,
+      fontSize: 13,
       color: '#666',
       fontStyle: 'italic',
-      marginTop: -8,
-      marginBottom: 8,
+      marginTop: -12,
+      marginBottom: 12,
+      paddingHorizontal: 12,
+      lineHeight: 18,
     },
     configMessage: {
-      fontSize: 14,
+      fontSize: 15,
       color: '#666',
       textAlign: 'center',
-      padding: 20,
+      padding: 24,
       fontStyle: 'italic',
+      lineHeight: 22,
     },
     configActions: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      gap: 12,
+      gap: 16,
+      paddingTop: 8,
     },
     configButton: {
       flex: 1,
+      minHeight: 48,
     },
     configSubSection: {
-      marginTop: 16,
-      paddingTop: 16,
+      marginTop: 20,
+      paddingTop: 20,
       borderTopWidth: 1,
-      borderTopColor: '#eee',
+      borderTopColor: '#f0f0f0',
     },
     stepEditorContainer: {
       flex: 1,
-    },
-    emptyCard: {
-      marginTop: 32,
-    },
-    emptyState: {
-      alignItems: 'center',
-      padding: 32,
-    },
-    emptyTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      marginTop: 16,
-      marginBottom: 8,
-    },
-    emptyDescription: {
-      fontSize: 14,
-      color: '#666',
-      textAlign: 'center',
-      marginBottom: 24,
-      lineHeight: 20,
-    },
-    emptyButton: {
-      minWidth: 150,
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: Platform.OS === 'ios' ? 110 : 100,
     },
   });
 

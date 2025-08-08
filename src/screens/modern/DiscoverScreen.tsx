@@ -3,14 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   FlatList,
   ActivityIndicator,
   Animated,
   Dimensions,
-  InteractionManager,
   RefreshControl,
   Platform,
   Alert,
@@ -18,7 +16,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -32,48 +29,12 @@ import {
 import { useConnection } from '../../contexts/ConnectionContext';
 import * as Haptics from 'expo-haptics';
 
-// Error Boundaries and Recovery
-import { ScreenErrorBoundary, WidgetErrorBoundary, NetworkErrorBoundary } from '../../components/ErrorBoundaries';
-import { ErrorFallback, NetworkErrorFallback, EmptyStateFallback } from '../../components/Fallbacks';
-import { useErrorHandler } from '../../utils/errorRecovery';
-import { EventLogger } from '../../utils/EventLogger';
-
 // Components
-import { DiscoverScreenSkeleton } from '../../components/loading/SkeletonLoading';
 import { ErrorState } from '../../components/states/ErrorState';
 import { EmptyState } from '../../components/states/EmptyState';
-import { ParallaxScrollView } from '../../components/common/ParallaxScrollView';
-import TrendingCarousel from '../../components/discover/TrendingCarousel';
-import FeaturedCard from '../../components/discover/FeaturedCard';
-import AnimatedCategoryChips from '../../components/discover/AnimatedCategoryChips';
-import AnimatedAutomationCard from '../../components/discover/AnimatedAutomationCard';
-import AnimatedSearchBar from '../../components/discover/AnimatedSearchBar';
+import { EventLogger } from '../../utils/EventLogger';
 
-// Enhanced gradient components
-import { GradientHeader } from '../../components/shared/GradientHeader';
-import { EmptyStateIllustration } from '../../components/shared/EmptyStateIllustration';
-
-// Enhanced theme imports
-import { gradients, glassEffects, getGlassStyle } from '../../theme/gradients';
-import { typography, fontWeights, textShadows } from '../../theme/typography';
-
-// Animation constants
-import { ANIMATION_CONFIG } from '../../constants/animations';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
-// Feature flags for progressive enhancement
-const FEATURE_FLAGS = {
-  ENHANCED_ANIMATIONS: Platform.OS !== 'web',
-  HAPTIC_FEEDBACK: Platform.OS !== 'web',
-  BLUR_EFFECTS: Platform.OS !== 'web',
-  PARALLAX_SCROLLING: Platform.OS !== 'web',
-  GRADIENT_HEADERS: true,
-  STAGGERED_ANIMATIONS: Platform.OS !== 'web',
-  TRENDING_CAROUSEL: true,
-  SEARCH_SUGGESTIONS: true,
-  CATEGORY_ANIMATIONS: Platform.OS !== 'web',
-};
+const { width: screenWidth } = Dimensions.get('window');
 
 interface Automation {
   id: string;
@@ -89,7 +50,6 @@ interface Automation {
   trending?: boolean;
   hasLiked?: boolean;
   image?: string;
-  gradientKey?: keyof typeof gradients;
   tags?: string[];
   rating?: number;
   installs?: string;
@@ -98,41 +58,21 @@ interface Automation {
   isNew?: boolean;
 }
 
-interface Creator {
-  id: string;
-  name: string;
-  avatar: string;
-  automations: number;
-  followers: string;
-  verified: boolean;
-}
-
 const categories = [
-  { id: 'all', name: 'All', icon: 'view-grid', gradient: ['#667eea', '#764ba2'], gradientKey: 'primary' as keyof typeof gradients, count: 150 },
-  { id: 'popular', name: 'Popular', icon: 'trending-up', gradient: ['#ff9a9e', '#fecfef'], gradientKey: 'fire' as keyof typeof gradients, count: 89 },
-  { id: 'new', name: 'New', icon: 'star', gradient: ['#a8edea', '#fed6e3'], gradientKey: 'aurora' as keyof typeof gradients, count: 32 },
-  { id: 'productivity', name: 'Productivity', icon: 'briefcase', gradient: ['#f093fb', '#f5576c'], gradientKey: 'ocean' as keyof typeof gradients, count: 45 },
-  { id: 'smart-home', name: 'Smart Home', icon: 'home-automation', gradient: ['#4facfe', '#00f2fe'], gradientKey: 'forest' as keyof typeof gradients, count: 32 },
-  { id: 'health', name: 'Health', icon: 'heart', gradient: ['#43e97b', '#38f9d7'], gradientKey: 'success' as keyof typeof gradients, count: 28 },
-  { id: 'finance', name: 'Finance', icon: 'cash', gradient: ['#fa709a', '#fee140'], count: 19 },
-  { id: 'social', name: 'Social', icon: 'account-group', gradient: ['#a8edea', '#fed6e3'], gradientKey: 'secondary' as keyof typeof gradients, count: 23 },
-  { id: 'entertainment', name: 'Entertainment', icon: 'gamepad', gradient: ['#ff9a9e', '#fecfef'], gradientKey: 'sunset' as keyof typeof gradients, count: 37 },
-  { id: 'travel', name: 'Travel', icon: 'airplane', gradient: ['#ffecd2', '#fcb69f'], count: 15 },
+  { id: 'all', name: 'All', icon: 'view-grid', gradient: ['#667eea', '#764ba2'] },
+  { id: 'popular', name: 'Popular', icon: 'trending-up', gradient: ['#ff9a9e', '#fecfef'] },
+  { id: 'new', name: 'New', icon: 'star', gradient: ['#a8edea', '#fed6e3'] },
+  { id: 'productivity', name: 'Productivity', icon: 'briefcase', gradient: ['#f093fb', '#f5576c'] },
+  { id: 'smart-home', name: 'Smart Home', icon: 'home-automation', gradient: ['#4facfe', '#00f2fe'] },
+  { id: 'health', name: 'Health', icon: 'heart', gradient: ['#43e97b', '#38f9d7'] },
+  { id: 'finance', name: 'Finance', icon: 'cash', gradient: ['#fa709a', '#fee140'] },
+  { id: 'social', name: 'Social', icon: 'account-group', gradient: ['#a8edea', '#fed6e3'] },
+  { id: 'entertainment', name: 'Entertainment', icon: 'gamepad', gradient: ['#ff9a9e', '#fecfef'] },
+  { id: 'travel', name: 'Travel', icon: 'airplane', gradient: ['#ffecd2', '#fcb69f'] },
 ];
 
-const searchSuggestions = [
-  { id: '1', text: 'Smart Home Controls', type: 'trending' as const },
-  { id: '2', text: 'Morning Routine', type: 'recent' as const },
-  { id: '3', text: 'Productivity', type: 'category' as const },
-  { id: '4', text: 'Workout Tracker', type: 'suggestion' as const },
-  { id: '5', text: 'Email Automation', type: 'trending' as const },
-  { id: '6', text: 'Bedtime Routine', type: 'recent' as const },
-  { id: '7', text: 'Focus Mode', type: 'suggestion' as const },
-  { id: '8', text: 'Travel Assistant', type: 'category' as const },
-];
-
-// Sample featured automations for enhanced features - expanded with all categories
-const featuredAutomations: Automation[] = [
+// Sample featured automations for fallback
+const sampleAutomations: Automation[] = [
   {
     id: '1',
     title: 'Smart Morning Routine',
@@ -144,8 +84,7 @@ const featuredAutomations: Automation[] = [
     category: 'productivity',
     icon: 'weather-sunny',
     color: '#FFC107',
-    gradientKey: 'sunrise',
-    tags: ['morning', 'smart-home', 'routine', 'productivity'],
+    tags: ['morning', 'smart-home', 'routine'],
     rating: 4.8,
     installs: '1.2k',
     featured: true,
@@ -154,7 +93,7 @@ const featuredAutomations: Automation[] = [
   {
     id: '2',
     title: 'Focus Mode Ultra',
-    description: 'Block distractions and boost productivity with smart notifications',
+    description: 'Block distractions and boost productivity',
     author: 'Sarah Kim',
     authorAvatar: '👩‍💼',
     likes: 189,
@@ -162,147 +101,13 @@ const featuredAutomations: Automation[] = [
     category: 'productivity',
     icon: 'brain',
     color: '#9C27B0',
-    gradientKey: 'ocean',
-    tags: ['focus', 'productivity', 'notifications'],
+    tags: ['focus', 'productivity'],
     rating: 4.9,
     installs: '890',
     featured: true,
     isPopular: true,
   },
-  {
-    id: '3',
-    title: 'Smart Home Control',
-    description: 'Control all your smart devices with one tap',
-    author: 'Mike Johnson',
-    authorAvatar: '🧑‍💻',
-    likes: 312,
-    uses: 1500,
-    category: 'smart-home',
-    icon: 'home-automation',
-    color: '#4CAF50',
-    gradientKey: 'forest',
-    tags: ['smart-home', 'automation', 'iot'],
-    rating: 4.7,
-    installs: '1.5k',
-    isPopular: true,
-  },
-  {
-    id: '4',
-    title: 'Fitness Tracker Pro',
-    description: 'Track workouts, calories, and progress automatically',
-    author: 'Emma Wilson',
-    authorAvatar: '🏋️‍♀️',
-    likes: 156,
-    uses: 670,
-    category: 'health',
-    icon: 'run',
-    color: '#FF5722',
-    gradientKey: 'fire',
-    tags: ['health', 'fitness', 'tracking'],
-    rating: 4.6,
-    installs: '670',
-    isPopular: true,
-  },
-  {
-    id: '5',
-    title: 'Budget Manager',
-    description: 'Automated expense tracking and budget alerts',
-    author: 'David Park',
-    authorAvatar: '💰',
-    likes: 98,
-    uses: 450,
-    category: 'finance',
-    icon: 'cash',
-    color: '#4CAF50',
-    gradientKey: 'success',
-    tags: ['finance', 'budget', 'money'],
-    rating: 4.5,
-    installs: '450',
-  },
-  {
-    id: '6',
-    title: 'Social Media Scheduler',
-    description: 'Post to all platforms at optimal times',
-    author: 'Lisa Chen',
-    authorAvatar: '📱',
-    likes: 210,
-    uses: 920,
-    category: 'social',
-    icon: 'share-variant',
-    color: '#E91E63',
-    gradientKey: 'secondary',
-    tags: ['social', 'media', 'scheduling'],
-    rating: 4.4,
-    installs: '920',
-    isPopular: true,
-  },
-  {
-    id: '7',
-    title: 'Gaming Mode',
-    description: 'Optimize device for gaming performance',
-    author: 'Tom Gaming',
-    authorAvatar: '🎮',
-    likes: 367,
-    uses: 1800,
-    category: 'entertainment',
-    icon: 'gamepad-variant',
-    color: '#FF9800',
-    gradientKey: 'sunset',
-    tags: ['entertainment', 'gaming', 'performance'],
-    rating: 4.9,
-    installs: '1.8k',
-    isPopular: true,
-  },
-  {
-    id: '8',
-    title: 'Travel Planner',
-    description: 'Automated itinerary and booking management',
-    author: 'Global Nomad',
-    authorAvatar: '✈️',
-    likes: 134,
-    uses: 560,
-    category: 'travel',
-    icon: 'airplane',
-    color: '#00BCD4',
-    gradientKey: 'aurora',
-    tags: ['travel', 'planning', 'booking'],
-    rating: 4.7,
-    installs: '560',
-  },
-  {
-    id: '9',
-    title: 'Movie Night Setup',
-    description: 'Perfect ambiance for movie watching',
-    author: 'Cinema Buff',
-    authorAvatar: '🎬',
-    likes: 89,
-    uses: 340,
-    category: 'entertainment',
-    icon: 'movie',
-    color: '#673AB7',
-    gradientKey: 'primary',
-    tags: ['entertainment', 'movies', 'ambiance'],
-    rating: 4.3,
-    installs: '340',
-    isNew: true,
-  },
-  {
-    id: '10',
-    title: 'Study Mode',
-    description: 'Optimal environment for focused studying',
-    author: 'Student Helper',
-    authorAvatar: '📚',
-    likes: 276,
-    uses: 1100,
-    category: 'productivity',
-    icon: 'school',
-    color: '#2196F3',
-    gradientKey: 'ocean',
-    tags: ['productivity', 'study', 'focus'],
-    rating: 4.8,
-    installs: '1.1k',
-    isNew: true,
-  },
+  // Add more sample automations as needed
 ];
 
 const DiscoverScreen: React.FC = memo(() => {
@@ -315,23 +120,8 @@ const DiscoverScreen: React.FC = memo(() => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
-  const [featuredAutomation, setFeaturedAutomation] = useState<Automation | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [categoryTransition, setCategoryTransition] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'warning'; message: string; visible: boolean }>({ 
-    type: 'success', 
-    message: '', 
-    visible: false 
-  });
   
-  // Animation refs
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerOpacity = useRef(new Animated.Value(1)).current;
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const categoryFadeAnim = useRef(new Animated.Value(1)).current;
-  
-  // API queries with error handling
+  // API queries
   const { 
     data: publicAutomations = [], 
     isLoading: isLoadingPublic,
@@ -359,175 +149,68 @@ const DiscoverScreen: React.FC = memo(() => {
 
   // Haptic feedback helper
   const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' = 'light') => {
-    if (FEATURE_FLAGS.HAPTIC_FEEDBACK) {
-      try {
-        switch (type) {
-          case 'light':
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            break;
-          case 'medium':
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            break;
-          case 'heavy':
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            break;
-        }
-      } catch (error) {
-        // Haptics not supported, continue silently
+    try {
+      switch (type) {
+        case 'light':
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          break;
+        case 'medium':
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          break;
+        case 'heavy':
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          break;
       }
+    } catch (error) {
+      // Haptics not supported
     }
   }, []);
-
-  const showFeedback = useCallback((type: 'success' | 'error' | 'warning', message: string) => {
-    setFeedback({ type, message, visible: true });
-    setTimeout(() => setFeedback(prev => ({ ...prev, visible: false })), 3000);
-  }, []);
-
-  // Initialize featured automation
-  useEffect(() => {
-    if (featuredAutomations.length > 0 && !featuredAutomation) {
-      setFeaturedAutomation(featuredAutomations[0]);
-    }
-  }, [featuredAutomation]);
-
-  // Header animation based on scroll
-  useEffect(() => {
-    if (FEATURE_FLAGS.ENHANCED_ANIMATIONS) {
-      const listener = scrollY.addListener(({ value }) => {
-        const opacity = Math.max(0, Math.min(1, 1 - value / 200));
-        headerOpacity.setValue(opacity);
-      });
-
-      return () => scrollY.removeListener(listener);
-    }
-  }, [scrollY, headerOpacity]);
 
   const handleRefresh = useCallback(async () => {
     if (!isConnected) {
-      showFeedback('warning', 'No internet connection');
+      Alert.alert('No Internet', 'Please check your connection');
       return;
     }
 
+    setRefreshing(true);
+    triggerHaptic('medium');
+    
     try {
-      setRefreshing(true);
-      triggerHaptic('medium');
-      
       await Promise.all([
         refetchPublic(),
         refetchTrending(),
       ]);
-      
-      showFeedback('success', 'Content updated');
     } catch (error) {
-      EventLogger.error('DiscoverScreen', 'Refresh operation failed', error as Error, {
-        userId: user?.id,
-        connectionState: isConnected,
-      });
-      showFeedback('error', 'Failed to refresh content');
+      EventLogger.error('DiscoverScreen', 'Refresh failed', error as Error);
     } finally {
       setRefreshing(false);
     }
-  }, [isConnected, refetchPublic, refetchTrending, triggerHaptic, showFeedback]);
+  }, [isConnected, refetchPublic, refetchTrending, triggerHaptic]);
 
   const handleCategorySelect = useCallback((categoryId: string) => {
-    try {
-      const selectedCat = categories.find(cat => cat.id === categoryId);
-      const wasSelected = selectedCategory === categoryId;
-      
-      // If already selected, don't change
-      if (wasSelected) {
-        triggerHaptic('light');
-        showFeedback('success', `Already viewing ${selectedCat?.name || 'All'} automations`);
-        return;
-      }
-
-      setCategoryTransition(true);
-      setSelectedCategory(categoryId);
-      triggerHaptic('medium');
-      
-      // Show feedback about category change
-      showFeedback('success', `Browsing ${selectedCat?.name || 'All'} automations (${selectedCat?.count || 0} available)`);
-      
-      if (FEATURE_FLAGS.CATEGORY_ANIMATIONS) {
-        // Animate category transition
-        Animated.sequence([
-          Animated.timing(categoryFadeAnim, {
-            toValue: 0.3,
-            duration: 150,
-            useNativeDriver: true,
-          }),
-          Animated.timing(categoryFadeAnim, {
-            toValue: 1,
-            duration: 200,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          setCategoryTransition(false);
-        });
-      } else {
-        setCategoryTransition(false);
-      }
-    } catch (error) {
-      EventLogger.error('DiscoverScreen', 'Category selection failed', error as Error, {
-        categoryId,
-        userId: user?.id,
-      });
-      showFeedback('error', 'Failed to update category');
-      setCategoryTransition(false);
-    }
-  }, [selectedCategory, triggerHaptic, showFeedback, categoryFadeAnim]);
+    if (selectedCategory === categoryId) return;
+    
+    setSelectedCategory(categoryId);
+    triggerHaptic('medium');
+  }, [selectedCategory, triggerHaptic]);
 
   const handleSearch = useCallback((query: string) => {
-    try {
-      setSearchQuery(query);
-      setShowSearchSuggestions(query.length > 0);
-      triggerHaptic('light');
-      
-      // Clear category filter when searching to show all results
-      if (query.length > 0 && selectedCategory !== 'all') {
-        setSelectedCategory('all');
-        showFeedback('success', `Searching all categories for "${query}"`);
-      }
-    } catch (error) {
-      EventLogger.error('DiscoverScreen', 'Search operation failed', error as Error, {
-        searchQuery: query,
-        userId: user?.id,
-        connectionState: isConnected,
-      });
+    setSearchQuery(query);
+    triggerHaptic('light');
+    
+    if (query.length > 0 && selectedCategory !== 'all') {
+      setSelectedCategory('all');
     }
-  }, [selectedCategory, triggerHaptic, showFeedback]);
-
-  const handleSearchSuggestionPress = useCallback((suggestion: any) => {
-    try {
-      setSearchQuery(suggestion.text);
-      setShowSearchSuggestions(false);
-      triggerHaptic('medium');
-      
-      // If it's a category suggestion, also update the category
-      if (suggestion.type === 'category') {
-        const categoryId = categories.find(cat => 
-          cat.name.toLowerCase() === suggestion.text.toLowerCase()
-        )?.id;
-        if (categoryId) {
-          setSelectedCategory(categoryId);
-        }
-      }
-    } catch (error) {
-      EventLogger.error('DiscoverScreen', 'Search suggestion failed', error as Error, {
-        suggestion,
-        userId: user?.id,
-      });
-    }
-  }, [triggerHaptic]);
+  }, [selectedCategory, triggerHaptic]);
 
   const handleLike = useCallback(async (automationId: string, isLiked: boolean) => {
     if (!user) {
-      showFeedback('warning', 'Please sign in to like automations');
+      Alert.alert('Sign In Required', 'Please sign in to like automations');
       return;
     }
 
     if (!isConnected) {
-      showFeedback('warning', 'No internet connection');
+      Alert.alert('No Internet', 'Please check your connection');
       return;
     }
 
@@ -536,236 +219,126 @@ const DiscoverScreen: React.FC = memo(() => {
       
       if (isLiked) {
         await unlikeAutomation(automationId).unwrap();
-        showFeedback('success', 'Removed from favorites');
       } else {
         await likeAutomation(automationId).unwrap();
-        showFeedback('success', 'Added to favorites');
       }
     } catch (error) {
-      EventLogger.error('DiscoverScreen', 'Like toggle operation failed', error as Error, {
-        automationId,
-        action: isLiked ? 'unlike' : 'like',
-        userId: user?.id,
-      });
-      showFeedback('error', 'Failed to update favorites');
+      EventLogger.error('DiscoverScreen', 'Like toggle failed', error as Error);
     }
-  }, [user, isConnected, likeAutomation, unlikeAutomation, triggerHaptic, showFeedback]);
+  }, [user, isConnected, likeAutomation, unlikeAutomation, triggerHaptic]);
 
   const handleAutomationPress = useCallback((automation: Automation) => {
-    try {
-      triggerHaptic('light');
-      navigation.navigate('AutomationDetails' as never, { automation } as never);
-    } catch (error) {
-      EventLogger.error('DiscoverScreen', 'Navigation to automation details failed', error as Error, {
-        automationId: automation.id,
-        userId: user?.id,
-      });
-      showFeedback('error', 'Failed to open automation details');
-    }
-  }, [navigation, triggerHaptic, showFeedback]);
+    triggerHaptic('light');
+    navigation.navigate('AutomationDetails' as never, { automation } as never);
+  }, [navigation, triggerHaptic]);
 
-  const handleLoadMore = useCallback(async () => {
-    if (loadingMore || !isConnected) return;
-    
-    try {
-      setLoadingMore(true);
-      // In a real implementation, you would load more data here
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (error) {
-      EventLogger.error('DiscoverScreen', 'Load more operation failed', error as Error, {
-        userId: user?.id,
-      });
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [loadingMore, isConnected]);
-
-  // Filter automations based on search and category - fixed to properly filter by category
+  // Filter automations based on search and category
   const filteredAutomations = useMemo(() => {
-    try {
-      // For demo purposes, create sample automations if API data is empty
-      const automationsToFilter = publicAutomations.length > 0 ? publicAutomations : featuredAutomations;
-      
-      return automationsToFilter.filter((automation: any) => {
-        const matchesSearch = !searchQuery || 
-          automation.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          automation.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          automation.author?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          automation.tags?.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-        
-        // Fixed category matching logic
-        const matchesCategory = selectedCategory === 'all' || 
-                               selectedCategory === 'popular' && (automation.featured || automation.isPopular) ||
-                               selectedCategory === 'new' && automation.isNew ||
-                               automation.category === selectedCategory ||
-                               automation.tags?.includes(selectedCategory);
-        
-        return matchesSearch && matchesCategory;
-      });
-    } catch (error) {
-      EventLogger.error('DiscoverScreen', 'Automation filtering failed', error as Error, {
-        selectedCategory,
-        searchQuery,
-        userId: user?.id,
-      });
-      return [];
-    }
-  }, [publicAutomations, searchQuery, selectedCategory, featuredAutomations]);
-
-  const renderAutomationCard = useCallback(({ item, index }: { item: Automation; index: number }) => {
-    return (
-      <AnimatedAutomationCard
-        automation={item}
-        index={index}
-        onPress={() => handleAutomationPress(item)}
-        onLike={() => handleLike(item.id, item.hasLiked || false)}
-        theme={theme}
-        delayMs={FEATURE_FLAGS.STAGGERED_ANIMATIONS ? index * 100 : 0}
-      />
-    );
-  }, [handleAutomationPress, handleLike, theme]);
-
-  const renderCategoryChip = useCallback(({ item, index }: { item: any; index: number }) => {
-    const isSelected = selectedCategory === item.id;
+    const automationsToFilter = publicAutomations.length > 0 ? publicAutomations : sampleAutomations;
     
-    return (
-      <TouchableOpacity
-        style={[
-          styles.categoryChip,
-          isSelected && styles.categoryChipSelected,
-        ]}
-        onPress={() => handleCategorySelect(item.id)}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={isSelected ? item.gradient || [theme.colors.primary, theme.colors.primary] : ['transparent', 'transparent']}
-          style={[
-            styles.categoryChipGradient, 
-            !isSelected && { backgroundColor: theme.colors.surfaceVariant },
-            isSelected && styles.selectedChipGradient
-          ]}
-        >
-          <MaterialCommunityIcons 
-            name={item.icon as any} 
-            size={16} 
-            color={isSelected ? 'white' : theme.colors.onSurfaceVariant} 
-          />
-          <Text style={[
-            styles.categoryChipText,
-            { color: isSelected ? 'white' : theme.colors.onSurfaceVariant },
-            isSelected && styles.selectedChipText
-          ]}>
-            {item.name}
-          </Text>
-          {item.count && (
-            <View style={[
-              styles.countBadge,
-              { backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : theme.colors.primary + '20' }
-            ]}>
-              <Text style={[
-                styles.categoryChipCount,
-                { color: isSelected ? 'white' : theme.colors.primary }
-              ]}>
-                {item.count}
-              </Text>
-            </View>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  }, [selectedCategory, theme, handleCategorySelect]);
+    return automationsToFilter.filter((automation: any) => {
+      const matchesSearch = !searchQuery || 
+        automation.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        automation.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        automation.author?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        automation.tags?.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesCategory = selectedCategory === 'all' || 
+                             selectedCategory === 'popular' && (automation.featured || automation.isPopular) ||
+                             selectedCategory === 'new' && automation.isNew ||
+                             automation.category === selectedCategory;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [publicAutomations, searchQuery, selectedCategory]);
 
-  const renderSearchSuggestion = useCallback(({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[styles.suggestionItem, { backgroundColor: theme.colors.surface }]}
-      onPress={() => handleSearchSuggestionPress(item)}
-    >
-      <MaterialCommunityIcons 
-        name={item.type === 'trending' ? 'trending-up' : 
-              item.type === 'recent' ? 'history' :
-              item.type === 'category' ? 'folder' : 'magnify'} 
-        size={16} 
-        color={theme.colors.onSurfaceVariant} 
-      />
-      <Text style={[styles.suggestionText, { color: theme.colors.onSurface }]}>
-        {item.text}
-      </Text>
-      <Text style={[styles.suggestionType, { color: theme.colors.onSurfaceVariant }]}>
-        {item.type}
-      </Text>
-    </TouchableOpacity>
-  ), [theme, handleSearchSuggestionPress]);
-
-  // Loading state
-  if (isLoadingPublic && publicAutomations.length === 0) {
-    return <DiscoverScreenSkeleton />;
-  }
-
-  // Error state
-  if ((publicError || trendingError) && !isConnected) {
-    return (
-      <ErrorState
-        title="No Internet Connection"
-        description="Please check your connection and try again"
-        action={{
-          label: "Retry",
-          onPress: handleRefresh,
-        }}
-      />
-    );
-  }
-
-  // Get current category info for context
-  const currentCategory = categories.find(cat => cat.id === selectedCategory);
-
-  // Render main content
-  const ScrollComponent = FEATURE_FLAGS.PARALLAX_SCROLLING ? ParallaxScrollView : ScrollView;
-
-  return (
-    <ScreenErrorBoundary 
-      screenName="Discover"
-      onError={(error, errorInfo) => {
-        EventLogger.error('DiscoverScreen', 'Screen-level error caught', error, {
-          componentStack: errorInfo.componentStack,
-          userId: user?.id,
-          searchQuery,
-          selectedCategory,
-          isConnected,
+  // Prepare sections for FlatList
+  const sections = useMemo(() => {
+    const items: any[] = [];
+    
+    // Header section
+    items.push({ 
+      type: 'header', 
+      key: 'header',
+      data: { searchQuery, categories, selectedCategory }
+    });
+    
+    // Quick Actions (only on 'all' category and no search)
+    if (selectedCategory === 'all' && !searchQuery) {
+      items.push({ 
+        type: 'quickActions', 
+        key: 'quickActions',
+        data: {}
+      });
+    }
+    
+    // Featured (only on 'all' category and no search)
+    if (selectedCategory === 'all' && !searchQuery && filteredAutomations.length > 0) {
+      const featured = filteredAutomations.find(a => a.featured);
+      if (featured) {
+        items.push({ 
+          type: 'featured', 
+          key: 'featured',
+          data: featured
         });
-      }}
-    >
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-        {/* Header */}
-        {FEATURE_FLAGS.GRADIENT_HEADERS ? (
-          <Animated.View style={{ opacity: headerOpacity }}>
-            <GradientHeader title="Discover" />
-          </Animated.View>
-        ) : (
-          <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
-              Discover
-            </Text>
-          </View>
-        )}
+      }
+    }
+    
+    // Trending (only on 'all' category and no search)
+    if (selectedCategory === 'all' && !searchQuery) {
+      const trending = trendingAutomations.length > 0 ? trendingAutomations : 
+                      filteredAutomations.filter(a => a.isPopular).slice(0, 5);
+      if (trending.length > 0) {
+        items.push({ 
+          type: 'trending', 
+          key: 'trending',
+          data: trending
+        });
+      }
+    }
+    
+    // All Automations section title
+    items.push({ 
+      type: 'sectionTitle', 
+      key: 'sectionTitle',
+      data: {
+        title: searchQuery ? `Search Results for "${searchQuery}"` :
+               selectedCategory === 'all' ? 'All Automations' : 
+               categories.find(c => c.id === selectedCategory)?.name || 'Automations',
+        count: filteredAutomations.length
+      }
+    });
+    
+    // Automation items
+    filteredAutomations.forEach((automation, index) => {
+      items.push({
+        type: 'automation',
+        key: `automation-${automation.id}`,
+        data: automation,
+        index
+      });
+    });
+    
+    // Empty state if no automations
+    if (filteredAutomations.length === 0) {
+      items.push({
+        type: 'empty',
+        key: 'empty',
+        data: { searchQuery, selectedCategory }
+      });
+    }
+    
+    return items;
+  }, [filteredAutomations, trendingAutomations, searchQuery, selectedCategory, categories]);
 
-        {/* Search Bar */}
-        <View style={styles.searchSection}>
-          {FEATURE_FLAGS.SEARCH_SUGGESTIONS ? (
-            <AnimatedSearchBar
-              value={searchQuery}
-              onChangeText={handleSearch}
-              onFocus={() => setShowSearchSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSearchSuggestions(false), 200)}
-              placeholder="Search automations..."
-              theme={theme}
-            />
-          ) : (
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    switch (item.type) {
+      case 'header':
+        return (
+          <View style={styles.headerSection}>
+            {/* Search Bar */}
             <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <MaterialCommunityIcons 
-                name="magnify" 
-                size={20} 
-                color={theme.colors.onSurfaceVariant} 
-              />
+              <MaterialCommunityIcons name="magnify" size={20} color={theme.colors.onSurfaceVariant} />
               <TextInput
                 style={[styles.searchInput, { color: theme.colors.onSurface }]}
                 placeholder="Search automations..."
@@ -773,338 +346,308 @@ const DiscoverScreen: React.FC = memo(() => {
                 value={searchQuery}
                 onChangeText={handleSearch}
               />
-            </View>
-          )}
-
-          {/* Search Suggestions */}
-          {FEATURE_FLAGS.SEARCH_SUGGESTIONS && showSearchSuggestions && searchQuery.length > 0 && (
-            <View style={[styles.suggestionsContainer, { backgroundColor: theme.colors.surface }]}>
-              <FlatList
-                data={searchSuggestions.filter(s => 
-                  s.text.toLowerCase().includes(searchQuery.toLowerCase())
-                )}
-                renderItem={renderSearchSuggestion}
-                keyExtractor={item => item.id}
-                showsVerticalScrollIndicator={false}
-              />
-            </View>
-          )}
-        </View>
-
-        {/* Categories */}
-        <View style={styles.categoriesSection}>
-          <Text style={[styles.categoryTitle, { color: theme.colors.onSurface }]}>
-            Categories
-          </Text>
-          {FEATURE_FLAGS.STAGGERED_ANIMATIONS ? (
-            <AnimatedCategoryChips
-              categories={categories}
-              selectedCategory={selectedCategory}
-              onSelect={handleCategorySelect}
-              theme={theme}
-            />
-          ) : (
-            <FlatList
-              data={categories}
-              renderItem={renderCategoryChip}
-              keyExtractor={item => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoriesList}
-            />
-          )}
-          
-          {/* Category Context Banner - Enhanced and Fixed */}
-          {currentCategory && selectedCategory !== 'all' && (
-            <Animated.View
-              style={[
-                styles.categoryBanner,
-                {
-                  backgroundColor: currentCategory.gradient?.[0] ? `${currentCategory.gradient[0]}15` : `${theme.colors.primary}15`,
-                  borderColor: currentCategory.gradient?.[0] || theme.colors.primary,
-                },
-                FEATURE_FLAGS.ENHANCED_ANIMATIONS && {
-                  opacity: categoryFadeAnim,
-                  transform: [{
-                    translateY: categoryFadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [20, 0],
-                    })
-                  }]
-                }
-              ]}
-            >
-              <LinearGradient
-                colors={[
-                  currentCategory.gradient?.[0] ? `${currentCategory.gradient[0]}08` : `${theme.colors.primary}08`,
-                  'transparent'
-                ]}
-                style={styles.categoryBannerGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              />
-              <View style={styles.categoryBannerContent}>
-                <View style={[
-                  styles.categoryBannerIcon,
-                  { backgroundColor: currentCategory.gradient?.[0] || theme.colors.primary }
-                ]}>
-                  <MaterialCommunityIcons 
-                    name={currentCategory.icon as any} 
-                    size={20} 
-                    color="white"
-                  />
-                </View>
-                <View style={styles.categoryBannerTextContainer}>
-                  <Text style={[styles.categoryBannerTitle, { color: theme.colors.onSurface }]}>
-                    {currentCategory.name} Automations
-                  </Text>
-                  <Text style={[styles.categoryBannerText, { color: theme.colors.onSurfaceVariant }]}>
-                    Discover {currentCategory.count} amazing {currentCategory.name.toLowerCase()} automations
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.categoryBannerClose}
-                  onPress={() => handleCategorySelect('all')}
-                >
-                  <MaterialCommunityIcons 
-                    name="close" 
-                    size={18} 
-                    color={theme.colors.onSurfaceVariant}
-                  />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <MaterialCommunityIcons name="close-circle" size={18} color={theme.colors.onSurfaceVariant} />
                 </TouchableOpacity>
-              </View>
-            </Animated.View>
-          )}
-        </View>
-
-        {/* Content */}
-        <Animated.View style={[styles.content, { opacity: categoryTransition ? categoryFadeAnim : fadeAnim }]}>
-          <ScrollComponent
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={theme.colors.primary}
-              />
-            }
-            onScroll={FEATURE_FLAGS.ENHANCED_ANIMATIONS ? (event: any) => {
-              scrollY.setValue(event.nativeEvent.contentOffset.y);
-            } : undefined}
-            onMomentumScrollEnd={handleLoadMore}
-          >
-            {/* Quick Actions - New Section */}
-            {selectedCategory === 'all' && !searchQuery && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                  Quick Actions
-                </Text>
-                <View style={styles.quickActionsGrid}>
-                  <TouchableOpacity
-                    style={[styles.quickActionCard, { backgroundColor: theme.colors.surface }]}
-                    onPress={() => navigation.navigate('BuildScreen' as never)}
-                  >
-                    <LinearGradient
-                      colors={['#667eea', '#764ba2']}
-                      style={styles.quickActionIcon}
-                    >
-                      <MaterialCommunityIcons name="plus" size={24} color="white" />
-                    </LinearGradient>
-                    <Text style={[styles.quickActionTitle, { color: theme.colors.onSurface }]}>
-                      Create New
-                    </Text>
-                    <Text style={[styles.quickActionDesc, { color: theme.colors.onSurfaceVariant }]}>
-                      Build custom
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[styles.quickActionCard, { backgroundColor: theme.colors.surface }]}
-                    onPress={() => navigation.navigate('Templates' as never)}
-                  >
-                    <LinearGradient
-                      colors={['#f093fb', '#f5576c']}
-                      style={styles.quickActionIcon}
-                    >
-                      <MaterialCommunityIcons name="view-grid" size={24} color="white" />
-                    </LinearGradient>
-                    <Text style={[styles.quickActionTitle, { color: theme.colors.onSurface }]}>
-                      Templates
-                    </Text>
-                    <Text style={[styles.quickActionDesc, { color: theme.colors.onSurfaceVariant }]}>
-                      Ready to use
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[styles.quickActionCard, { backgroundColor: theme.colors.surface }]}
-                    onPress={() => handleCategorySelect('popular')}
-                  >
-                    <LinearGradient
-                      colors={['#fa709a', '#fee140']}
-                      style={styles.quickActionIcon}
-                    >
-                      <MaterialCommunityIcons name="trending-up" size={24} color="white" />
-                    </LinearGradient>
-                    <Text style={[styles.quickActionTitle, { color: theme.colors.onSurface }]}>
-                      Popular
-                    </Text>
-                    <Text style={[styles.quickActionDesc, { color: theme.colors.onSurfaceVariant }]}>
-                      Most liked
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[styles.quickActionCard, { backgroundColor: theme.colors.surface }]}
-                    onPress={() => setShowSearchSuggestions(true)}
-                  >
-                    <LinearGradient
-                      colors={['#4facfe', '#00f2fe']}
-                      style={styles.quickActionIcon}
-                    >
-                      <MaterialCommunityIcons name="magnify" size={24} color="white" />
-                    </LinearGradient>
-                    <Text style={[styles.quickActionTitle, { color: theme.colors.onSurface }]}>
-                      Search
-                    </Text>
-                    <Text style={[styles.quickActionDesc, { color: theme.colors.onSurfaceVariant }]}>
-                      Find specific
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* Featured Section */}
-            {featuredAutomation && selectedCategory === 'all' && !searchQuery && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                  Featured
-                </Text>
-                <FeaturedCard
-                  automation={featuredAutomation}
-                  onPress={() => handleAutomationPress(featuredAutomation)}
-                  onLike={() => handleLike(featuredAutomation.id, featuredAutomation.hasLiked || false)}
-                  theme={theme}
-                />
-              </View>
-            )}
-
-            {/* Trending Section - Enhanced */}
-            {FEATURE_FLAGS.TRENDING_CAROUSEL && (trendingAutomations.length > 0 || featuredAutomations.filter(a => a.isPopular).length > 0) && selectedCategory === 'all' && !searchQuery && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                    🔥 Trending Now
-                  </Text>
-                  <TouchableOpacity onPress={() => handleCategorySelect('popular')}>
-                    <Text style={[styles.seeAllText, { color: theme.colors.primary }]}>
-                      See All
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <TrendingCarousel
-                  data={trendingAutomations.length > 0 ? trendingAutomations : featuredAutomations.filter(a => a.isPopular)}
-                  onItemPress={handleAutomationPress}
-                  onLike={handleLike}
-                />
-              </View>
-            )}
-
-            {/* All Automations */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                  {searchQuery ? `Search Results for "${searchQuery}"` :
-                   selectedCategory === 'all' ? 'All Automations' : 
-                   currentCategory?.name || 'Automations'}
-                </Text>
-                <Text style={[styles.resultCount, { color: theme.colors.onSurfaceVariant }]}>
-                  {filteredAutomations.length} result{filteredAutomations.length !== 1 ? 's' : ''}
-                </Text>
-              </View>
-
-              {categoryTransition ? (
-                <View style={styles.transitionLoader}>
-                  <ActivityIndicator size="large" color={theme.colors.primary} />
-                  <Text style={[styles.transitionText, { color: theme.colors.onSurfaceVariant }]}>
-                    Loading {currentCategory?.name?.toLowerCase() || 'automations'}...
-                  </Text>
-                </View>
-              ) : filteredAutomations.length === 0 ? (
-                <EmptyState
-                  icon={searchQuery ? "magnify-scan" : selectedCategory === 'all' ? "robot-confused" : "folder-open"}
-                  title={searchQuery ? "No Results Found" : "No Automations Yet"}
-                  description={searchQuery ? 
-                    `No automations found for "${searchQuery}"` : 
-                    selectedCategory === 'all' ? 
-                      "No automations available right now" :
-                      `No ${currentCategory?.name?.toLowerCase()} automations available`
-                  }
-                  action={searchQuery ? {
-                    label: "Clear Search",
-                    onPress: () => {
-                      setSearchQuery('');
-                      setShowSearchSuggestions(false);
-                    },
-                  } : selectedCategory !== 'all' ? {
-                    label: "Browse All Categories",
-                    onPress: () => handleCategorySelect('all'),
-                  } : undefined}
-                />
-              ) : (
-                <FlatList
-                  data={filteredAutomations}
-                  renderItem={renderAutomationCard}
-                  keyExtractor={item => item.id}
-                  showsVerticalScrollIndicator={false}
-                  scrollEnabled={false}
-                  contentContainerStyle={styles.automationsList}
-                />
               )}
             </View>
-
-            {/* Load More */}
-            {loadingMore && (
-              <View style={styles.loadMoreContainer}>
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-                <Text style={[styles.loadMoreText, { color: theme.colors.onSurfaceVariant }]}>
-                  Loading more...
+            
+            {/* Categories */}
+            <View style={styles.categoriesSection}>
+              <Text style={[styles.categoryTitle, { color: theme.colors.onSurface }]}>
+                Categories
+              </Text>
+              <FlatList
+                horizontal
+                data={item.data.categories}
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(cat) => cat.id}
+                renderItem={({ item: category }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.categoryChip,
+                      item.data.selectedCategory === category.id && styles.categoryChipSelected,
+                    ]}
+                    onPress={() => handleCategorySelect(category.id)}
+                  >
+                    <LinearGradient
+                      colors={item.data.selectedCategory === category.id && category.gradient && category.gradient.length >= 2 ? category.gradient : ['transparent', 'transparent']}
+                      style={[
+                        styles.categoryChipGradient,
+                        item.data.selectedCategory !== category.id && { backgroundColor: theme.colors.surfaceVariant }
+                      ]}
+                    >
+                      <MaterialCommunityIcons 
+                        name={category.icon as any} 
+                        size={16} 
+                        color={item.data.selectedCategory === category.id ? 'white' : theme.colors.onSurfaceVariant} 
+                      />
+                      <Text style={[
+                        styles.categoryChipText,
+                        { color: item.data.selectedCategory === category.id ? 'white' : theme.colors.onSurfaceVariant }
+                      ]}>
+                        {category.name}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          </View>
+        );
+        
+      case 'quickActions':
+        return (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              Quick Actions
+            </Text>
+            <View style={styles.quickActionsGrid}>
+              <TouchableOpacity
+                style={[styles.quickActionCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => navigation.navigate('BuildTab' as never)}
+              >
+                <LinearGradient
+                  colors={['#667eea', '#764ba2']}
+                  style={styles.quickActionIcon}
+                >
+                  <MaterialCommunityIcons name="plus" size={24} color="white" />
+                </LinearGradient>
+                <Text style={[styles.quickActionTitle, { color: theme.colors.onSurface }]}>
+                  Create New
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.quickActionCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => handleCategorySelect('popular')}
+              >
+                <LinearGradient
+                  colors={['#fa709a', '#fee140']}
+                  style={styles.quickActionIcon}
+                >
+                  <MaterialCommunityIcons name="trending-up" size={24} color="white" />
+                </LinearGradient>
+                <Text style={[styles.quickActionTitle, { color: theme.colors.onSurface }]}>
+                  Popular
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+        
+      case 'featured':
+        return (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              Featured
+            </Text>
+            <TouchableOpacity
+              style={[styles.featuredCard, { backgroundColor: theme.colors.surface }]}
+              onPress={() => handleAutomationPress(item.data)}
+            >
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                style={styles.featuredGradient}
+              >
+                <Text style={styles.featuredTitle}>{item.data.title}</Text>
+                <Text style={styles.featuredDescription}>{item.data.description}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        );
+        
+      case 'trending':
+        return (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                🔥 Trending Now
+              </Text>
+              <TouchableOpacity onPress={() => handleCategorySelect('popular')}>
+                <Text style={[styles.seeAllText, { color: theme.colors.primary }]}>
+                  See All
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              horizontal
+              data={item.data}
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(trending) => trending.id}
+              renderItem={({ item: trendingItem }) => (
+                <TouchableOpacity
+                  style={[styles.trendingCard, { backgroundColor: theme.colors.surface }]}
+                  onPress={() => handleAutomationPress(trendingItem)}
+                >
+                  <Text style={[styles.trendingTitle, { color: theme.colors.onSurface }]}>
+                    {trendingItem.title}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        );
+        
+      case 'sectionTitle':
+        return (
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              {item.data.title}
+            </Text>
+            <Text style={[styles.resultCount, { color: theme.colors.onSurfaceVariant }]}>
+              {item.data.count} result{item.data.count !== 1 ? 's' : ''}
+            </Text>
+          </View>
+        );
+        
+      case 'automation':
+        return (
+          <TouchableOpacity
+            style={[styles.automationCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleAutomationPress(item.data)}
+          >
+            <View style={styles.automationHeader}>
+              <View style={[styles.automationIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                <MaterialCommunityIcons 
+                  name={item.data.icon || 'robot'} 
+                  size={24} 
+                  color={theme.colors.primary} 
+                />
+              </View>
+              <View style={styles.automationInfo}>
+                <Text style={[styles.automationTitle, { color: theme.colors.onSurface }]}>
+                  {item.data.title}
+                </Text>
+                <Text style={[styles.automationAuthor, { color: theme.colors.onSurfaceVariant }]}>
+                  by {item.data.author}
                 </Text>
               </View>
-            )}
-          </ScrollComponent>
-        </Animated.View>
-
-        {/* Feedback Toast */}
-        {feedback.visible && (
-          <Animated.View 
-            pointerEvents="box-none"
-            style={[
-              styles.feedbackToast,
-              { backgroundColor: theme.colors.surface },
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: Animated.multiply(fadeAnim, -50) }]
-              }
-            ]}
-          >
-            <MaterialCommunityIcons 
-              name={feedback.type === 'success' ? 'check-circle' :
-                    feedback.type === 'error' ? 'alert-circle' : 'alert'}
-              size={20}
-              color={feedback.type === 'success' ? '#4CAF50' :
-                    feedback.type === 'error' ? '#F44336' : '#FF9800'}
-            />
-            <Text style={[styles.feedbackText, { color: theme.colors.onSurface }]}>
-              {feedback.message}
+              <TouchableOpacity
+                onPress={() => handleLike(item.data.id, item.data.hasLiked)}
+              >
+                <MaterialCommunityIcons 
+                  name={item.data.hasLiked ? 'heart' : 'heart-outline'} 
+                  size={24} 
+                  color={item.data.hasLiked ? '#FF4444' : theme.colors.onSurfaceVariant} 
+                />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.automationDescription, { color: theme.colors.onSurfaceVariant }]} numberOfLines={2}>
+              {item.data.description}
             </Text>
-          </Animated.View>
-        )}
+            <View style={styles.automationFooter}>
+              <View style={styles.automationStat}>
+                <MaterialCommunityIcons name="heart" size={16} color={theme.colors.onSurfaceVariant} />
+                <Text style={[styles.automationStatText, { color: theme.colors.onSurfaceVariant }]}>
+                  {item.data.likes}
+                </Text>
+              </View>
+              <View style={styles.automationStat}>
+                <MaterialCommunityIcons name="play-circle" size={16} color={theme.colors.onSurfaceVariant} />
+                <Text style={[styles.automationStatText, { color: theme.colors.onSurfaceVariant }]}>
+                  {item.data.uses}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        );
+        
+      case 'empty':
+        return (
+          <EmptyState
+            icon={item.data.searchQuery ? "magnify-scan" : "robot-confused"}
+            title={item.data.searchQuery ? "No Results Found" : "No Automations Yet"}
+            description={
+              item.data.searchQuery
+                ? `No automations found for "${item.data.searchQuery}"`
+                : "No automations available in this category"
+            }
+            action={
+              item.data.searchQuery
+                ? {
+                    label: "Clear Search",
+                    onPress: () => setSearchQuery(''),
+                  }
+                : item.data.selectedCategory !== 'all'
+                ? {
+                    label: "Browse All Categories",
+                    onPress: () => handleCategorySelect('all'),
+                  }
+                : undefined
+            }
+          />
+        );
+        
+      default:
+        return null;
+    }
+  }, [theme, searchQuery, handleSearch, handleCategorySelect, handleAutomationPress, handleLike, navigation]);
+
+  if (isLoadingPublic && publicAutomations.length === 0) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>
+            Loading automations...
+          </Text>
+        </View>
       </SafeAreaView>
-    </ScreenErrorBoundary>
+    );
+  }
+
+  if ((publicError || trendingError) && !isConnected) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        <ErrorState
+          title="No Internet Connection"
+          description="Please check your connection and try again"
+          action={{
+            label: "Retry",
+            onPress: handleRefresh,
+          }}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
+          Discover
+        </Text>
+      </View>
+      
+      <FlatList
+        data={sections}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.key}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+          />
+        }
+        // Performance optimizations
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        windowSize={10}
+        initialNumToRender={10}
+        getItemLayout={(data, index) => {
+          // Estimate item heights for better performance
+          let height = 100; // Default automation card height
+          if (index < 3) height = 200; // Header sections are taller
+          return { length: height, offset: height * index, index };
+        }}
+      />
+    </SafeAreaView>
   );
 });
 
@@ -1124,52 +667,37 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
-  searchSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    zIndex: 10,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  listContent: {
+    paddingBottom: 20,
+  },
+  headerSection: {
+    paddingTop: 12,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginHorizontal: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
     gap: 12,
+    marginBottom: 16,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
   },
-  suggestionsContainer: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    right: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    maxHeight: 200,
-  },
-  suggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
-  },
-  suggestionText: {
-    flex: 1,
-    fontSize: 16,
-  },
-  suggestionType: {
-    fontSize: 12,
-    textTransform: 'capitalize',
-  },
   categoriesSection: {
-    paddingVertical: 12,
+    marginBottom: 16,
   },
   categoryTitle: {
     fontSize: 18,
@@ -1177,22 +705,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
   },
-  categoriesList: {
-    paddingHorizontal: 20,
-  },
   categoryChip: {
-    marginRight: 12,
+    marginLeft: 8,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   categoryChipSelected: {
     elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   categoryChipGradient: {
     flexDirection: 'row',
@@ -1201,93 +724,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 8,
   },
-  selectedChipGradient: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
   categoryChipText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  selectedChipText: {
-    fontWeight: '700',
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  countBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  categoryChipCount: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  categoryBanner: {
-    marginHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 8,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  categoryBannerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  categoryBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  categoryBannerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  categoryBannerTextContainer: {
-    flex: 1,
-  },
-  categoryBannerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  categoryBannerText: {
-    fontSize: 13,
-  },
-  categoryBannerClose: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  content: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1299,25 +742,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  resultCount: {
-    fontSize: 14,
-    fontWeight: '500',
   },
   seeAllText: {
     fontSize: 14,
     fontWeight: '600',
   },
+  resultCount: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
   quickActionsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: 20,
     gap: 12,
   },
   quickActionCard: {
-    width: (screenWidth - 40 - 12) / 2 - 6,
+    flex: 1,
     padding: 16,
     borderRadius: 16,
     alignItems: 'center',
@@ -1338,53 +777,95 @@ const styles = StyleSheet.create({
   quickActionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 2,
   },
-  quickActionDesc: {
-    fontSize: 12,
+  featuredCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  automationsList: {
-    paddingHorizontal: 20,
-  },
-  transitionLoader: {
-    paddingVertical: 40,
-    alignItems: 'center',
-    gap: 12,
-  },
-  transitionText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  loadMoreContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+  featuredGradient: {
     padding: 20,
-    gap: 8,
   },
-  loadMoreText: {
+  featuredTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 8,
+  },
+  featuredDescription: {
     fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
   },
-  feedbackToast: {
-    position: 'absolute',
-    bottom: 120,
-    left: 20,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
+  trendingCard: {
+    padding: 16,
+    marginRight: 12,
+    borderRadius: 12,
+    minWidth: 150,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  trendingTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  automationCard: {
+    marginHorizontal: 20,
+    marginBottom: 12,
     padding: 16,
     borderRadius: 12,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    gap: 12,
-    zIndex: 998,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  feedbackText: {
+  automationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  automationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  automationInfo: {
+    flex: 1,
+  },
+  automationTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  automationAuthor: {
+    fontSize: 14,
+  },
+  automationDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  automationFooter: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  automationStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  automationStatText: {
+    fontSize: 14,
   },
 });
 

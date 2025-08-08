@@ -6,10 +6,13 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeTheme } from '../common/ThemeFallbackWrapper';
+import { useNavigation } from '@react-navigation/native';
+import { EventLogger } from '../../utils/EventLogger';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -25,11 +28,12 @@ interface FeaturedAutomation {
   category: string;
   rating?: number;
   featured?: boolean;
+  gradient?: string[];
 }
 
 interface FeaturedCardProps {
   automation: FeaturedAutomation;
-  onPress: (automation: FeaturedAutomation) => void;
+  onPress?: (automation: FeaturedAutomation) => void;
   onLike?: (automation: FeaturedAutomation) => void;
   style?: any;
 }
@@ -41,6 +45,7 @@ export const FeaturedCard: React.FC<FeaturedCardProps> = ({
   style,
 }) => {
   const theme = useSafeTheme();
+  const navigation = useNavigation();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const shimmerAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -102,6 +107,13 @@ export const FeaturedCard: React.FC<FeaturedCardProps> = ({
   }, []);
 
   const handlePress = () => {
+    // Validate automation ID before navigation
+    if (!automation?.id || automation.id === 'undefined' || automation.id === 'null') {
+      EventLogger.error('FeaturedCard', 'Invalid automation ID:', new Error(`ID: ${automation?.id}`));
+      Alert.alert('Error', 'Unable to open this automation. Please try again.');
+      return;
+    }
+    
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.95,
@@ -114,7 +126,21 @@ export const FeaturedCard: React.FC<FeaturedCardProps> = ({
         useNativeDriver: true,
       }),
     ]).start(() => {
-      onPress(automation);
+      if (onPress) {
+        onPress(automation);
+      } else {
+        // Default navigation if no onPress handler provided
+        EventLogger.debug('FeaturedCard', 'Navigating to AutomationDetails with ID:', automation.id);
+        try {
+          navigation.navigate('AutomationDetails' as never, { 
+            automationId: automation.id,
+            fromGallery: true 
+          } as never);
+        } catch (error) {
+          EventLogger.error('FeaturedCard', 'Navigation error:', error as Error);
+          Alert.alert('Navigation Error', 'Unable to open automation details.');
+        }
+      }
     });
   };
 
@@ -169,15 +195,21 @@ export const FeaturedCard: React.FC<FeaturedCardProps> = ({
         activeOpacity={0.9}
       >
         <LinearGradient
-          colors={[
-            automation.color,
-            `${automation.color}CC`,
-            `${automation.color}80`,
-            automation.color,
-          ]}
+          colors={
+            automation.gradient && automation.gradient.length >= 2
+              ? automation.gradient
+              : automation.color
+              ? [
+                  automation.color,
+                  `${automation.color}CC`,
+                  `${automation.color}80`,
+                  automation.color,
+                ]
+              : ['#6366F1', '#8B5CF6', '#EC4899', '#6366F1'] // Fallback gradient
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          locations={[0, 0.3, 0.7, 1]}
+          locations={automation.gradient ? undefined : [0, 0.3, 0.7, 1]}
           style={styles.cardBackground}
         >
           {/* Shimmer Effect */}

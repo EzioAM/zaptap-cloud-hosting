@@ -47,7 +47,10 @@ import { EventLogger } from '../../utils/EventLogger';
 type Props = NativeStackScreenProps<RootStackParamList, 'AutomationDetails'>;
 
 const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { automationId, fromGallery } = route.params;
+  // Handle both automationId and automation object from params
+  const params = route.params || {};
+  const automationId = params.automationId || params.automation?.id;
+  const fromGallery = params.fromGallery;
   
   // Validate route parameters
   React.useEffect(() => {

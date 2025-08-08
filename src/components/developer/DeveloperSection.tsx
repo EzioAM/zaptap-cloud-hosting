@@ -55,7 +55,7 @@ export const DeveloperSection: React.FC<DeveloperSectionProps> = ({ navigation, 
           activeOpacity={0.7}
         >
           <View style={styles.toolItemLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: (theme?.colors?.primary || '#6200ee') + '20' }]}>
+            <View style={[styles.iconContainer, { backgroundColor: theme?.colors?.primary || '#6200ee' }]}>
               <MaterialCommunityIcons
                 name={tool.icon as any}
                 size={24}
@@ -79,7 +79,7 @@ export const DeveloperSection: React.FC<DeveloperSectionProps> = ({ navigation, 
         </TouchableOpacity>
       ))}
       
-      <View style={[styles.badge, { backgroundColor: (theme?.colors?.primary || '#6200ee') + '10' }]}>
+      <View style={[styles.badge, { backgroundColor: theme?.colors?.surfaceVariant || '#F0F0F0' }]}>
         <Text style={[styles.badgeText, { color: theme?.colors?.primary || '#6200ee' }]}>
           Developer Mode Active
         </Text>
