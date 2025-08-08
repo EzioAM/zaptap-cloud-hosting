@@ -670,7 +670,38 @@ const ModernProfileScreen: React.FC = memo(() => {
               }
             ]}
           >
-            {activeTab === 'overview' && (
+            {/* Test Navigation Buttons - TEMPORARY DEBUG */}
+              <View style={{ padding: 20, backgroundColor: '#fff3e0' }}>
+                <Text style={{ marginBottom: 10, fontWeight: 'bold' }}>Navigation Debug:</Text>
+                <TouchableOpacity
+                  style={{ padding: 10, backgroundColor: '#4CAF50', marginBottom: 10, borderRadius: 5 }}
+                  onPress={() => {
+                    console.log('TEST: Direct navigation to EditProfile');
+                    try {
+                      navigation.navigate('EditProfile' as never);
+                    } catch (error) {
+                      console.error('Direct nav failed:', error);
+                    }
+                  }}
+                >
+                  <Text style={{ color: 'white', textAlign: 'center' }}>Test Direct Nav to EditProfile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ padding: 10, backgroundColor: '#2196F3', marginBottom: 10, borderRadius: 5 }}
+                  onPress={() => {
+                    console.log('TEST: Direct navigation to Settings');
+                    try {
+                      navigation.navigate('Settings' as never);
+                    } catch (error) {
+                      console.error('Direct nav failed:', error);
+                    }
+                  }}
+                >
+                  <Text style={{ color: 'white', textAlign: 'center' }}>Test Direct Nav to Settings</Text>
+                </TouchableOpacity>
+              </View>
+
+              {activeTab === 'overview' && (
               <View>
                 <SafeAnimatedMenuSection
                   section={{
