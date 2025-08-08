@@ -21,7 +21,7 @@ import { RootState, AppDispatch } from '../../store';
 import { updateProfile } from '../../store/slices/authSlice';
 import { ThemedInput } from '../../components/ui/ThemedInput';
 import { GradientButton } from '../../components/shared/GradientButton';
-import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
+import { useTheme } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { EventLogger } from '../../utils/EventLogger';
@@ -46,7 +46,7 @@ interface ProfileData {
 }
 
 const EditProfileScreen: React.FC = () => {
-  const theme = useSafeTheme();
+  const theme = useTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
