@@ -13,8 +13,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useUnifiedTheme } from '../../contexts/UnifiedThemeProvider';
-import { createInputStyle, createTextStyle } from '../../utils/ThemeUtils';
+import { useTheme } from 'react-native-paper';
 import { useOptimizedTextInput } from '../../utils/textInputFixes';
 
 export interface ThemedInputProps extends Omit<TextInputProps, 'style'> {
@@ -44,7 +43,7 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
   secureTextEntry,
   ...textInputProps
 }, ref) => {
-  const { theme } = useUnifiedTheme();
+  const theme = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
 
@@ -73,9 +72,19 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
   });
 
   const getInputStyles = () => {
-    const baseStyles = createInputStyle(theme, hasError);
+    const baseStyles = {
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: hasError ? theme.colors.error : theme.colors.outline,
+      borderRadius: 8,
+      paddingHorizontal: leftIcon ? 40 : 16,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: theme.colors.onSurface,
+      paddingRight: rightIcon || (showPassword && secureTextEntry) ? 40 : 16,
+    };
     const focusStyles = isFocused ? {
-      borderColor: hasError ? theme.colors.semantic.error : theme.colors.brand.primary,
+      borderColor: hasError ? theme.colors.error : theme.colors.primary,
       borderWidth: 2,
     } : {};
 
@@ -87,15 +96,16 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
 
     return (
       <Text style={[
-        createTextStyle(theme, 'sm', 'medium'),
         { 
-          color: hasError ? theme.colors.semantic.error : theme.colors.text.secondary,
-          marginBottom: theme.spacing.xs,
+          fontSize: 14,
+          fontWeight: '500',
+          color: hasError ? theme.colors.error : theme.colors.onSurfaceVariant,
+          marginBottom: 4,
         }
       ]}>
         {label}
         {required && (
-          <Text style={{ color: theme.colors.semantic.error }}> *</Text>
+          <Text style={{ color: theme.colors.error }}> *</Text>
         )}
       </Text>
     );
@@ -107,10 +117,10 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
 
     return (
       <Text style={[
-        createTextStyle(theme, 'xs', 'regular'),
         {
-          color: hasError ? theme.colors.semantic.error : theme.colors.text.tertiary,
-          marginTop: theme.spacing.xs,
+          fontSize: 12,
+          color: hasError ? theme.colors.error : theme.colors.onSurfaceVariant,
+          marginTop: 4,
         }
       ]}>
         {text}
@@ -125,7 +135,7 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
       <MaterialCommunityIcons
         name={leftIcon as any}
         size={20}
-        color={theme.colors.text.secondary}
+        color={theme.colors.onSurfaceVariant || theme.colors.onSurface}
         style={styles.leftIcon}
       />
     );
@@ -144,7 +154,7 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
           <MaterialCommunityIcons
             name={isPasswordVisible ? 'eye-off' : 'eye'}
             size={20}
-            color={theme.colors.text.secondary}
+            color={theme.colors.onSurfaceVariant || theme.colors.onSurface}
           />
         </TouchableOpacity>
       );
@@ -164,7 +174,7 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
         <MaterialCommunityIcons
           name={rightIcon as any}
           size={20}
-          color={theme.colors.text.secondary}
+          color={theme.colors.onSurfaceVariant || theme.colors.onSurface}
         />
       </IconComponent>
     );
@@ -180,7 +190,7 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
         <TextInput
           ref={ref}
           style={[getInputStyles(), styles.input]}
-          placeholderTextColor={theme.colors.text.tertiary}
+          placeholderTextColor={theme.colors.onSurfaceVariant || theme.colors.onSurface}
           accessibilityLabel={label}
           accessibilityHint={helperText}
           accessibilityRequired={required}
