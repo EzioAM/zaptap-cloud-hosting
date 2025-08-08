@@ -679,12 +679,12 @@ const ModernProfileScreen: React.FC = memo(() => {
                       {
                         icon: 'account-edit',
                         label: 'Edit Profile',
-                        onPress: () => NavigationHelper.navigate('EditProfile'),
+                        onPress: () => navigation.navigate('EditProfile' as never),
                       },
                       {
                         icon: 'cog',
                         label: 'Settings',
-                        onPress: () => NavigationHelper.navigate('Settings'),
+                        onPress: () => navigation.navigate('Settings' as never),
                       },
                     ],
                     collapsible: false,
@@ -716,12 +716,12 @@ const ModernProfileScreen: React.FC = memo(() => {
                       {
                         icon: 'shield-account',
                         label: 'Privacy & Security',
-                        onPress: () => NavigationHelper.navigate('Privacy'),
+                        onPress: () => navigation.navigate('Privacy' as never),
                       },
                       {
                         icon: 'help-circle',
                         label: 'Help & Support',
-                        onPress: () => NavigationHelper.navigate('Help'),
+                        onPress: () => navigation.navigate('Help' as never),
                       },
                     ],
                     collapsible: false,
