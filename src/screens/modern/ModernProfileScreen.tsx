@@ -679,12 +679,40 @@ const ModernProfileScreen: React.FC = memo(() => {
                       {
                         icon: 'account-edit',
                         label: 'Edit Profile',
-                        onPress: () => navigation.navigate('EditProfile' as never),
+                        onPress: () => {
+                          try {
+                            triggerHaptic('light');
+                            // Navigate to stack screen from tab navigator
+                            const parent = navigation.getParent();
+                            if (parent) {
+                              parent.navigate('EditProfile');
+                            } else {
+                              navigation.navigate('EditProfile');
+                            }
+                          } catch (error) {
+                            console.error('Navigation to EditProfile failed:', error);
+                            Alert.alert('Error', 'Could not open Edit Profile screen');
+                          }
+                        },
                       },
                       {
                         icon: 'cog',
                         label: 'Settings',
-                        onPress: () => navigation.navigate('Settings' as never),
+                        onPress: () => {
+                          try {
+                            triggerHaptic('light');
+                            // Navigate to stack screen from tab navigator
+                            const parent = navigation.getParent();
+                            if (parent) {
+                              parent.navigate('Settings');
+                            } else {
+                              navigation.navigate('Settings');
+                            }
+                          } catch (error) {
+                            console.error('Navigation to Settings failed:', error);
+                            Alert.alert('Error', 'Could not open Settings screen');
+                          }
+                        },
                       },
                     ],
                     collapsible: false,
@@ -716,12 +744,38 @@ const ModernProfileScreen: React.FC = memo(() => {
                       {
                         icon: 'shield-account',
                         label: 'Privacy & Security',
-                        onPress: () => navigation.navigate('Privacy' as never),
+                        onPress: () => {
+                          try {
+                            triggerHaptic('light');
+                            const parent = navigation.getParent();
+                            if (parent) {
+                              parent.navigate('Privacy');
+                            } else {
+                              navigation.navigate('Privacy');
+                            }
+                          } catch (error) {
+                            console.error('Navigation to Privacy failed:', error);
+                            Alert.alert('Error', 'Could not open Privacy screen');
+                          }
+                        },
                       },
                       {
                         icon: 'help-circle',
                         label: 'Help & Support',
-                        onPress: () => navigation.navigate('Help' as never),
+                        onPress: () => {
+                          try {
+                            triggerHaptic('light');
+                            const parent = navigation.getParent();
+                            if (parent) {
+                              parent.navigate('Help');
+                            } else {
+                              navigation.navigate('Help');
+                            }
+                          } catch (error) {
+                            console.error('Navigation to Help failed:', error);
+                            Alert.alert('Error', 'Could not open Help screen');
+                          }
+                        },
                       },
                     ],
                     collapsible: false,
