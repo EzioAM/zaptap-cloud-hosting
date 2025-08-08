@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform, Text, Animated } from 'react-native';
-import { useUnifiedTheme } from '../contexts/ThemeCompatibilityShim';
+import { useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventLogger } from '../utils/EventLogger';
 
@@ -97,21 +97,20 @@ export const ModernBottomTabNavigator = () => {
   const [isRecovering, setIsRecovering] = useState(false);
   
   // Safely get theme and insets with fallback values
-  let theme = { colors: {} };
+  let theme: any = {};
   let insets = { bottom: 0, top: 0, left: 0, right: 0 };
   
   try {
-    const themeContext = useUnifiedTheme();
-    theme = themeContext?.theme || { colors: {} };
+    theme = useTheme();
   } catch (error) {
     EventLogger.warn('Navigation', 'Failed to get theme context, using defaults:', error);
     theme = {
       colors: {
-        brand: { primary: '#6200ee' },
-        text: { tertiary: '#9E9E9E' },
-        surface: { primary: '#FFFFFF' },
-        background: { primary: '#FFFFFF' },
-        overlay: { light: '#000000' }
+        primary: '#6200ee',
+        onSurfaceVariant: '#9E9E9E',
+        surface: '#FFFFFF',
+        background: '#FFFFFF',
+        outline: '#000000'
       }
     };
   }
@@ -223,17 +222,17 @@ export const ModernBottomTabNavigator = () => {
                   );
                 }
               },
-              tabBarActiveTintColor: theme?.colors?.brand?.primary || '#6200ee',
-              tabBarInactiveTintColor: theme?.colors?.text?.tertiary || '#9E9E9E',
+              tabBarActiveTintColor: theme?.colors?.primary || '#6200ee',
+              tabBarInactiveTintColor: theme?.colors?.onSurfaceVariant || '#9E9E9E',
               tabBarStyle: {
-                backgroundColor: theme?.colors?.surface?.primary || '#FFFFFF',
+                backgroundColor: theme?.colors?.surface || '#FFFFFF',
                 borderTopWidth: 0,
                 height: Platform.OS === 'ios' ? Math.max(85 + (insets?.bottom || 0), 85) : 70,
                 paddingBottom: Platform.OS === 'ios' ? Math.max(insets?.bottom || 0, 10) : 10,
                 paddingTop: 10,
                 paddingHorizontal: 8,
                 elevation: 8,
-                shadowColor: theme?.colors?.overlay?.light || '#000000',
+                shadowColor: theme?.colors?.outline || '#000000',
                 shadowOffset: { width: 0, height: -2 },
                 shadowOpacity: 0.15,
                 shadowRadius: 12,
@@ -285,7 +284,7 @@ export const ModernBottomTabNavigator = () => {
           }
         }}
         sceneContainerStyle={{
-          backgroundColor: theme?.colors?.background?.primary || '#FFFFFF',
+          backgroundColor: theme?.colors?.background || '#FFFFFF',
           // Ensure screens don't overlap the tab bar
           paddingBottom: 0,
         }}

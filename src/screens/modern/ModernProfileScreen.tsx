@@ -34,6 +34,7 @@ import { NavigationHelper } from '../../services/navigation/NavigationHelper';
 
 // Components
 import { DeveloperSection } from '../../components/developer/DeveloperSection';
+import { NavigationDebug } from '../../components/debug/NavigationDebug';
 import { AnimatedStatsGrid } from '../../components/profile/AnimatedStatsGrid';
 import { AchievementSystem } from '../../components/profile/AchievementSystem';
 import { ActivityTimeline } from '../../components/profile/ActivityTimeline';
@@ -519,6 +520,9 @@ const ModernProfileScreen: React.FC = memo(() => {
             />
           }
         >
+          {/* Navigation Debug - TEMPORARY */}
+          <NavigationDebug />
+          
           {/* Profile Header Card */}
           <LinearGradient
             colors={['#6366F1', '#8B5CF6']}
