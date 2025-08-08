@@ -31,6 +31,7 @@ import { useUserRole } from '../../hooks/useUserRole';
 import { useConnection } from '../../contexts/ConnectionContext';
 import * as Haptics from 'expo-haptics';
 import { NavigationHelper } from '../../services/navigation/NavigationHelper';
+import { CommonActions } from '@react-navigation/native';
 
 // Components
 import { DeveloperSection } from '../../components/developer/DeveloperSection';
@@ -682,13 +683,12 @@ const ModernProfileScreen: React.FC = memo(() => {
                         onPress: () => {
                           try {
                             triggerHaptic('light');
-                            // Navigate to stack screen from tab navigator
-                            const parent = navigation.getParent();
-                            if (parent) {
-                              parent.navigate('EditProfile');
-                            } else {
-                              navigation.navigate('EditProfile');
-                            }
+                            // Use CommonActions for reliable navigation
+                            navigation.dispatch(
+                              CommonActions.navigate({
+                                name: 'EditProfile',
+                              })
+                            );
                           } catch (error) {
                             console.error('Navigation to EditProfile failed:', error);
                             Alert.alert('Error', 'Could not open Edit Profile screen');
@@ -701,13 +701,12 @@ const ModernProfileScreen: React.FC = memo(() => {
                         onPress: () => {
                           try {
                             triggerHaptic('light');
-                            // Navigate to stack screen from tab navigator
-                            const parent = navigation.getParent();
-                            if (parent) {
-                              parent.navigate('Settings');
-                            } else {
-                              navigation.navigate('Settings');
-                            }
+                            // Use CommonActions for reliable navigation
+                            navigation.dispatch(
+                              CommonActions.navigate({
+                                name: 'Settings',
+                              })
+                            );
                           } catch (error) {
                             console.error('Navigation to Settings failed:', error);
                             Alert.alert('Error', 'Could not open Settings screen');
@@ -747,12 +746,11 @@ const ModernProfileScreen: React.FC = memo(() => {
                         onPress: () => {
                           try {
                             triggerHaptic('light');
-                            const parent = navigation.getParent();
-                            if (parent) {
-                              parent.navigate('Privacy');
-                            } else {
-                              navigation.navigate('Privacy');
-                            }
+                            navigation.dispatch(
+                              CommonActions.navigate({
+                                name: 'Privacy',
+                              })
+                            );
                           } catch (error) {
                             console.error('Navigation to Privacy failed:', error);
                             Alert.alert('Error', 'Could not open Privacy screen');
@@ -765,12 +763,11 @@ const ModernProfileScreen: React.FC = memo(() => {
                         onPress: () => {
                           try {
                             triggerHaptic('light');
-                            const parent = navigation.getParent();
-                            if (parent) {
-                              parent.navigate('Help');
-                            } else {
-                              navigation.navigate('Help');
-                            }
+                            navigation.dispatch(
+                              CommonActions.navigate({
+                                name: 'Help',
+                              })
+                            );
                           } catch (error) {
                             console.error('Navigation to Help failed:', error);
                             Alert.alert('Error', 'Could not open Help screen');
