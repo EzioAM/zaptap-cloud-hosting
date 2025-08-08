@@ -31,7 +31,6 @@ import { useUserRole } from '../../hooks/useUserRole';
 import { useConnection } from '../../contexts/ConnectionContext';
 import * as Haptics from 'expo-haptics';
 import { NavigationHelper } from '../../services/navigation/NavigationHelper';
-import { CommonActions } from '@react-navigation/native';
 
 // Components
 import { DeveloperSection } from '../../components/developer/DeveloperSection';
@@ -681,36 +680,20 @@ const ModernProfileScreen: React.FC = memo(() => {
                         icon: 'account-edit',
                         label: 'Edit Profile',
                         onPress: () => {
-                          try {
-                            triggerHaptic('light');
-                            // Use CommonActions for reliable navigation
-                            navigation.dispatch(
-                              CommonActions.navigate({
-                                name: 'EditProfile',
-                              })
-                            );
-                          } catch (error) {
-                            console.error('Navigation to EditProfile failed:', error);
-                            Alert.alert('Error', 'Could not open Edit Profile screen');
-                          }
+                          console.log('Edit Profile button pressed');
+                          triggerHaptic('light');
+                          // Directly use NavigationHelper which is initialized
+                          NavigationHelper.navigate('EditProfile');
                         },
                       },
                       {
                         icon: 'cog',
                         label: 'Settings',
                         onPress: () => {
-                          try {
-                            triggerHaptic('light');
-                            // Use CommonActions for reliable navigation
-                            navigation.dispatch(
-                              CommonActions.navigate({
-                                name: 'Settings',
-                              })
-                            );
-                          } catch (error) {
-                            console.error('Navigation to Settings failed:', error);
-                            Alert.alert('Error', 'Could not open Settings screen');
-                          }
+                          console.log('Settings button pressed');
+                          triggerHaptic('light');
+                          // Directly use NavigationHelper which is initialized
+                          NavigationHelper.navigate('Settings');
                         },
                       },
                     ],
@@ -744,34 +727,16 @@ const ModernProfileScreen: React.FC = memo(() => {
                         icon: 'shield-account',
                         label: 'Privacy & Security',
                         onPress: () => {
-                          try {
-                            triggerHaptic('light');
-                            navigation.dispatch(
-                              CommonActions.navigate({
-                                name: 'Privacy',
-                              })
-                            );
-                          } catch (error) {
-                            console.error('Navigation to Privacy failed:', error);
-                            Alert.alert('Error', 'Could not open Privacy screen');
-                          }
+                          triggerHaptic('light');
+                          NavigationHelper.navigate('Privacy');
                         },
                       },
                       {
                         icon: 'help-circle',
                         label: 'Help & Support',
                         onPress: () => {
-                          try {
-                            triggerHaptic('light');
-                            navigation.dispatch(
-                              CommonActions.navigate({
-                                name: 'Help',
-                              })
-                            );
-                          } catch (error) {
-                            console.error('Navigation to Help failed:', error);
-                            Alert.alert('Error', 'Could not open Help screen');
-                          }
+                          triggerHaptic('light');
+                          NavigationHelper.navigate('Help');
                         },
                       },
                     ],
