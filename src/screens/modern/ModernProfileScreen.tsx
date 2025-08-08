@@ -34,7 +34,6 @@ import { NavigationHelper } from '../../services/navigation/NavigationHelper';
 
 // Components
 import { DeveloperSection } from '../../components/developer/DeveloperSection';
-import { UpdateDebugInfo } from '../../components/debug/UpdateDebugInfo';
 import { AnimatedStatsGrid } from '../../components/profile/AnimatedStatsGrid';
 import { AchievementSystem } from '../../components/profile/AchievementSystem';
 import { ActivityTimeline } from '../../components/profile/ActivityTimeline';
@@ -520,9 +519,6 @@ const ModernProfileScreen: React.FC = memo(() => {
             />
           }
         >
-          {/* EAS Update Debug Info - TEMPORARY */}
-          <UpdateDebugInfo />
-          
           {/* Profile Header Card */}
           <LinearGradient
             colors={['#6366F1', '#8B5CF6']}
