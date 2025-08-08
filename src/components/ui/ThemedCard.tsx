@@ -10,8 +10,7 @@ import {
   TouchableOpacity,
   GestureResponderEvent,
 } from 'react-native';
-import { useUnifiedTheme } from '../../contexts/UnifiedThemeProvider';
-import { createCardStyle } from '../../utils/ThemeUtils';
+import { useTheme } from 'react-native-paper';
 
 export interface ThemedCardProps {
   children: React.ReactNode;
@@ -38,23 +37,34 @@ export const ThemedCard: React.FC<ThemedCardProps> = ({
   accessibilityHint,
   padding = 'medium',
 }) => {
-  const { theme } = useUnifiedTheme();
+  const theme = useTheme();
 
   const getPaddingStyles = () => {
     switch (padding) {
       case 'none':
         return { padding: 0 };
       case 'small':
-        return { padding: theme.spacing.sm };
+        return { padding: 8 };
       case 'large':
-        return { padding: theme.spacing.xl };
+        return { padding: 24 };
       default:
-        return { padding: theme.spacing.md };
+        return { padding: 16 };
     }
   };
 
   const cardStyles = [
-    createCardStyle(theme, elevated),
+    {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      overflow: 'hidden' as const,
+      ...(elevated ? {
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      } : {}),
+    },
     getPaddingStyles(),
     style,
   ];
@@ -69,7 +79,7 @@ export const ThemedCard: React.FC<ThemedCardProps> = ({
       <TouchableOpacity
         style={cardStyles}
         onPress={onPress}
-        activeOpacity={theme.constants.activeOpacity}
+        activeOpacity={0.7}
         testID={testID}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}

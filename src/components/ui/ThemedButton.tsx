@@ -14,8 +14,7 @@ import {
   GestureResponderEvent,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useUnifiedTheme } from '../../contexts/UnifiedThemeProvider';
-import { createButtonStyle, createTextStyle, ensureMinTouchTarget } from '../../utils/ThemeUtils';
+import { useTheme } from 'react-native-paper';
 
 export interface ThemedButtonProps {
   title: string;
@@ -48,34 +47,34 @@ export const ThemedButton: React.FC<ThemedButtonProps> = ({
   accessibilityLabel,
   accessibilityHint,
 }) => {
-  const { theme } = useUnifiedTheme();
+  const theme = useTheme();
 
   const getSizeStyles = () => {
     switch (size) {
       case 'small':
         return {
-          paddingHorizontal: theme.spacing.md,
-          paddingVertical: theme.spacing.sm,
-          minHeight: ensureMinTouchTarget(32, theme),
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          minHeight: 32,
         };
       case 'large':
         return {
-          paddingHorizontal: theme.spacing.xl,
-          paddingVertical: theme.spacing.lg,
-          minHeight: ensureMinTouchTarget(56, theme),
+          paddingHorizontal: 24,
+          paddingVertical: 16,
+          minHeight: 56,
         };
       default:
         return {
-          paddingHorizontal: theme.spacing.lg,
-          paddingVertical: theme.spacing.md,
-          minHeight: theme.accessibility.minTouchTarget,
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          minHeight: 44,
         };
     }
   };
 
   const getVariantStyles = () => {
     const baseStyle = {
-      borderRadius: theme.tokens.borderRadius.lg,
+      borderRadius: 8,
       justifyContent: 'center' as const,
       alignItems: 'center' as const,
       flexDirection: 'row' as const,
@@ -86,21 +85,29 @@ export const ThemedButton: React.FC<ThemedButtonProps> = ({
       case 'primary':
         return {
           ...baseStyle,
-          backgroundColor: disabled ? theme.colors.states.disabled : theme.colors.brand.primary,
-          ...theme.shadows.sm,
+          backgroundColor: disabled ? '#CCCCCC' : theme.colors.primary,
+          elevation: 2,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.18,
+          shadowRadius: 1.0,
         };
       case 'secondary':
         return {
           ...baseStyle,
-          backgroundColor: disabled ? theme.colors.states.disabled : theme.colors.brand.secondary,
-          ...theme.shadows.sm,
+          backgroundColor: disabled ? '#CCCCCC' : theme.colors.secondary,
+          elevation: 2,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.18,
+          shadowRadius: 1.0,
         };
       case 'outline':
         return {
           ...baseStyle,
           backgroundColor: 'transparent',
-          borderWidth: theme.constants.borderWidth,
-          borderColor: disabled ? theme.colors.states.disabled : theme.colors.border.medium,
+          borderWidth: 1,
+          borderColor: disabled ? '#CCCCCC' : theme.colors.outline,
         };
       case 'text':
         return {
@@ -110,8 +117,12 @@ export const ThemedButton: React.FC<ThemedButtonProps> = ({
       case 'danger':
         return {
           ...baseStyle,
-          backgroundColor: disabled ? theme.colors.states.disabled : theme.colors.semantic.error,
-          ...theme.shadows.sm,
+          backgroundColor: disabled ? '#CCCCCC' : theme.colors.error,
+          elevation: 2,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.18,
+          shadowRadius: 1.0,
         };
       default:
         return baseStyle;
@@ -120,25 +131,29 @@ export const ThemedButton: React.FC<ThemedButtonProps> = ({
 
   const getTextColor = () => {
     if (disabled) {
-      return theme.colors.text.tertiary;
+      return theme.colors.onSurfaceVariant;
     }
 
     switch (variant) {
       case 'primary':
       case 'secondary':
       case 'danger':
-        return theme.colors.text.inverse;
+        return theme.colors.onPrimary || '#FFFFFF';
       case 'outline':
       case 'text':
-        return theme.colors.text.primary;
+        return theme.colors.onSurface;
       default:
-        return theme.colors.text.primary;
+        return theme.colors.onSurface;
     }
   };
 
   const getTextStyles = () => {
-    const fontSize = size === 'small' ? 'sm' : size === 'large' ? 'lg' : 'base';
-    return createTextStyle(theme, fontSize, 'semibold', getTextColor());
+    const fontSize = size === 'small' ? 14 : size === 'large' ? 18 : 16;
+    return {
+      fontSize,
+      fontWeight: '600' as const,
+      color: getTextColor(),
+    };
   };
 
   const getIconSize = () => {
@@ -201,7 +216,7 @@ export const ThemedButton: React.FC<ThemedButtonProps> = ({
       style={buttonStyles}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={theme.constants.activeOpacity}
+      activeOpacity={0.7}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       testID={testID}
       accessibilityRole="button"
