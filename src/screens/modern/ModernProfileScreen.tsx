@@ -21,7 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
+import { useTheme } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
@@ -94,7 +94,7 @@ interface SettingsSection {
 }
 
 const ModernProfileScreen: React.FC = memo(() => {
-  const theme = useSafeTheme();
+  const theme = useTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);

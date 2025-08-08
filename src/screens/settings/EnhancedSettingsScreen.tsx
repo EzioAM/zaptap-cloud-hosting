@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { signOut } from '../../store/slices/authSlice';
-import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
+import { useTheme } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { EventLogger } from '../../utils/EventLogger';
@@ -42,7 +42,7 @@ interface SettingSection {
 }
 
 const EnhancedSettingsScreen: React.FC = () => {
-  const theme = useSafeTheme();
+  const theme = useTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
