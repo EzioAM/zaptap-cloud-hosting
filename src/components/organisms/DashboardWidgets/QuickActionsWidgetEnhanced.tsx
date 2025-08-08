@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,88 @@ import {
   Easing,
   Dimensions,
   Pressable,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
-import { gradients, glassEffects, subtleGradients } from '../../../theme/gradients';
-import { typography, fontWeights, textShadows } from '../../../theme/typography';
+import { ScannerModal } from '../../scanner/ScannerModal';
+// Safe imports with fallbacks
+let gradients: any = {};
+let glassEffects: any = {};
+let subtleGradients: any = {};
+let typography: any = {};
+let fontWeights: any = {};
+let textShadows: any = {};
+
+try {
+  const gradientsModule = require('../../../theme/gradients');
+  gradients = gradientsModule.gradients || {};
+  glassEffects = gradientsModule.glassEffects || {};
+  subtleGradients = gradientsModule.subtleGradients || {
+    lightGray: {
+      colors: ['#f8f9fa', '#e9ecef', '#dee2e6'],
+      start: { x: 0, y: 0 },
+      end: { x: 0, y: 1 },
+    }
+  };
+} catch (error) {
+  console.warn('Gradients theme not found, using defaults');
+  // Provide fallback gradients
+  gradients = {
+    primary: { colors: ['#6366F1', '#8B5CF6'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    success: { colors: ['#10B981', '#34D399'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    ocean: { colors: ['#0EA5E9', '#38BDF8'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+  };
+  subtleGradients = {
+    lightGray: {
+      colors: ['#f8f9fa', '#e9ecef', '#dee2e6'],
+      start: { x: 0, y: 0 },
+      end: { x: 0, y: 1 },
+    }
+  };
+}
+
+try {
+  const typographyModule = require('../../../theme/typography');
+  typography = typographyModule.typography || {};
+  fontWeights = typographyModule.fontWeights || {
+    regular: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+  };
+  textShadows = typographyModule.textShadows || {
+    subtle: {
+      textShadowColor: 'rgba(0, 0, 0, 0.1)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    }
+  };
+} catch (error) {
+  console.warn('Typography theme not found, using defaults');
+  typography = {
+    overline: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+    headlineMedium: { fontSize: 20, fontWeight: '600' },
+    labelLarge: { fontSize: 14, fontWeight: '500' },
+    caption: { fontSize: 12, fontWeight: '400' },
+  };
+  fontWeights = {
+    regular: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+  };
+  textShadows = {
+    subtle: {
+      textShadowColor: 'rgba(0, 0, 0, 0.1)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    }
+  };
+}
 import * as Haptics from 'expo-haptics';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -214,9 +288,9 @@ const ActionButton3D: React.FC<ActionButtonProps> = ({
         />
 
         <LinearGradient
-          colors={gradient.colors}
-          start={gradient.start}
-          end={gradient.end}
+          colors={gradient && gradient.colors && gradient.colors.length >= 2 ? gradient.colors : ['#8B5CF6', '#7C3AED']}
+          start={gradient?.start || { x: 0, y: 0 }}
+          end={gradient?.end || { x: 1, y: 1 }}
           style={styles.gradientButton}
         >
           {/* Ripple effect */}
@@ -261,6 +335,7 @@ export const QuickActionsWidgetEnhanced: React.FC<QuickActionsWidgetEnhancedProp
   const theme = useSafeTheme();
   const navigation = useNavigation();
   const containerScale = useRef(new Animated.Value(0.95)).current;
+  const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
     Animated.spring(containerScale, {
@@ -284,10 +359,23 @@ export const QuickActionsWidgetEnhanced: React.FC<QuickActionsWidgetEnhancedProp
   const handleScanTag = () => {
     console.log('DEBUG: QuickActionsWidget - handleScanTag called');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (onBrowseAutomations) {
-      onBrowseAutomations();
-    } else {
-      navigation.navigate('DiscoverTab' as never);
+    // Open scanner modal instead of navigating to discover
+    setShowScanner(true);
+  };
+
+  const handleScanResult = async (automationId: string, metadata: any) => {
+    try {
+      // Here you would fetch the automation data and execute it
+      // For now, we'll show a success message
+      Alert.alert(
+        'Automation Scanned! 🚀',
+        `Found: ${metadata.title || 'Unknown automation'}\n\nThis would execute the automation in a real implementation.`,
+        [
+          { text: 'OK' }
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to execute scanned automation');
     }
   };
 
@@ -302,67 +390,75 @@ export const QuickActionsWidgetEnhanced: React.FC<QuickActionsWidgetEnhancedProp
   };
 
   return (
-    <Animated.View style={{ transform: [{ scale: containerScale }] }}>
-      <LinearGradient
-        colors={subtleGradients.lightGray.colors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.container}
-      >
-        {Platform.OS === 'ios' && (
-          <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFillObject} />
-        )}
-        
-        <View style={[styles.content, styles.glassContent]}>
-          <View style={styles.header}>
-            <View>
-              <Text style={[styles.overline, { color: theme.colors?.primary || '#6366F1' }]}>
-                QUICK ACTIONS
-              </Text>
-              <Text style={[styles.title, { color: theme.colors?.text || '#000' }]}>
-                Get Started
+    <>
+      <Animated.View style={{ transform: [{ scale: containerScale }] }}>
+        <LinearGradient
+          colors={subtleGradients.lightGray.colors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.container}
+        >
+          {Platform.OS === 'ios' && (
+            <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFillObject} />
+          )}
+          
+          <View style={[styles.content, styles.glassContent]}>
+            <View style={styles.header}>
+              <View>
+                <Text style={[styles.overline, { color: theme.colors?.primary || '#6366F1' }]}>
+                  QUICK ACTIONS
+                </Text>
+                <Text style={[styles.title, { color: theme.colors?.text || '#000' }]}>
+                  Get Started
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.actionsGrid}>
+              <ActionButton3D
+                icon="plus-circle"
+                label="Create"
+                onPress={handleCreateAutomation}
+                gradientKey="primary"
+                delay={0}
+              />
+              <ActionButton3D
+                icon="qrcode-scan"
+                label="Scan"
+                onPress={handleScanTag}
+                gradientKey="success"
+                delay={100}
+              />
+              <ActionButton3D
+                icon="cloud-download"
+                label="Import"
+                onPress={handleImportAutomation}
+                gradientKey="ocean"
+                delay={200}
+              />
+            </View>
+
+            <View style={styles.footer}>
+              <LinearGradient
+                colors={['#6366F1', '#8B5CF6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.footerAccent}
+              />
+              <Text style={[styles.footerText, { color: theme.colors?.textSecondary || '#666' }]}>
+                Tap any action to begin
               </Text>
             </View>
           </View>
-
-          <View style={styles.actionsGrid}>
-            <ActionButton3D
-              icon="plus-circle"
-              label="Create"
-              onPress={handleCreateAutomation}
-              gradientKey="primary"
-              delay={0}
-            />
-            <ActionButton3D
-              icon="qrcode-scan"
-              label="Scan"
-              onPress={handleScanTag}
-              gradientKey="success"
-              delay={100}
-            />
-            <ActionButton3D
-              icon="cloud-download"
-              label="Import"
-              onPress={handleImportAutomation}
-              gradientKey="ocean"
-              delay={200}
-            />
-          </View>
-
-          <View style={styles.footer}>
-            <LinearGradient
-              colors={['#6366F1', '#8B5CF6']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.footerAccent}
-            />
-            <Text style={[styles.footerText, { color: theme.colors?.textSecondary || '#666' }]}>
-              Tap any action to begin
-            </Text>
-          </View>
-        </View>
-      </LinearGradient>
-    </Animated.View>
+        </LinearGradient>
+      </Animated.View>
+      
+      <ScannerModal
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={handleScanResult}
+      />
+    </>
   );
 };
 

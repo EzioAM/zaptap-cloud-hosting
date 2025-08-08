@@ -91,6 +91,38 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
     setCurrentIndex(index);
   };
 
+  // Helper function to determine if a color is light or dark for text contrast
+  const isLightColor = (color: string) => {
+    // Safety check for undefined/null colors
+    if (!color || typeof color !== 'string') {
+      return false; // Default to dark text on light background
+    }
+    
+    try {
+      const hex = color.replace('#', '');
+      
+      // Ensure we have a valid hex color (6 characters)
+      if (hex.length !== 6) {
+        return false;
+      }
+      
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      
+      // Check for invalid color values
+      if (isNaN(r) || isNaN(g) || isNaN(b)) {
+        return false;
+      }
+      
+      const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+      return brightness > 155;
+    } catch (error) {
+      // If any error occurs, default to dark text
+      return false;
+    }
+  };
+
   const renderCard = ({ item, index }: { item: TrendingItem; index: number }) => {
     const inputRange = [
       (index - 1) * (CARD_WIDTH + SPACING),
@@ -122,6 +154,13 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
       extrapolate: 'clamp',
     });
 
+    // Determine text colors based on background for better contrast
+    const safeColor = item.color || '#6366F1'; // Fallback color
+    const isLight = isLightColor(safeColor);
+    const primaryTextColor = isLight ? '#1a1a1a' : '#ffffff';
+    const secondaryTextColor = isLight ? 'rgba(26,26,26,0.8)' : 'rgba(255,255,255,0.9)';
+    const iconColor = isLight ? '#1a1a1a' : '#ffffff';
+
     return (
       <Animated.View
         style={[
@@ -148,34 +187,40 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
           accessibilityLabel={`Trending automation: ${item.title}`}
         >
           <LinearGradient
-            colors={[item.color, `${item.color}80`, item.color]}
+            colors={[safeColor, `${safeColor}E6`, `${safeColor}CC`]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.cardBackground}
           >
+            {/* Dark overlay for better text contrast */}
+            <View style={[styles.overlay, { backgroundColor: isLight ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.2)' }]} />
+            
             {/* Trending Badge */}
             <View style={styles.trendingBadge}>
-              <MaterialCommunityIcons name="trending-up" size={12} color="#FF6B6B" />
+              <MaterialCommunityIcons name="trending-up" size={12} color="#FF4444" />
               <Text style={styles.trendingBadgeText}>Trending</Text>
             </View>
 
             {/* Card Content */}
             <View style={styles.cardContent}>
               <View style={styles.cardHeader}>
-                <View style={[styles.iconContainer, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                  <MaterialCommunityIcons name={item.icon as any} size={28} color="white" />
+                <View style={[
+                  styles.iconContainer, 
+                  { backgroundColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)' }
+                ]}>
+                  <MaterialCommunityIcons name={item.icon as any} size={28} color={iconColor} />
                 </View>
                 <View style={styles.cardInfo}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>
+                  <Text style={[styles.cardTitle, { color: primaryTextColor }]} numberOfLines={1}>
                     {item.title}
                   </Text>
-                  <Text style={styles.cardAuthor} numberOfLines={1}>
+                  <Text style={[styles.cardAuthor, { color: secondaryTextColor }]} numberOfLines={1}>
                     by {item.author}
                   </Text>
                 </View>
               </View>
 
-              <Text style={styles.cardDescription} numberOfLines={2}>
+              <Text style={[styles.cardDescription, { color: secondaryTextColor }]} numberOfLines={2}>
                 {item.description}
               </Text>
 
@@ -196,31 +241,40 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
                       <MaterialCommunityIcons
                         name="heart"
                         size={16}
-                        color="rgba(255,255,255,0.9)"
+                        color={iconColor}
                       />
                     </Animated.View>
-                    <Text style={styles.statText}>{item.likes}</Text>
+                    <Text style={[styles.statText, { color: secondaryTextColor }]}>{item.likes}</Text>
                   </TouchableOpacity>
 
                   <View style={styles.statItem}>
                     <MaterialCommunityIcons
                       name="download"
                       size={16}
-                      color="rgba(255,255,255,0.9)"
+                      color={iconColor}
                     />
-                    <Text style={styles.statText}>{item.uses}</Text>
+                    <Text style={[styles.statText, { color: secondaryTextColor }]}>{item.uses}</Text>
                   </View>
                 </View>
 
-                <View style={styles.categoryPill}>
-                  <Text style={styles.categoryText}>{item.category}</Text>
+                <View style={[
+                  styles.categoryPill,
+                  { backgroundColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)' }
+                ]}>
+                  <Text style={[styles.categoryText, { color: primaryTextColor }]}>{item.category}</Text>
                 </View>
               </View>
             </View>
 
-            {/* Decorative Elements */}
-            <View style={styles.decorativeCircle1} />
-            <View style={styles.decorativeCircle2} />
+            {/* Enhanced Decorative Elements */}
+            <View style={[
+              styles.decorativeCircle1,
+              { backgroundColor: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)' }
+            ]} />
+            <View style={[
+              styles.decorativeCircle2,
+              { backgroundColor: isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.05)' }
+            ]} />
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
@@ -322,28 +376,42 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
   trendingBadge: {
     position: 'absolute',
     top: 12,
     right: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    zIndex: 2,
+    zIndex: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   trendingBadgeText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#FF6B6B',
+    fontWeight: '700',
+    color: '#FF4444',
     marginLeft: 2,
   },
   cardContent: {
     flex: 1,
     padding: 16,
     justifyContent: 'space-between',
+    zIndex: 2,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -357,6 +425,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cardInfo: {
     flex: 1,
@@ -364,21 +437,20 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: 'white',
-    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowColor: 'rgba(0,0,0,0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   cardAuthor: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
+    fontWeight: '500',
   },
   cardDescription: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.9)',
     lineHeight: 18,
-    textShadowColor: 'rgba(0,0,0,0.2)',
+    fontWeight: '400',
+    textShadowColor: 'rgba(0,0,0,0.1)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
   },
@@ -398,21 +470,24 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
     fontWeight: '600',
     marginLeft: 4,
   },
   categoryPill: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   categoryText: {
     fontSize: 10,
-    color: 'white',
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   decorativeCircle1: {
     position: 'absolute',
@@ -421,7 +496,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   decorativeCircle2: {
     position: 'absolute',
@@ -430,7 +504,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   indicatorContainer: {
     flexDirection: 'row',

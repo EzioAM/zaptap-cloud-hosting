@@ -170,8 +170,8 @@ const LibraryScreen: React.FC = memo(() => {
   const theme = useSafeTheme();
   const navigation = useNavigation();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
-  const { connectionState } = useConnection();
-  const { isConnected } = connectionState;
+  const { isOnline, isBackendConnected } = useConnection();
+  const isConnected = isOnline && isBackendConnected;
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -775,6 +775,7 @@ const LibraryScreen: React.FC = memo(() => {
       {/* Feedback Toast */}
       {feedback.visible && (
         <Animated.View 
+          pointerEvents="box-none" // Allow touch pass-through to elements below
           style={[
             styles.feedbackToast,
             { backgroundColor: theme.colors.surface },
@@ -919,12 +920,13 @@ const styles = StyleSheet.create({
   },
   fabContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 100, // Increased from 20 to avoid navigation bar overlap
     right: 20,
+    zIndex: 999, // Ensure FAB is below navigation bar (zIndex: 1000)
   },
   feedbackToast: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 180, // Increased from 100 to ensure no overlap with FAB or navigation
     left: 20,
     right: 20,
     flexDirection: 'row',
@@ -937,6 +939,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     gap: 12,
+    zIndex: 998, // Below FAB and navigation bar
   },
   feedbackText: {
     fontSize: 16,

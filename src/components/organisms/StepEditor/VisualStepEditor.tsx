@@ -124,10 +124,11 @@ export const VisualStepEditor: React.FC<VisualStepEditorProps> = ({
           <DraggableFlatList
             data={steps}
             onDragEnd={handleDragEnd}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => `step-${item.id}`}
             renderItem={renderStep}
             containerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
+            activationDistance={10}
             animationConfig={{
               damping: 15,
               stiffness: 200,

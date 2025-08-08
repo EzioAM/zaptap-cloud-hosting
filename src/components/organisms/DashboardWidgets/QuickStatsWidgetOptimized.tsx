@@ -15,8 +15,32 @@ import Svg, { Circle } from 'react-native-svg';
 import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { useGetTodayStatsQuery } from '../../../store/api/dashboardApi';
 import EnhancedLoadingSkeleton from '../../common/EnhancedLoadingSkeleton';
-import { Card } from '../../atoms';
-import { Shimmer } from '../../atoms';
+// Safe imports for atoms components
+let Card: React.ComponentType<any>;
+let Shimmer: React.ComponentType<any>;
+
+try {
+  const atomsModule = require('../../atoms');
+  Card = atomsModule.Card;
+  Shimmer = atomsModule.Shimmer;
+} catch (error) {
+  console.warn('Atoms components not found, using fallbacks');
+  Card = ({ children, style }: any) => (
+    <View style={[{ backgroundColor: '#fff', borderRadius: 8, padding: 16 }, style]}>
+      {children}
+    </View>
+  );
+  Shimmer = ({ width, height, borderRadius, style }: any) => (
+    <View 
+      style={[{
+        width, 
+        height, 
+        backgroundColor: '#f0f0f0', 
+        borderRadius: borderRadius || 4
+      }, style]} 
+    />
+  );
+}
 import { EventLogger } from '../../../utils/EventLogger';
 import {
   useOptimizedAnimatedValue,

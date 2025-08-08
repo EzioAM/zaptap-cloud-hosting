@@ -18,6 +18,142 @@ export interface AutomationTemplate {
 export class AutomationTemplateService {
   private static templates: AutomationTemplate[] = [
     {
+      id: 'smart-morning-routine',
+      title: 'Smart Morning Routine',
+      description: 'Start your day perfectly with automated lights, music, and weather',
+      category: 'productivity',
+      tags: ['morning', 'routine', 'productivity', 'daily', 'smart-home', 'weather'],
+      difficulty: 'intermediate',
+      estimatedTime: '3 minutes',
+      icon: 'weather-sunny',
+      color: '#FFC107',
+      isPopular: true,
+      steps: [
+        {
+          id: 'smart-morning-1',
+          type: 'notification',
+          title: 'Good Morning',
+          enabled: true,
+          config: {
+            message: '☀️ Good morning! Starting your perfect day routine...'
+          }
+        },
+        {
+          id: 'smart-morning-2',
+          type: 'brightness',
+          title: 'Adjust Screen Brightness',
+          enabled: true,
+          config: {
+            level: 80,
+            transition: 'gradual'
+          }
+        },
+        {
+          id: 'smart-morning-3',
+          type: 'webhook',
+          title: 'Turn On Smart Lights',
+          enabled: true,
+          config: {
+            url: 'https://your-smart-home/lights/on',
+            method: 'POST',
+            body: '{"brightness": 75, "color": "warm"}'
+          }
+        },
+        {
+          id: 'smart-morning-4',
+          type: 'http',
+          title: 'Get Weather Forecast',
+          enabled: true,
+          config: {
+            url: 'https://api.weather.com/forecast',
+            method: 'GET',
+            saveToVariable: 'weatherData'
+          }
+        },
+        {
+          id: 'smart-morning-5',
+          type: 'open-app',
+          title: 'Start Music App',
+          enabled: true,
+          config: {
+            appName: 'Spotify',
+            action: 'play_playlist',
+            playlist: 'Morning Vibes'
+          }
+        },
+        {
+          id: 'smart-morning-6',
+          type: 'volume',
+          title: 'Set Music Volume',
+          enabled: true,
+          config: {
+            level: 50
+          }
+        },
+        {
+          id: 'smart-morning-7',
+          type: 'prompt_input',
+          title: 'Daily Goal',
+          enabled: true,
+          config: {
+            title: 'Set Your Intention',
+            message: 'What\'s your main goal for today?',
+            variableName: 'dailyGoal',
+            defaultValue: 'Be productive and positive'
+          }
+        },
+        {
+          id: 'smart-morning-8',
+          type: 'variable',
+          title: 'Create Daily Summary',
+          enabled: true,
+          config: {
+            name: 'morningSummary',
+            value: 'Good morning! Today\'s weather: {{weatherData}}. Your goal: {{dailyGoal}}'
+          }
+        },
+        {
+          id: 'smart-morning-9',
+          type: 'notification',
+          title: 'Daily Briefing',
+          enabled: true,
+          config: {
+            message: '{{morningSummary}}'
+          }
+        },
+        {
+          id: 'smart-morning-10',
+          type: 'sms',
+          title: 'Share Morning Status',
+          enabled: true,
+          config: {
+            phoneNumber: '',
+            message: '☀️ Good morning! I\'m up and ready. Today\'s goal: {{dailyGoal}}'
+          }
+        },
+        {
+          id: 'smart-morning-11',
+          type: 'webhook',
+          title: 'Start Coffee Maker',
+          enabled: true,
+          config: {
+            url: 'https://your-smart-home/coffee/brew',
+            method: 'POST',
+            body: '{"strength": "medium", "size": "large"}'
+          }
+        },
+        {
+          id: 'smart-morning-12',
+          type: 'notification',
+          title: 'Routine Complete',
+          enabled: true,
+          config: {
+            message: '✅ Morning routine complete! Have an amazing day! 🚀'
+          }
+        }
+      ]
+    },
+    {
       id: 'morning-routine',
       title: 'Morning Routine',
       description: 'Start your day with a comprehensive morning routine automation',

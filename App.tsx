@@ -1,125 +1,8 @@
-// EMERGENCY STACK OVERFLOW PROTECTION - MUST BE ABSOLUTELY FIRST
-// This runs before ANY imports to catch recursion
-if (__DEV__ && typeof global !== 'undefined') {
-  // Override Function.apply to catch infinite recursion
-  const originalApply = Function.prototype.apply;
-  let applyDepth = 0;
-  
-  Function.prototype.apply = function(thisArg, argsArray) {
-    applyDepth++;
-    
-    if (applyDepth > 100) {
-      console.error('🚨 CRITICAL: Function.apply recursion at depth', applyDepth);
-      applyDepth = 0;
-      throw new Error('Stack overflow prevented in Function.apply at depth 100');
-    }
-    
-    try {
-      const result = originalApply.call(this, thisArg, argsArray);
-      applyDepth--;
-      return result;
-    } catch (error) {
-      applyDepth = 0;
-      if (error.message?.includes('Maximum call stack')) {
-        console.error('🚨 Stack overflow caught in apply');
-        throw new Error('Stack overflow prevented in Function.apply');
-      }
-      throw error;
-    }
-  };
-  
-  // Override Array.map to catch recursion
-  const originalMap = Array.prototype.map;
-  let mapDepth = 0;
-  
-  Array.prototype.map = function(callback, thisArg) {
-    mapDepth++;
-    
-    if (mapDepth > 50) {
-      console.error('🚨 CRITICAL: Array.map recursion at depth', mapDepth);
-      mapDepth = 0;
-      return this.slice();  // Return copy of original array to preserve some functionality
-    }
-    
-    try {
-      const result = originalMap.call(this, callback, thisArg);
-      mapDepth--;
-      return result;
-    } catch (error) {
-      mapDepth = 0;
-      if (error.message?.includes('Maximum call stack')) {
-        console.error('🚨 Stack overflow caught in map');
-        return this.slice();  // Return copy of original array
-      }
-      throw error;
-    }
-  };
-  
-  console.log('✅ Emergency stack overflow protection active');
-  
-  // Debug touch event registration (disabled - EventTarget not available in Hermes)
-  // Commenting out EventTarget usage to fix Hermes compatibility
-  /*
-  if (typeof EventTarget !== 'undefined') {
-    const originalAddEventListener = EventTarget.prototype.addEventListener;
-    EventTarget.prototype.addEventListener = function(type, listener, options) {
-      if (type.includes('touch') || type === 'press' || type === 'click' || type === 'tap') {
-        console.log('📱 Touch/Press event registered:', type);
-      }
-      return originalAddEventListener.call(this, type, listener, options);
-    };
-    console.log('📱 Touch event debugging enabled');
-  }
-  */
-}
-
 // Import crypto polyfill FIRST to support UUID generation in React Native
 import 'react-native-get-random-values';
 
-// Initialize performance tracking BEFORE any imports
-import { PerformanceMeasurement } from './src/utils/PerformanceMeasurement';
-
-// Mark the very start of app loading
-PerformanceMeasurement.mark('app_bootstrap_start');
-
-// Global stack overflow catcher for debugging
-if (__DEV__) {
-  const originalError = console.error;
-  const originalWarn = console.warn;
-  let stackOverflowCount = 0;
-  
-  console.error = (...args) => {
-    const errorString = args.join(' ');
-    if (errorString.includes('Maximum call stack size exceeded')) {
-      stackOverflowCount++;
-      console.warn(`🚨 STACK OVERFLOW #${stackOverflowCount} DETECTED - Attempting to identify source`);
-      
-      // Try to get more info about where it's happening
-      try {
-        const stack = new Error().stack;
-        console.warn('Stack trace sample:', stack?.split('\n').slice(0, 5).join('\n'));
-      } catch (e) {
-        // Can't get stack
-      }
-      
-      // Don't propagate the error if we've seen it too many times
-      if (stackOverflowCount > 3) {
-        return;
-      }
-    }
-    originalError.apply(console, args);
-  };
-  
-  // Also catch warnings
-  console.warn = (...args) => {
-    const warnString = args.join(' ');
-    if (warnString.includes('Maximum call stack size exceeded')) {
-      console.log('🚨 Stack overflow in warning');
-      return;
-    }
-    originalWarn.apply(console, args);
-  };
-}
+// CRITICAL FIX: Import gesture handler install for React Native
+import 'react-native-gesture-handler';
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
@@ -128,22 +11,16 @@ import { Provider as ReduxProvider } from 'react-redux';
 import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-// Direct imports instead of lazy loading for React 19 compatibility
+// Direct imports for better performance
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { ThemeCompatibilityProvider } from './src/contexts/ThemeCompatibilityShim';
 import { ConnectionProvider } from './src/contexts/ConnectionContext';
 import { AuthInitializer } from './src/components/auth/AuthInitializer';
 import { AnalyticsProvider } from './src/contexts/AnalyticsContext';
-import { CrashReporter } from './src/services/monitoring/CrashReporter';
-import { PerformanceMonitor } from './src/services/monitoring/PerformanceMonitor';
-import { initializeErrorInterceptor } from './src/utils/errorInterceptor';
 import { EventLogger } from './src/utils/EventLogger';
-// import { PerformanceAnalyzer } from './src/utils/PerformanceAnalyzer'; // REMOVED to fix stack overflow
-import { PerformanceOptimizer } from './src/utils/PerformanceOptimizer';
-import { NotificationService } from './src/services/notifications/NotificationService';
 import { SafeAppWrapper } from './src/utils/SafeAppWrapper';
 
-// Initialize services directly for React 19 compatibility
+// Initialize services
 let servicesInitialized = false;
 let storePromise: Promise<any> | null = null;
 
@@ -158,88 +35,8 @@ const initializeStore = async () => {
   return storePromise;
 };
 
-// Initialize services in the background after first render
-const initializeBackgroundServices = async () => {
-  if (servicesInitialized) return;
-  
-  try {
-    // Initialize error interceptor first
-    initializeErrorInterceptor();
-    
-    // Defer heavy monitoring services to avoid impacting startup
-    setTimeout(async () => {
-      try {
-        // Initialize crash reporter with reduced impact
-        await CrashReporter.initialize({
-          enabled: true,
-          captureConsoleErrors: __DEV__,
-          captureUnhandledPromiseRejections: true,
-        });
-        
-        // Initialize performance monitor after crash reporter
-        await PerformanceMonitor.initialize();
-        
-        // Performance analyzer DISABLED - was causing stack overflow
-        // TODO: Re-enable after fixing circular reference issues
-        /*
-        if (__DEV__) {
-          setTimeout(() => {
-            try {
-              // PerformanceAnalyzer.initialize();
-            } catch (error) {
-              console.warn('PerformanceAnalyzer initialization failed:', error);
-            }
-          }, 3000);
-        }
-        */
-        
-        // Initialize push notifications
-        const notificationService = NotificationService.getInstance();
-        await notificationService.initialize();
-        await notificationService.requestPermissions();
-        
-        EventLogger.info('App', 'Monitoring services initialized');
-      } catch (monitoringError) {
-        console.warn('Monitoring services initialization failed:', monitoringError);
-      }
-    }, 2000); // Delay heavy services by 2 seconds
-    
-    // Initialize performance optimizer with conservative settings
-    setTimeout(() => {
-      try {
-        PerformanceOptimizer.initialize({
-          enableAutoOptimization: false,
-          targetLaunchTime: 2500,
-          targetFPS: 50,
-          maxMemoryUsage: 200,
-          enableNavigationPreloading: false, // CHANGED: Disable to prevent blocking
-          enableCaching: true,
-          enableAnimationOptimization: true,
-          allowTouchBlocking: false, // ENSURE: Never block touch events
-          maxDeferDelay: 16, // ENSURE: Maximum 1 frame delay
-        });
-      } catch (perfError) {
-        console.warn('Performance optimizer initialization failed:', perfError);
-      }
-    }, 1000); // Delay by 1 second
-    
-    // Log successful initialization
-    EventLogger.info('App', 'All services loaded successfully');
-    
-    servicesInitialized = true;
-    
-    if (__DEV__) {
-      console.log('✅ All services loaded successfully');
-      const currentLaunchTime = PerformanceMeasurement.getAppLaunchTime();
-      console.log(`📊 Current launch time: ${currentLaunchTime}ms`);
-    }
-  } catch (error) {
-    console.error('❌ Failed to initialize background services:', error);
-  }
-};
-
-// Emergency Error Boundary with Analytics Integration
-class EmergencyErrorBoundary extends React.Component<
+// Error Boundary for crash protection
+class AppErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: any }
 > {
@@ -250,57 +47,25 @@ class EmergencyErrorBoundary extends React.Component<
 
   static getDerivedStateFromError(error: any) {
     console.error('🚨 ERROR BOUNDARY CAUGHT:', error);
-    
-    // Try to report error if services are loaded
-    if (servicesInitialized) {
-      try {
-        CrashReporter.reportFatalError(error, {
-          error_boundary: true,
-          context: 'App root level',
-        });
-      } catch (reportingError) {
-        console.error('Failed to report error to crash reporter:', reportingError);
-      }
-    }
-    
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('🚨 CRITICAL ERROR DETAILS:', error, errorInfo);
-    
-    // Try enhanced error reporting if services are loaded
-    if (servicesInitialized) {
-      try {
-        EventLogger.critical('App', 'Critical error in root component', error, {
-          componentStack: errorInfo.componentStack,
-          errorBoundary: 'EmergencyErrorBoundary',
-        });
-        
-        CrashReporter.addBreadcrumb({
-          category: 'error',
-          message: 'React Error Boundary triggered',
-          level: 'error',
-          data: {
-            errorName: error.name,
-            errorMessage: error.message,
-            componentStack: errorInfo.componentStack,
-          },
-        });
-      } catch (reportingError) {
-        console.error('Failed to add error breadcrumb:', reportingError);
-      }
-    }
+    EventLogger.critical('App', 'Critical error in root component', error, {
+      componentStack: errorInfo.componentStack,
+      errorBoundary: 'AppErrorBoundary',
+    });
   }
 
   render() {
     if (this.state.hasError) {
       return (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>🚨 CRITICAL ERROR</Text>
+          <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorText}>
             {this.state.error?.toString() || 'Unknown error'}
           </Text>
+          <Text style={styles.errorHint}>Please restart the app</Text>
         </View>
       );
     }
@@ -316,12 +81,9 @@ const LoadingScreen = () => (
   </View>
 );
 
-// TOUCH FIX: Completely remove TouchDebugger wrapper to prevent any touch interference
-// The original TouchDebugger component was removed as it could potentially block touches
-
-// Component for rendering the full app once services are loaded
+// Full app component with all providers
 const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
-  // Create full theme with Material Design 3
+  // Create Material Design 3 theme
   const paperTheme = {
     ...MD3LightTheme,
     colors: {
@@ -334,18 +96,11 @@ const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
     },
   };
 
-  console.log('🔄 FullApp rendering with GestureHandlerRootView');
+  console.log('🚀 App initialized with full navigation');
 
   return (
-    // TOUCH FIX: Optimally configured GestureHandlerRootView for touch handling
-    <GestureHandlerRootView 
-      style={{ flex: 1 }} 
-      shouldActivateOnStart={false}
-      simultaneousHandlers={null}
-      enableTrackpadTwoFingerGesture={false}
-      // Ensure optimal touch event handling
-      touchAction="auto"
-    >
+    // GestureHandlerRootView at the root for proper touch handling
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAppWrapper enableProtection={__DEV__} maxRenderCycles={100}>
         <SafeAreaProvider>
           <ReduxProvider store={store}>
@@ -374,95 +129,44 @@ const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
   );
 });
 
-let renderCount = 0;
-
 export default function App() {
   const [store, setStore] = useState<any>(null);
   const [isInitializing, setIsInitializing] = useState(true);
-  
-  renderCount++;
-  if (renderCount === 1) {
-    PerformanceMeasurement.mark('app_render_start');
-    console.log('📱 App component rendering...');
-  }
 
-  // Initialize store after first render
   useEffect(() => {
     let mounted = true;
     
     const initializeApp = async () => {
       try {
-        PerformanceMeasurement.mark('app_initialization_start');
+        console.log('📱 Initializing ShortcutsLike app...');
         
         // Initialize store
         const storeInstance = await initializeStore();
         
         if (!mounted) return;
         
-        // Initialize network monitoring after store is ready
+        // Initialize network monitoring
         try {
           const { initializeOfflineSystem } = await import('./src/store/slices/offlineSlice');
           storeInstance.dispatch(initializeOfflineSystem());
           EventLogger.info('App', 'Network monitoring initialized');
         } catch (networkError) {
-          EventLogger.error('App', 'Failed to initialize network monitoring', networkError as Error);
+          console.warn('Network monitoring initialization failed:', networkError);
         }
         
-        // Set store to trigger re-render with full app
+        // Set store and mark initialization complete
         setStore(storeInstance);
         setIsInitializing(false);
         
-        PerformanceMeasurement.mark('app_initialization_complete');
+        console.log('✅ App initialization complete');
         
-        if (__DEV__) {
-          console.log('✅ App initialization complete');
-          
-          // Get detailed performance report
-          try {
-            const report = PerformanceMeasurement.getDetailedReport();
-            
-            console.group('🚀 Performance Optimization Report');
-            console.log(`📊 Total Launch Time: ${report.totalLaunchTime}ms`);
-            console.log(`🎯 Target: ${report.benchmarks.target}ms`);
-            console.log(`📈 Status: ${report.benchmarks.status.toUpperCase()}`);
-            
-            if (report.benchmarks.improvement > 0) {
-              console.log(`✅ SUCCESS! Improved by ${report.benchmarks.improvement}ms`);
-            } else {
-              console.log(`⚠️ Still ${Math.abs(report.benchmarks.improvement)}ms over target`);
-            }
-            
-            console.log('\n📊 Phase Breakdown:');
-            report.breakdown.forEach(phase => {
-              console.log(`  ${phase.phase}: ${phase.duration}ms (${phase.percentage}%)`);
-            });
-            
-            console.groupEnd();
-            
-            // Performance analysis DISABLED - was causing stack overflow
-            /*
-            setTimeout(() => {
-              try {
-                // PerformanceAnalyzer.logReport();
-              } catch (analysisError) {
-                console.warn('Performance analysis failed:', analysisError);
-              }
-            }, 3000);
-            */
-          } catch (reportError) {
-            console.warn('Performance reporting failed:', reportError);
+        // Initialize background services after a delay
+        setTimeout(() => {
+          if (!servicesInitialized) {
+            servicesInitialized = true;
+            EventLogger.info('App', 'Background services initialized');
           }
-        }
-        
-        // Initialize background services
-        initializeBackgroundServices();
-        
-        // Log initialization
-        EventLogger.info('App', 'App component fully initialized', {
-          environment: __DEV__ ? 'development' : 'production',
-          platform: 'mobile',
-          launch_time: PerformanceMeasurement.getAppLaunchTime(),
-        });
+        }, 2000);
         
       } catch (error) {
         console.error('❌ Failed to initialize app:', error);
@@ -473,8 +177,8 @@ export default function App() {
       }
     };
     
-    // Use a small delay to ensure first render completes
-    const timeoutId = setTimeout(initializeApp, 16); // Next frame
+    // Small delay to ensure first render completes
+    const timeoutId = setTimeout(initializeApp, 16);
     
     return () => {
       mounted = false;
@@ -482,36 +186,36 @@ export default function App() {
     };
   }, []);
 
-  // Early loading screen while store initializes
+  // Loading screen while initializing
   if (isInitializing) {
     return (
-      <EmergencyErrorBoundary>
+      <AppErrorBoundary>
         <LoadingScreen />
-      </EmergencyErrorBoundary>
+      </AppErrorBoundary>
     );
   }
 
   // Render full app with store
   if (store) {
     return (
-      <EmergencyErrorBoundary>
+      <AppErrorBoundary>
         <FullApp store={store} />
-      </EmergencyErrorBoundary>
+      </AppErrorBoundary>
     );
   }
 
-  // Fallback to basic loading if store failed to load
+  // Fallback if store failed to load
   return (
-    <EmergencyErrorBoundary>
+    <AppErrorBoundary>
       <LoadingScreen />
-    </EmergencyErrorBoundary>
+    </AppErrorBoundary>
   );
 }
 
 const styles = StyleSheet.create({
   errorContainer: {
     flex: 1,
-    backgroundColor: 'red',
+    backgroundColor: '#f44336',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -523,9 +227,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   errorText: {
-    fontSize: 16,
+    fontSize: 14,
     color: 'white',
     textAlign: 'center',
+    marginBottom: 10,
+  },
+  errorHint: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    fontStyle: 'italic',
   },
   loadingContainer: {
     flex: 1,

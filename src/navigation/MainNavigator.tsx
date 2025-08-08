@@ -6,6 +6,7 @@ import { ModernBottomTabNavigator } from './ModernBottomTabNavigator';
 // import { ModernBottomTabNavigator } from './EmergencyBottomTabNavigator';
 import AutomationBuilderScreen from '../screens/automation/AutomationBuilderScreen';
 import AutomationDetailsScreen from '../screens/automation/AutomationDetailsScreen';
+import TemplatesScreen from '../screens/automation/TemplatesScreen';
 import LocationTriggersScreen from '../screens/automation/LocationTriggersScreen';
 import ReviewsScreen from '../screens/automation/ReviewsScreen';
 import { DeveloperMenuScreen } from '../screens/developer/DeveloperMenuScreen';
@@ -31,6 +32,7 @@ import ScannerScreen from '../screens/modern/ScannerScreen';
 import { RootStackParamList } from './types';
 import { EventLogger } from '../utils/EventLogger';
 import { NavigationErrorBoundary } from '../components/ErrorBoundaries';
+import { onboardingManager } from '../utils/OnboardingManager';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -51,31 +53,40 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
     EventLogger.debug('Navigation', '🚨 MainNavigator starting...');
   }
   
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(true);
-  const [isLoading, setIsLoading] = useState(false);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [isRecoveringFromError, setIsRecoveringFromError] = useState(false);
   
   useEffect(() => {
-    try {
-      if (navigatorInitCount === 1) {
-        EventLogger.debug('Navigation', '🚨 MainNavigator mounted, auth state:', isAuthenticated);
+    const checkOnboardingStatus = async () => {
+      try {
+        if (navigatorInitCount === 1) {
+          EventLogger.debug('Navigation', '🚨 MainNavigator mounted, auth state:', isAuthenticated);
+        }
+        
+        // Clear any previous render errors
+        setRenderError(null);
+        setIsRecoveringFromError(false);
+        
+        // Check actual onboarding status
+        const hasCompleted = await onboardingManager.hasCompletedOnboarding();
+        EventLogger.debug('Navigation', '📱 Onboarding status:', hasCompleted);
+        setHasSeenOnboarding(hasCompleted);
+        setIsLoading(false);
+        
+        // Log successful initialization
+        EventLogger.debug('Navigation', '✅ MainNavigator initialized successfully');
+      } catch (error) {
+        EventLogger.error('Navigation', '❌ MainNavigator initialization error:', error as Error);
+        // Default to showing main app on error
+        setHasSeenOnboarding(true);
+        setIsLoading(false);
+        handleRenderError('MainNavigator initialization failed');
       }
-      
-      // Clear any previous render errors
-      setRenderError(null);
-      setIsRecoveringFromError(false);
-      
-      // Skip onboarding check for stability
-      setHasSeenOnboarding(true);
-      setIsLoading(false);
-      
-      // Log successful initialization
-      EventLogger.debug('Navigation', '✅ MainNavigator initialized successfully');
-    } catch (error) {
-      EventLogger.error('Navigation', '❌ MainNavigator initialization error:', error as Error);
-      handleRenderError('MainNavigator initialization failed');
-    }
+    };
+    
+    checkOnboardingStatus();
   }, [isAuthenticated]);
   
   const handleRenderError = (errorMessage: string) => {
@@ -179,6 +190,11 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         name="AutomationDetails"
         component={AutomationDetailsScreen}
         options={{ title: 'Automation Details' }}
+      />
+      <Stack.Screen
+        name="Templates"
+        component={TemplatesScreen}
+        options={{ title: 'Templates' }}
       />
       <Stack.Screen
         name="Scanner"

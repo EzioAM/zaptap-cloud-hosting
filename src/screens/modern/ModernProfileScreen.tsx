@@ -43,8 +43,6 @@ import { EmptyState } from '../../components/states/EmptyState';
 
 // Enhanced components
 import { GradientHeader } from '../../components/shared/GradientHeader';
-import { GradientCard } from '../../components/shared/GradientCard';
-import { GradientButton } from '../../components/shared/GradientButton';
 import { EmptyStateIllustration } from '../../components/shared/EmptyStateIllustration';
 
 // Theme imports
@@ -99,8 +97,8 @@ const ModernProfileScreen: React.FC = memo(() => {
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
-  const { connectionState } = useConnection();
-  const { isConnected } = connectionState;
+  const { isOnline, isBackendConnected } = useConnection();
+  const isConnected = isOnline && isBackendConnected;
   const { isDeveloper } = useUserRole();
   
   // State
@@ -392,6 +390,18 @@ const ModernProfileScreen: React.FC = memo(() => {
 
   // Calculate profile stats
   const profileStats = useMemo(() => {
+    // If not authenticated, return empty stats
+    if (!isAuthenticated || !user) {
+      return {
+        automations: 0,
+        publicAutomations: 0,
+        totalRuns: 0,
+        totalLikes: 0,
+        avgRating: 0,
+        completionPercentage: 0,
+      };
+    }
+    
     const totalRuns = myAutomations.reduce((sum, automation) => sum + (automation.totalRuns || 0), 0);
     const totalLikes = myPublicAutomations.reduce((sum, automation) => sum + (automation.likes || 0), 0);
     const avgRating = myPublicAutomations.length > 0 
@@ -406,7 +416,7 @@ const ModernProfileScreen: React.FC = memo(() => {
       avgRating,
       completionPercentage: Math.round((profileCompletion as any)._value * 100),
     };
-  }, [myAutomations, myPublicAutomations, profileCompletion]);
+  }, [myAutomations, myPublicAutomations, profileCompletion, isAuthenticated, user]);
 
   // Authentication check - disabled for demo
   // if (!isAuthenticated || !user) {
@@ -509,7 +519,7 @@ const ModernProfileScreen: React.FC = memo(() => {
           }
         >
           {/* Profile Header Card */}
-          <GradientCard gradientKey="primary" style={styles.profileCard}>
+          <View style={[styles.profileCard, { backgroundColor: theme.colors.primary }]}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
                 {user?.user_metadata?.avatar_url ? (
@@ -543,18 +553,40 @@ const ModernProfileScreen: React.FC = memo(() => {
               
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>
-                  {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest User'}
+                  {isAuthenticated && user?.user_metadata?.full_name 
+                    ? user.user_metadata.full_name
+                    : isAuthenticated && user?.email
+                    ? user.email.split('@')[0]
+                    : 'Guest User'
+                  }
                 </Text>
                 <Text style={styles.profileEmail}>
-                  {user?.email || 'Not signed in'}
+                  {isAuthenticated && user?.email ? user.email : 'Not signed in'}
                 </Text>
                 <Text style={styles.profileCompletion}>
                   {profileStats.completionPercentage}% Complete
                 </Text>
               </View>
             </View>
-          </GradientCard>
+          </View>
 
+          {/* Guest User Message */}
+          {!isAuthenticated && (
+            <View style={[styles.guestMessage, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <MaterialCommunityIcons 
+                name="account-plus" 
+                size={32} 
+                color={theme.colors.primary}
+              />
+              <Text style={[styles.guestMessageTitle, { color: theme.colors.onSurface }]}>
+                Sign in to unlock features
+              </Text>
+              <Text style={[styles.guestMessageText, { color: theme.colors.onSurfaceVariant }]}>
+                Create automations, share with others, and track your progress
+              </Text>
+            </View>
+          )}
+          
           {/* Stats Grid */}
           {FEATURE_FLAGS.STAGGERED_ANIMATIONS ? (
             <AnimatedStatsGrid
@@ -674,15 +706,33 @@ const ModernProfileScreen: React.FC = memo(() => {
                   <DeveloperSection theme={theme} />
                 )}
 
-                {/* Sign Out Button */}
-                <View style={styles.signOutContainer}>
-                  <GradientButton
-                    title="Sign Out"
-                    onPress={handleSignOut}
-                    gradientKey="error"
-                    style={styles.signOutButton}
-                  />
-                </View>
+                {/* Sign Out Button - Only show if authenticated */}
+                {isAuthenticated && user && (
+                  <View style={styles.signOutContainer}>
+                    <TouchableOpacity
+                      style={[styles.signOutButton, { backgroundColor: '#F44336' }]}
+                      onPress={handleSignOut}
+                    >
+                      <Text style={[styles.signOutButtonText, { color: 'white' }]}>
+                        Sign Out
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                
+                {/* Sign In Button - Show if not authenticated */}
+                {!isAuthenticated && (
+                  <View style={styles.signOutContainer}>
+                    <TouchableOpacity
+                      style={[styles.signOutButton, { backgroundColor: theme.colors.primary }]}
+                      onPress={() => navigation.navigate('Auth' as never)}
+                    >
+                      <Text style={[styles.signOutButtonText, { color: 'white' }]}>
+                        Sign In
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
 
@@ -769,6 +819,7 @@ const styles = StyleSheet.create({
   profileCard: {
     margin: 20,
     padding: 20,
+    borderRadius: 16,
   },
   profileHeader: {
     flexDirection: 'row',
@@ -869,6 +920,14 @@ const styles = StyleSheet.create({
   },
   signOutButton: {
     marginHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signOutButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   connectionIndicator: {
     flexDirection: 'row',
@@ -881,6 +940,24 @@ const styles = StyleSheet.create({
   connectionText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  guestMessage: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    gap: 8,
+  },
+  guestMessageTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  guestMessageText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

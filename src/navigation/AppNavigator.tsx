@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { linkingService } from '../services/linking/LinkingService';
@@ -33,8 +33,8 @@ const EmergencyScreen = React.memo(() => (
   </View>
 ));
 
-// Create Stack Navigator for Onboarding
-const OnboardingStack = createStackNavigator();
+// Create Native Stack Navigator for Onboarding - fixes touch issues
+const OnboardingStack = createNativeStackNavigator();
 
 // Onboarding Navigator Component
 const OnboardingNavigator = React.memo(() => {

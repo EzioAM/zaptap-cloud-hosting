@@ -136,7 +136,7 @@ export const StepCard: React.FC<StepCardProps> = ({
   const { trigger } = useHaptic();
   
   const icon = stepIcons[step.type] || 'help-circle';
-  const color = stepColors[step.type] || colors?.brand?.primary || colors?.primary || '#6200ee';
+  const color = stepColors[step.type] || colors?.brand?.primary || colors?.primary || '#8B5CF6';
   const label = stepLabels[step.type] || 'Unknown Step';
   
   const animatedStyle = useAnimatedStyle(() => {
@@ -196,7 +196,7 @@ export const StepCard: React.FC<StepCardProps> = ({
         >
           <View style={styles.content}>
             <View style={styles.leftSection}>
-              <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
+              <View style={[styles.iconContainer, { backgroundColor: `${color || '#8B5CF6'}15` }]}>
                 <MaterialCommunityIcons
                   name={icon as any}
                   size={24}

@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Zaptap",
+    "slug": "zaptap",
+    "version": "2.3.1",
+    "scheme": "zaptap",
+    "owner": "mce_27",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "platforms": ["ios", "android"],
+    "ios": {
+      "bundleIdentifier": "com.zaptap.app"
+    },
+    "android": {
+      "package": "com.zaptap.app"
+    }
+  }
+}

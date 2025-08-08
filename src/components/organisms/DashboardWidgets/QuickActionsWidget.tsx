@@ -1,9 +1,10 @@
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
+import { ScannerModal } from '../../scanner/ScannerModal';
 
 interface ActionButtonProps {
   icon: string;
@@ -30,7 +31,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       accessibilityLabel={`${label} quick action`}
     >
       <LinearGradient
-        colors={gradient}
+        colors={gradient && gradient.length >= 2 ? gradient : ['#8B5CF6', '#7C3AED']}
         style={styles.gradientButton}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -63,6 +64,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
 }) => {
   const navigation = useNavigation<any>();
   const theme = useSafeTheme();
+  const [showScanner, setShowScanner] = useState(false);
 
   const handleCreateAutomation = useCallback(() => {
     console.log('DEBUG: QuickActionsWidget - handleCreateAutomation called');
@@ -75,12 +77,9 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
 
   const handleScanTag = useCallback(() => {
     console.log('DEBUG: QuickActionsWidget - handleScanTag called');
-    if (onBrowseAutomations) {
-      onBrowseAutomations();
-    } else {
-      navigation.navigate('DiscoverTab');
-    }
-  }, [onBrowseAutomations, navigation]);
+    // Open scanner modal instead of navigating to discover
+    setShowScanner(true);
+  }, []);
 
   const handleViewLibrary = useCallback(() => {
     console.log('DEBUG: QuickActionsWidget - handleViewLibrary called');
@@ -91,10 +90,21 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
     }
   }, [onViewLibrary, navigation]);
 
-  const handleDiscover = useCallback(() => {
-    console.log('DEBUG: QuickActionsWidget - handleDiscover called');
-    navigation.navigate('DiscoverTab');
-  }, [navigation]);
+  const handleScanResult = useCallback(async (automationId: string, metadata: any) => {
+    try {
+      // Here you would fetch the automation data and execute it
+      // For now, we'll show a success message
+      Alert.alert(
+        'Automation Scanned! 🚀',
+        `Found: ${metadata.title || 'Unknown automation'}\n\nThis would execute the automation in a real implementation.`,
+        [
+          { text: 'OK' }
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to execute scanned automation');
+    }
+  }, []);
 
   const actions = [
     {
@@ -119,24 +129,32 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
       icon: 'compass',
       label: 'Discover',
       gradient: ['#F59E0B', '#FCD34D'],
-      onPress: handleDiscover,
+      onPress: () => navigation.navigate('DiscoverTab'),
     },
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors?.surface || '#fff' }]}>
-      <Text style={[styles.title, { color: theme.colors?.text || '#000' }]}>
-        Quick Actions
-      </Text>
-      <View style={styles.actionsGrid}>
-        {actions.map((action) => (
-          <ActionButton
-            key={action.label}
-            {...action}
-          />
-        ))}
+    <>
+      <View style={[styles.container, { backgroundColor: theme.colors?.surface || '#fff' }]}>
+        <Text style={[styles.title, { color: theme.colors?.text || '#000' }]}>
+          Quick Actions
+        </Text>
+        <View style={styles.actionsGrid}>
+          {actions.map((action) => (
+            <ActionButton
+              key={action.label}
+              {...action}
+            />
+          ))}
+        </View>
       </View>
-    </View>
+      
+      <ScannerModal
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={handleScanResult}
+      />
+    </>
   );
 };
 

@@ -8,7 +8,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
+  TextInput as RNTextInput,
   Modal,
   FlatList,
   KeyboardAvoidingView,
@@ -23,37 +23,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { TextInput } from 'react-native-paper';
 import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import DraggableFlatList, {
-  ScaleDecorator,
-  RenderItemParams,
-} from 'react-native-draggable-flatlist';
 import { useCreateAutomationMutation } from '../../store/api/automationApi';
 import { useOptimizedComponents } from '../../hooks/useOptimizedComponents';
 import { ErrorState } from '../../components/states/ErrorState';
 import { EmptyState } from '../../components/states/EmptyState';
 import { ModernStepConfigRenderer } from '../../components/automation/ModernStepConfigRenderer';
-import { EnhancedStepCard } from '../../components/automation/EnhancedStepCard';
 import {
   AnimatedSectionHeader,
   PressableAnimated,
   FeedbackAnimation,
   LoadingPulse,
-  StaggeredContainer,
 } from '../../components/automation/AnimationHelpers';
-import {
-  StepCounterBadge,
-  ConnectionLine,
-  DropZoneIndicator,
-} from '../../components/automation/DragDropHelpers';
 
 // Enhanced gradient components
 import { GradientHeader } from '../../components/shared/GradientHeader';
-import { GradientCard } from '../../components/shared/GradientCard';
-import { GradientButton } from '../../components/shared/GradientButton';
 import { EmptyStateIllustration } from '../../components/shared/EmptyStateIllustration';
 
 // Enhanced theme imports
@@ -66,6 +54,10 @@ import { ANIMATION_CONFIG } from '../../constants/animations';
 // Haptics
 import * as Haptics from 'expo-haptics';
 import { v4 as uuidv4 } from 'uuid';
+import type { AutomationStep as AutomationStepType } from '../../types';
+
+// Import the rich template service
+import { AutomationTemplateService, AutomationTemplate } from '../../services/templates/AutomationTemplates';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -79,6 +71,7 @@ const FEATURE_FLAGS = {
   STAGGERED_ANIMATIONS: Platform.OS !== 'web',
 };
 
+// Local interface for build screen - simplified version
 interface AutomationStep {
   id: string;
   type: string;
@@ -89,21 +82,26 @@ interface AutomationStep {
   enabled?: boolean;
 }
 
+// Enhanced step types with all available actions
 const stepTypes = [
-  // Communication
+  // Communication & Notifications
   { type: 'sms', title: 'Send SMS', icon: 'message-text', color: '#2196F3', category: 'Communication' },
   { type: 'email', title: 'Send Email', icon: 'email', color: '#4CAF50', category: 'Communication' },
   { type: 'notification', title: 'Show Notification', icon: 'bell', color: '#FF9800', category: 'Communication' },
   
+  // Input & Prompts
+  { type: 'prompt_input', title: 'Ask for Input', icon: 'form-textbox', color: '#9C27B0', category: 'Input & Prompts' },
+  { type: 'variable', title: 'Set Variable', icon: 'variable', color: '#795548', category: 'Input & Prompts' },
+  
   // Web & Data
-  { type: 'webhook', title: 'Call Webhook', icon: 'webhook', color: '#9C27B0', category: 'Web & Data' },
+  { type: 'webhook', title: 'Call Webhook', icon: 'webhook', color: '#E91E63', category: 'Web & Data' },
   { type: 'http', title: 'HTTP Request', icon: 'api', color: '#3F51B5', category: 'Web & Data' },
   { type: 'json', title: 'Parse JSON', icon: 'code-json', color: '#00BCD4', category: 'Web & Data' },
   
   // Device & System
-  { type: 'location', title: 'Get Location', icon: 'map-marker', color: '#F44336', category: 'Device & System' },
-  { type: 'wifi', title: 'Control WiFi', icon: 'wifi', color: '#795548', category: 'Device & System' },
-  { type: 'bluetooth', title: 'Control Bluetooth', icon: 'bluetooth', color: '#607D8B', category: 'Device & System' },
+  { type: 'location', title: 'Get/Share Location', icon: 'map-marker', color: '#F44336', category: 'Device & System' },
+  { type: 'wifi', title: 'Control WiFi', icon: 'wifi', color: '#607D8B', category: 'Device & System' },
+  { type: 'bluetooth', title: 'Control Bluetooth', icon: 'bluetooth', color: '#795548', category: 'Device & System' },
   { type: 'brightness', title: 'Set Brightness', icon: 'brightness-6', color: '#FFC107', category: 'Device & System' },
   { type: 'volume', title: 'Set Volume', icon: 'volume-high', color: '#E91E63', category: 'Device & System' },
   
@@ -111,62 +109,18 @@ const stepTypes = [
   { type: 'open-app', title: 'Open App', icon: 'application', color: '#009688', category: 'Apps & Services' },
   { type: 'shortcut', title: 'Run Shortcut', icon: 'play-circle', color: '#FF5722', category: 'Apps & Services' },
   
-  // Control Flow
-  { type: 'wait', title: 'Wait', icon: 'clock', color: '#9E9E9E', category: 'Control Flow' },
-  { type: 'condition', title: 'If/Then', icon: 'source-branch', color: '#673AB7', category: 'Control Flow' },
-  { type: 'loop', title: 'Repeat', icon: 'repeat', color: '#CDDC39', category: 'Control Flow' },
-];
-
-const templates = [
-  {
-    id: 'morning',
-    name: 'Morning Routine',
-    icon: 'weather-sunny',
-    color: '#FFC107',
-    description: 'Start your day right',
-    gradient: ['#FFC107', '#FFB300'],
-    steps: [
-      { type: 'wifi', title: 'Turn On WiFi', icon: 'wifi', color: '#795548', config: { enabled: true } },
-      { type: 'brightness', title: 'Set Brightness', icon: 'brightness-6', color: '#FFC107', config: { level: 80 } },
-      { type: 'notification', title: 'Good Morning', icon: 'bell', color: '#FF9800', config: { message: 'Have a great day!' } },
-    ],
-  },
-  {
-    id: 'meeting',
-    name: 'Meeting Mode',
-    icon: 'briefcase',
-    color: '#9C27B0',
-    description: 'Silence distractions',
-    gradient: ['#9C27B0', '#8E24AA'],
-    steps: [
-      { type: 'volume', title: 'Silent Mode', icon: 'volume-high', color: '#E91E63', config: { level: 0 } },
-      { type: 'notification', title: 'In Meeting', icon: 'bell', color: '#FF9800', config: { message: 'In a meeting' } },
-    ],
-  },
-  {
-    id: 'bedtime',
-    name: 'Bedtime',
-    icon: 'weather-night',
-    color: '#3F51B5',
-    description: 'Wind down for sleep',
-    gradient: ['#3F51B5', '#303F9F'],
-    steps: [
-      { type: 'brightness', title: 'Dim Screen', icon: 'brightness-6', color: '#FFC107', config: { level: 20 } },
-      { type: 'wifi', title: 'Turn Off WiFi', icon: 'wifi', color: '#795548', config: { enabled: false } },
-    ],
-  },
-  {
-    id: 'workout',
-    name: 'Workout',
-    icon: 'run',
-    color: '#4CAF50',
-    description: 'Get pumped up',
-    gradient: ['#4CAF50', '#388E3C'],
-    steps: [
-      { type: 'volume', title: 'Max Volume', icon: 'volume-high', color: '#E91E63', config: { level: 100 } },
-      { type: 'open-app', title: 'Open Music', icon: 'application', color: '#009688', config: { app: 'music' } },
-    ],
-  },
+  // Media & Content
+  { type: 'photo', title: 'Take/Select Photo', icon: 'camera', color: '#E91E63', category: 'Media & Content' },
+  { type: 'clipboard', title: 'Clipboard Actions', icon: 'clipboard', color: '#607D8B', category: 'Media & Content' },
+  
+  // Control Flow & Logic
+  { type: 'wait', title: 'Wait/Delay', icon: 'clock', color: '#9E9E9E', category: 'Control Flow' },
+  { type: 'delay', title: 'Timed Delay', icon: 'timer', color: '#795548', category: 'Control Flow' },
+  { type: 'condition', title: 'If/Then Condition', icon: 'source-branch', color: '#673AB7', category: 'Control Flow' },
+  { type: 'loop', title: 'Repeat Loop', icon: 'repeat', color: '#CDDC39', category: 'Control Flow' },
+  
+  // Math & Calculations
+  { type: 'math', title: 'Math Operations', icon: 'calculator', color: '#FF5722', category: 'Math & Logic' },
 ];
 
 const BuildScreen: React.FC = memo(() => {
@@ -192,8 +146,7 @@ const BuildScreen: React.FC = memo(() => {
   });
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
-  const [draggedStepIndex, setDraggedStepIndex] = useState<number | null>(null);
-  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [selectedTemplateCategory, setSelectedTemplateCategory] = useState('all');
   
   // Animation refs
   const headerAnimValue = useRef(new Animated.Value(0)).current;
@@ -342,7 +295,7 @@ const BuildScreen: React.FC = memo(() => {
     }
   }, [selectedStep, stepConfig, handleUpdateStep, showFeedback]);
 
-  const handleUseTemplate = useCallback((template: any) => {
+  const handleUseTemplate = useCallback((template: AutomationTemplate) => {
     try {
       triggerHaptic('medium');
       
@@ -350,16 +303,16 @@ const BuildScreen: React.FC = memo(() => {
         id: uuidv4(),
         type: stepData.type,
         title: stepData.title,
-        icon: stepData.icon,
-        color: stepData.color,
+        icon: stepData.icon || 'cog',
+        color: stepData.color || '#8B5CF6',
         config: stepData.config || {},
-        enabled: true,
+        enabled: stepData.enabled !== false,
       }));
 
       setSteps(templateSteps);
-      setAutomationName(template.name);
+      setAutomationName(template.title);
       setAutomationDescription(template.description);
-      showFeedback('success', `Applied ${template.name} template`);
+      showFeedback('success', `Applied ${template.title} template`);
     } catch (error) {
       EventLogger.error('UI', 'Error applying template:', error as Error);
       showFeedback('error', 'Failed to apply template');
@@ -453,6 +406,19 @@ const BuildScreen: React.FC = memo(() => {
     }
   }, [triggerHaptic, showFeedback]);
 
+  // Get filtered templates from the service
+  const getFilteredTemplates = useCallback(() => {
+    let templates = AutomationTemplateService.getAllTemplates();
+    
+    if (selectedTemplateCategory === 'popular') {
+      templates = AutomationTemplateService.getPopularTemplates();
+    } else if (selectedTemplateCategory !== 'all') {
+      templates = AutomationTemplateService.getTemplatesByCategory(selectedTemplateCategory);
+    }
+    
+    return templates.slice(0, 8); // Show first 8 for quick templates
+  }, [selectedTemplateCategory]);
+
   // Filter step types based on search and category
   const filteredStepTypes = stepTypes.filter(stepType => {
     const matchesSearch = stepType.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -463,75 +429,206 @@ const BuildScreen: React.FC = memo(() => {
 
   // Get unique categories
   const categories = ['All', ...Array.from(new Set(stepTypes.map(step => step.category)))];
+  const templateCategories = ['all', 'popular', ...AutomationTemplateService.getCategories().map(c => c.id)];
 
-  const renderStepCard = useCallback(({ item, index, drag, isActive }: RenderItemParams<AutomationStep>) => {
+  const renderStepCard = useCallback(({ item, index, drag, isActive }: { item: AutomationStep; index: number; drag: () => void; isActive: boolean }) => {
     return (
-      <ScaleDecorator>
-        <EnhancedStepCard
-          step={item}
-          index={index}
-          onConfigure={() => handleConfigureStep(item)}
-          onDelete={() => handleDeleteStep(item.id)}
-          onToggle={() => handleUpdateStep(item.id, { enabled: !item.enabled })}
-          onDrag={drag}
-          isActive={isActive}
-          theme={theme}
-          showConnectionLine={index < steps.length - 1}
-        />
-      </ScaleDecorator>
+      <View style={[styles.stepCard, { backgroundColor: theme.colors.surface }]}>
+        <View style={styles.stepCardContent}>
+          {/* Step number */}
+          <View style={styles.stepNumber}>
+            <Text style={styles.stepNumberText}>{index + 1}</Text>
+          </View>
+          
+          {/* Step icon */}
+          <View style={[styles.stepIconContainer, { backgroundColor: item.color }]}>
+            <MaterialCommunityIcons 
+              name={item.icon as any} 
+              size={24} 
+              color="white" 
+            />
+          </View>
+          
+          {/* Step info */}
+          <View style={styles.stepInfo}>
+            <Text style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
+              {item.title}
+            </Text>
+            <Text style={[styles.stepType, { color: theme.colors.onSurfaceVariant }]}>
+              {item.type}
+            </Text>
+          </View>
+          
+          {/* Step controls */}
+          <View style={styles.stepControls}>
+            <TouchableOpacity
+              onPress={() => handleUpdateStep(item.id, { enabled: !item.enabled })}
+              style={styles.toggleButton}
+            >
+              <MaterialCommunityIcons
+                name={item.enabled ? 'toggle-switch' : 'toggle-switch-off'}
+                size={24}
+                color={item.enabled ? item.color : '#ccc'}
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => handleConfigureStep(item)}
+              style={styles.configButton}
+            >
+              <MaterialCommunityIcons 
+                name="cog" 
+                size={20} 
+                color={theme.colors.onSurfaceVariant} 
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => handleDeleteStep(item.id)}
+              style={styles.deleteButton}
+            >
+              <MaterialCommunityIcons 
+                name="delete" 
+                size={20} 
+                color="#F44336" 
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={drag}
+              style={styles.dragHandle}
+            >
+              <MaterialCommunityIcons 
+                name="drag" 
+                size={20} 
+                color={theme.colors.onSurfaceVariant} 
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        {/* Connection line */}
+        {index < steps.length - 1 && (
+          <View style={styles.connectionLine}>
+            <View style={[styles.connectionDot, { backgroundColor: item.color }]} />
+            <View style={[styles.connectionLineSegment, { backgroundColor: item.color + '40' }]} />
+          </View>
+        )}
+      </View>
     );
   }, [handleConfigureStep, handleDeleteStep, handleUpdateStep, steps.length, theme]);
 
-  const renderStepType = useCallback(({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.stepTypeItem}
-      onPress={() => handleAddStep(item)}
-      activeOpacity={0.8}
-    >
-      <LinearGradient
-        colors={[`${item.color}15`, `${item.color}05`]}
-        style={styles.stepTypeItemGradient}
+  const renderStepType = useCallback(({ item }: { item: any }) => {
+    // Ensure gradient colors are safe
+    const safeGradientColors = [`${item.color || '#8B5CF6'}15`, `${item.color || '#8B5CF6'}05`];
+    
+    return (
+      <TouchableOpacity
+        style={styles.stepTypeItem}
+        onPress={() => {
+          handleAddStep(item);
+          triggerHaptic('medium');
+        }}
+        activeOpacity={0.7}
       >
-        <View style={[styles.stepTypeIcon, { backgroundColor: item.color }]}>
-          <MaterialCommunityIcons name={item.icon as any} size={24} color="white" />
-        </View>
-        <View style={styles.stepTypeInfo}>
-          <Text style={[styles.stepTypeTitle, { color: theme.colors.onSurface }]}>
-            {item.title}
-          </Text>
-          <Text style={[styles.stepTypeCategory, { color: theme.colors.onSurfaceVariant }]}>
-            {item.category}
-          </Text>
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
-  ), [handleAddStep, theme]);
-
-  const renderTemplate = useCallback(({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.templateCard}
-      onPress={() => handleUseTemplate(item)}
-      activeOpacity={0.9}
-    >
-      <LinearGradient
-        colors={item.gradient}
-        style={styles.templateGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.templateHeader}>
-          <MaterialCommunityIcons name={item.icon as any} size={32} color="white" />
-          <View style={styles.templateStepCount}>
-            <Text style={styles.templateStepCountText}>
-              {item.steps.length} steps
+        <LinearGradient
+          colors={safeGradientColors}
+          style={styles.stepTypeItemGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <View style={[styles.stepTypeIcon, { backgroundColor: item.color || '#8B5CF6' }]}>
+            <MaterialCommunityIcons name={item.icon as any} size={24} color="white" />
+          </View>
+          <View style={styles.stepTypeInfo}>
+            <Text style={[styles.stepTypeTitle, { color: theme.colors.onSurface }]}>
+              {item.title}
+            </Text>
+            <Text style={[styles.stepTypeCategory, { color: theme.colors.onSurfaceVariant }]}>
+              {item.category}
             </Text>
           </View>
-        </View>
-        <Text style={styles.templateName}>{item.name}</Text>
-        <Text style={styles.templateDescription}>{item.description}</Text>
-      </LinearGradient>
-    </TouchableOpacity>
-  ), [handleUseTemplate]);
+          <MaterialCommunityIcons 
+            name="chevron-right" 
+            size={20} 
+            color={theme.colors.onSurfaceVariant}
+            style={{ opacity: 0.5 }}
+          />
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }, [handleAddStep, triggerHaptic, theme]);
+
+  const renderTemplate = useCallback(({ item }: { item: AutomationTemplate }) => {
+    // Create gradient from template color
+    const baseColor = item.color || '#8B5CF6';
+    const safeGradient = [baseColor, `${baseColor}CC`];
+      
+    return (
+      <TouchableOpacity
+        style={styles.templateCard}
+        onPress={() => handleUseTemplate(item)}
+        activeOpacity={0.9}
+      >
+        <LinearGradient
+          colors={safeGradient}
+          style={styles.templateGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.templateHeader}>
+            <MaterialCommunityIcons name={item.icon as any} size={32} color="white" />
+            <View style={styles.templateStepCount}>
+              <Text style={styles.templateStepCountText}>
+                {item.steps?.length || 0} steps
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.templateName}>{item.title}</Text>
+          <Text style={styles.templateDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+          <View style={styles.templateMeta}>
+            <Text style={styles.templateTime}>{item.estimatedTime}</Text>
+            {item.isPopular && (
+              <MaterialCommunityIcons name="star" size={16} color="#FFD700" />
+            )}
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }, [handleUseTemplate]);
+
+  const renderTemplateCategoryChip = useCallback((category: string) => {
+    const isSelected = selectedTemplateCategory === category;
+    const displayName = category === 'all' ? 'All' : 
+                       category === 'popular' ? 'Popular' :
+                       AutomationTemplateService.getCategories().find(c => c.id === category)?.name || category;
+    
+    return (
+      <TouchableOpacity
+        key={category}
+        style={[
+          styles.templateCategoryChip,
+          {
+            backgroundColor: isSelected ? theme.colors.primary : theme.colors.surfaceVariant,
+          }
+        ]}
+        onPress={() => setSelectedTemplateCategory(category)}
+      >
+        <Text
+          style={[
+            styles.templateCategoryChipText,
+            {
+              color: isSelected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant,
+            }
+          ]}
+        >
+          {displayName}
+        </Text>
+      </TouchableOpacity>
+    );
+  }, [selectedTemplateCategory, theme]);
 
   // Authentication check - disabled for demo
   // if (!user) {
@@ -586,7 +683,16 @@ const BuildScreen: React.FC = memo(() => {
             <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
               Build Automation
             </Text>
-            <View style={styles.headerRight} />
+            <TouchableOpacity 
+              style={styles.headerAction} 
+              onPress={() => navigation.navigate('TemplatesScreen' as never)}
+            >
+              <MaterialCommunityIcons 
+                name="template" 
+                size={24} 
+                color={theme.colors.onSurface} 
+              />
+            </TouchableOpacity>
           </View>
         )}
       </Animated.View>
@@ -600,114 +706,174 @@ const BuildScreen: React.FC = memo(() => {
         />
       )}
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        onScroll={FEATURE_FLAGS.ENHANCED_ANIMATIONS ? (event: any) => {
-          scrollY.setValue(event.nativeEvent.contentOffset.y);
-        } : undefined}
-      >
-        {/* Automation Info */}
-        <View style={styles.section}>
-          <AnimatedSectionHeader title="Automation Details" />
-          <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <TextInput
-              style={[styles.input, { 
-                color: theme.colors.onSurface,
-                borderColor: theme.colors.outline 
-              }]}
-              placeholder="Automation Name"
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              value={automationName}
-              onChangeText={setAutomationName}
-            />
-            <TextInput
-              style={[styles.textArea, { 
-                color: theme.colors.onSurface,
-                borderColor: theme.colors.outline 
-              }]}
-              placeholder="Description (optional)"
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              value={automationDescription}
-              onChangeText={setAutomationDescription}
-              multiline
-              numberOfLines={3}
-            />
+      {/* Main Content - Use different containers based on content */}
+      {steps.length > 0 ? (
+        <View style={styles.contentWithSteps}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContentWithSteps}
+            showsVerticalScrollIndicator={false}
+            onScroll={FEATURE_FLAGS.ENHANCED_ANIMATIONS ? (event: any) => {
+              scrollY.setValue(event.nativeEvent.contentOffset.y);
+            } : undefined}
+          >
+            {/* Automation Info */}
+            <View style={styles.section}>
+              <AnimatedSectionHeader title="Automation Details" />
+              <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+                <TextInput
+                mode="outlined"
+                label="Automation Name"
+                style={styles.input}
+                placeholder="Enter automation name"
+                value={automationName}
+                onChangeText={setAutomationName}
+                theme={{ colors: { primary: theme.colors.primary } }}
+                />
+                <TextInput
+                  mode="outlined"
+                  label="Description (optional)"
+                  style={styles.textArea}
+                  placeholder="Enter automation description"
+                  value={automationDescription}
+                  onChangeText={setAutomationDescription}
+                  multiline
+                  numberOfLines={3}
+                  theme={{ colors: { primary: theme.colors.primary } }}
+                />
+              </View>
+            </View>
+          </ScrollView>
+          
+          {/* Steps Section - Outside ScrollView */}
+          <View style={styles.stepsSection}>
+            <View style={styles.sectionHeader}>
+              <AnimatedSectionHeader title="Steps" />
+              <TouchableOpacity
+                style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => setIsStepPickerVisible(true)}
+              >
+                <MaterialCommunityIcons name="plus" size={24} color={theme.colors.onPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.stepsContainer}>
+              <FlatList
+                data={steps}
+                renderItem={({ item, index }) => renderStepCard({ item, index, drag: () => {}, isActive: false })}
+                keyExtractor={item => item.id}
+                style={styles.stepsList}
+                contentContainerStyle={styles.stepsListContent}
+              />
+            </View>
+            
+            {/* Stats */}
+            {stepStats && (
+              <View style={styles.statsSection}>
+                <Text style={[styles.statsText, { color: theme.colors.onSurfaceVariant }]}>
+                  {stepStats.total} steps • {stepStats.enabled} enabled • {stepStats.configured} configured
+                </Text>
+              </View>
+            )}
           </View>
         </View>
-
-        {/* Templates Section */}
-        {steps.length === 0 && (
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={FEATURE_FLAGS.ENHANCED_ANIMATIONS ? (event: any) => {
+            scrollY.setValue(event.nativeEvent.contentOffset.y);
+          } : undefined}
+        >
+          {/* Automation Info */}
           <View style={styles.section}>
-            <AnimatedSectionHeader title="Quick Templates" />
+            <AnimatedSectionHeader title="Automation Details" />
+            <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+              <TextInput
+                mode="outlined"
+                label="Automation Name"
+                style={styles.input}
+                placeholder="Enter automation name"
+                value={automationName}
+                onChangeText={setAutomationName}
+                theme={{ colors: { primary: theme.colors.primary } }}
+              />
+              <TextInput
+                mode="outlined"
+                label="Description (optional)"
+                style={styles.textArea}
+                placeholder="Enter automation description"
+                value={automationDescription}
+                onChangeText={setAutomationDescription}
+                multiline
+                numberOfLines={3}
+                theme={{ colors: { primary: theme.colors.primary } }}
+              />
+            </View>
+          </View>
+
+          {/* Quick Templates Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <AnimatedSectionHeader title="Quick Templates" />
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => navigation.navigate('TemplatesScreen' as never)}
+              >
+                <Text style={[styles.viewAllText, { color: theme.colors.primary }]}>View All</Text>
+                <MaterialCommunityIcons 
+                  name="chevron-right" 
+                  size={16} 
+                  color={theme.colors.primary} 
+                />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Template Category Filter */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.templateCategoryScroll}
+              contentContainerStyle={styles.templateCategoryScrollContent}
+            >
+              {templateCategories.slice(0, 5).map(renderTemplateCategoryChip)}
+            </ScrollView>
+            
             <FlatList
-              data={templates}
-              renderItem={renderTemplate}
+              data={getFilteredTemplates()}
+              renderItem={({ item }) => renderTemplate({ item })}
               keyExtractor={item => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.templatesList}
             />
           </View>
-        )}
 
-        {/* Steps Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <AnimatedSectionHeader title="Steps" />
-            <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-              onPress={() => setIsStepPickerVisible(true)}
-            >
-              <MaterialCommunityIcons name="plus" size={24} color={theme.colors.onPrimary} />
-            </TouchableOpacity>
-          </View>
+          {/* Steps Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <AnimatedSectionHeader title="Steps" />
+              <TouchableOpacity
+                style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => setIsStepPickerVisible(true)}
+              >
+                <MaterialCommunityIcons name="plus" size={24} color={theme.colors.onPrimary} />
+              </TouchableOpacity>
+            </View>
 
-          {steps.length === 0 ? (
             <EmptyState
               icon="puzzle"
               title="No Steps Yet"
-              description="Add your first step to get started"
+              description="Add your first step to get started or choose from a template above"
               action={{
                 label: "Add Step",
                 onPress: () => setIsStepPickerVisible(true),
               }}
             />
-          ) : (
-            <View style={styles.stepsContainer}>
-              {FEATURE_FLAGS.STAGGERED_ANIMATIONS ? (
-                <StaggeredContainer delay={100}>
-                  <DraggableFlatList
-                    data={steps}
-                    renderItem={renderStepCard}
-                    keyExtractor={item => item.id}
-                    onDragEnd={({ data }) => handleReorderSteps(data)}
-                    activationDistance={20}
-                  />
-                </StaggeredContainer>
-              ) : (
-                <DraggableFlatList
-                  data={steps}
-                  renderItem={renderStepCard}
-                  keyExtractor={item => item.id}
-                  onDragEnd={({ data }) => handleReorderSteps(data)}
-                  activationDistance={20}
-                />
-              )}
-            </View>
-          )}
-        </View>
-
-        {/* Stats */}
-        {steps.length > 0 && stepStats && (
-          <View style={styles.statsSection}>
-            <Text style={[styles.statsText, { color: theme.colors.onSurfaceVariant }]}>
-              {stepStats.total} steps • {stepStats.enabled} enabled • {stepStats.configured} configured
-            </Text>
           </View>
-        )}
-      </ScrollView>
+        </ScrollView>
+      )}
 
       {/* Footer */}
       {steps.length > 0 && (
@@ -771,13 +937,15 @@ const BuildScreen: React.FC = memo(() => {
               </Text>
             </TouchableOpacity>
 
-            <GradientButton
-              title={isSaving ? 'Saving...' : 'Save'}
+            <TouchableOpacity
+              style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
               onPress={handleSaveAutomation}
               disabled={isSaving || !automationName.trim()}
-              loading={isSaving}
-              style={styles.saveButton}
-            />
+            >
+              <Text style={[styles.saveButtonText, { color: 'white' }]}>
+                {isSaving ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -787,8 +955,12 @@ const BuildScreen: React.FC = memo(() => {
         visible={isStepPickerVisible}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={() => setIsStepPickerVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           {FEATURE_FLAGS.BLUR_EFFECTS ? (
             <BlurView intensity={20} style={StyleSheet.absoluteFill} />
           ) : null}
@@ -816,13 +988,25 @@ const BuildScreen: React.FC = memo(() => {
                 size={20} 
                 color={theme.colors.onSurfaceVariant} 
               />
-              <TextInput
+              <RNTextInput
                 style={[styles.searchInput, { color: theme.colors.onSurface }]}
                 placeholder="Search steps..."
                 placeholderTextColor={theme.colors.onSurfaceVariant}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setSearchQuery('')}
+                  style={styles.clearSearchButton}
+                >
+                  <MaterialCommunityIcons 
+                    name="close-circle" 
+                    size={18} 
+                    color={theme.colors.onSurfaceVariant} 
+                  />
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Categories */}
@@ -830,6 +1014,7 @@ const BuildScreen: React.FC = memo(() => {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.categoryScroll}
+              contentContainerStyle={styles.categoryScrollContent}
             >
               {categories.map(category => (
                 <TouchableOpacity
@@ -860,16 +1045,55 @@ const BuildScreen: React.FC = memo(() => {
               ))}
             </ScrollView>
 
+            {/* Step count indicator */}
+            <View style={styles.stepCountContainer}>
+              <Text style={[styles.stepCountText, { color: theme.colors.onSurfaceVariant }]}>
+                {filteredStepTypes.length} {filteredStepTypes.length === 1 ? 'step' : 'steps'} available
+              </Text>
+            </View>
+
             {/* Step Types List */}
-            <FlatList
-              data={filteredStepTypes}
-              renderItem={renderStepType}
-              keyExtractor={item => item.type}
-              style={styles.stepTypesList}
-              showsVerticalScrollIndicator={false}
-            />
+            <View style={styles.stepTypesContainer}>
+              {filteredStepTypes.length > 0 ? (
+                <FlatList
+                  data={filteredStepTypes}
+                  renderItem={renderStepType}
+                  keyExtractor={item => item.type}
+                  style={styles.stepTypesList}
+                  contentContainerStyle={styles.stepTypesListContent}
+                  showsVerticalScrollIndicator={false}
+                  ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={10}
+                  windowSize={10}
+                />
+              ) : (
+                <View style={styles.noResultsContainer}>
+                  <MaterialCommunityIcons 
+                    name="magnify-close" 
+                    size={48} 
+                    color={theme.colors.onSurfaceVariant}
+                    style={{ opacity: 0.5 }}
+                  />
+                  <Text style={[styles.noResultsText, { color: theme.colors.onSurfaceVariant }]}>
+                    No steps found matching "{searchQuery}"
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.clearSearchButton2, { backgroundColor: theme.colors.primary }]}
+                    onPress={() => {
+                      setSearchQuery('');
+                      setSelectedCategory('All');
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.onPrimary, fontWeight: '600' }}>
+                      Clear Search
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Step Config Modal */}
@@ -877,8 +1101,12 @@ const BuildScreen: React.FC = memo(() => {
         visible={isConfigModalVisible}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={() => setIsConfigModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           {FEATURE_FLAGS.BLUR_EFFECTS ? (
             <BlurView intensity={20} style={StyleSheet.absoluteFill} />
           ) : null}
@@ -920,14 +1148,18 @@ const BuildScreen: React.FC = memo(() => {
                 />
               )}
               <View style={styles.configSaveWrapper}>
-                <GradientButton
-                  title="Save Configuration"
+                <TouchableOpacity
+                  style={[styles.configSaveButton, { backgroundColor: theme.colors.primary }]}
                   onPress={handleSaveStepConfig}
-                />
+                >
+                  <Text style={[styles.configSaveButtonText, { color: 'white' }]}>
+                    Save Configuration
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
       </SafeAreaView>
     </ScreenErrorBoundary>
@@ -957,13 +1189,32 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
-  headerRight: {
-    width: 40,
+  headerAction: {
+    padding: 8,
+    marginRight: -8,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
+    paddingBottom: 20,
+  },
+  // New styles for layout with steps
+  contentWithSteps: {
+    flex: 1,
+  },
+  scrollContentWithSteps: {
+    paddingBottom: 10,
+  },
+  stepsSection: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  stepsList: {
+    flex: 1,
+  },
+  stepsListContent: {
     paddingBottom: 20,
   },
   section: {
@@ -976,25 +1227,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 4,
+  },
   card: {
     borderRadius: 16,
     padding: 20,
     marginTop: 8,
   },
   input: {
-    fontSize: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 0,
-    borderBottomWidth: 1,
     marginBottom: 16,
   },
   textArea: {
-    fontSize: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 0,
-    borderBottomWidth: 1,
     textAlignVertical: 'top',
-    minHeight: 60,
   },
   addButton: {
     width: 40,
@@ -1003,12 +1254,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // Template styles
+  templateCategoryScroll: {
+    marginBottom: 16,
+  },
+  templateCategoryScrollContent: {
+    paddingLeft: 20,
+  },
+  templateCategoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  templateCategoryChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   templatesList: {
     paddingLeft: 20,
   },
   templateCard: {
     width: 200,
-    height: 140,
+    height: 160,
     marginRight: 16,
     borderRadius: 16,
     overflow: 'hidden',
@@ -1024,30 +1292,125 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   templateName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 4,
+    marginTop: 8,
   },
   templateDescription: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 12,
+    marginBottom: 8,
+    lineHeight: 16,
   },
   templateStepCount: {
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   templateStepCountText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
+  },
+  templateMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  templateTime: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 10,
+    fontWeight: '500',
   },
   stepsContainer: {
     marginTop: 8,
+  },
+  // Step card styles
+  stepCard: {
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginVertical: 4,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  stepCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#8B5CF6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  stepNumberText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  stepIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  stepInfo: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  stepType: {
+    fontSize: 12,
+    marginTop: 2,
+    opacity: 0.7,
+  },
+  stepControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  toggleButton: {
+    padding: 4,
+    marginRight: 8,
+  },
+  configButton: {
+    padding: 8,
+    marginRight: 4,
+  },
+  deleteButton: {
+    padding: 8,
+    marginRight: 4,
+  },
+  dragHandle: {
+    padding: 8,
+  },
+  connectionLine: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  connectionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginBottom: 2,
+  },
+  connectionLineSegment: {
+    width: 2,
+    height: 12,
   },
   statsSection: {
     marginHorizontal: 20,
@@ -1104,6 +1467,14 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -1114,8 +1485,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 24,
+    height: '85%',
     maxHeight: '85%',
-    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1158,8 +1529,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   categoryScroll: {
-    paddingHorizontal: 20,
+    maxHeight: 50,
     marginBottom: 16,
+  },
+  categoryScrollContent: {
+    paddingHorizontal: 20,
   },
   categoryChip: {
     paddingHorizontal: 16,
@@ -1171,19 +1545,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  stepTypesContainer: {
+    flex: 1,
+  },
   stepTypesList: {
     flex: 1,
+  },
+  stepTypesListContent: {
     paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  noResultsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  noResultsText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  clearSearchButton: {
+    padding: 4,
+  },
+  clearSearchButton2: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  stepCountContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  stepCountText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   stepTypeItem: {
-    marginBottom: 8,
     borderRadius: 12,
     overflow: 'hidden',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   stepTypeItemGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 16,
   },
   stepTypeIcon: {
@@ -1212,6 +1624,16 @@ const styles = StyleSheet.create({
   },
   configSaveWrapper: {
     marginTop: 20,
+  },
+  configSaveButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  configSaveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

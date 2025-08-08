@@ -104,7 +104,7 @@ export const Card: React.FC<CardProps> = ({
   const cardStyles = styles(colors);
   const sizeStyles = cardStyles.sizes[size];
   const variantStyles = cardStyles.variants[variant];
-  const elevationStyles = variant === 'elevated' ? theme.shadows[elevation] : {};
+  const elevationStyles = variant === 'elevated' ? (theme.shadows?.[elevation] || {}) : {};
 
   if (onPress) {
     return (

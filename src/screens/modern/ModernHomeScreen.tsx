@@ -28,7 +28,7 @@ import { useConnection } from '../../contexts/ConnectionContext';
 
 // Error Boundaries and Recovery
 import { ScreenErrorBoundary, WidgetErrorBoundary } from '../../components/ErrorBoundaries';
-import { ErrorFallback, NetworkErrorFallback } from '../../components/Fallbacks';
+import { ErrorFallback } from '../../components/Fallbacks';
 import { useErrorHandler } from '../../utils/errorRecovery';
 import { EventLogger } from '../../utils/EventLogger';
 
@@ -42,6 +42,8 @@ import { ParallaxScrollView } from '../../components/common/ParallaxScrollView';
 import {
   QuickStatsWidget,
   QuickStatsWidgetEnhanced,
+  QuickStatsWidgetEnhanced2,
+  QuickStatsWidgetSimple,
   QuickActionsWidget,
   QuickActionsWidgetEnhanced,
   RecentActivityWidget,
@@ -81,8 +83,8 @@ const ModernHomeScreen: React.FC = memo(() => {
   const theme = useSafeTheme();
   const navigation = useNavigation();
   const { user } = useSelector((state: RootState) => state.auth);
-  const { connectionState } = useConnection();
-  const { isConnected } = connectionState;
+  const { isOnline, isBackendConnected } = useConnection();
+  const isConnected = isOnline && isBackendConnected;
   
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -248,7 +250,7 @@ const ModernHomeScreen: React.FC = memo(() => {
   const greeting = useMemo(() => getGreeting(), [getGreeting]);
 
   // Enhanced widget selection based on feature flags
-  const QuickStatsComponent = FEATURE_FLAGS.ENHANCED_WIDGETS ? QuickStatsWidgetEnhanced : QuickStatsWidget;
+  const QuickStatsComponent = FEATURE_FLAGS.ENHANCED_WIDGETS ? QuickStatsWidgetSimple : QuickStatsWidget;
   const QuickActionsComponent = FEATURE_FLAGS.ENHANCED_WIDGETS ? QuickActionsWidgetEnhanced : QuickActionsWidget;
   const RecentActivityComponent = FEATURE_FLAGS.ENHANCED_WIDGETS ? RecentActivityWidgetEnhanced : RecentActivityWidget;
   const FeaturedAutomationComponent = FEATURE_FLAGS.ENHANCED_WIDGETS ? FeaturedAutomationWidgetEnhanced : FeaturedAutomationWidget;
@@ -677,26 +679,35 @@ const ModernHomeScreen: React.FC = memo(() => {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Feedback Toast */}
+      {/* Enhanced Feedback Toast */}
       {feedback.visible && (
         <Animated.View 
+          pointerEvents="box-none" // Allow touch pass-through to elements below
           style={[
             styles.feedbackToast,
-            { backgroundColor: theme.colors.surface },
+            {
+              backgroundColor: feedback.type === 'success' ? 'rgba(76, 175, 80, 0.95)' :
+                              feedback.type === 'error' ? 'rgba(244, 67, 54, 0.95)' :
+                              'rgba(255, 152, 0, 0.95)',
+            },
             FEATURE_FLAGS.ENHANCED_ANIMATIONS && {
               opacity: fadeAnim,
-              transform: [{ translateY: Animated.multiply(fadeAnim, -50) }]
+              transform: [{ translateY: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-100, 0],
+              }) }]
             }
           ]}
         >
-          <MaterialCommunityIcons 
-            name={feedback.type === 'success' ? 'check-circle' :
-                  feedback.type === 'error' ? 'alert-circle' : 'alert'}
-            size={20}
-            color={feedback.type === 'success' ? '#4CAF50' :
-                  feedback.type === 'error' ? '#F44336' : '#FF9800'}
-          />
-          <Text style={[styles.feedbackText, { color: theme.colors.onSurface }]}>
+          <View style={styles.feedbackIconContainer}>
+            <MaterialCommunityIcons 
+              name={feedback.type === 'success' ? 'check-circle' :
+                    feedback.type === 'error' ? 'alert-circle' : 'alert'}
+              size={22}
+              color="#FFFFFF"
+            />
+          </View>
+          <Text style={styles.feedbackText}>
             {feedback.message}
           </Text>
         </Animated.View>
@@ -771,8 +782,9 @@ const styles = StyleSheet.create({
   },
   fabContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 100, // Increased from 20 to avoid navigation bar overlap
     right: 20,
+    zIndex: 999, // Ensure FAB is below navigation bar (zIndex: 1000)
   },
   fab: {
     width: 56,
@@ -794,7 +806,7 @@ const styles = StyleSheet.create({
   },
   feedbackToast: {
     position: 'absolute',
-    bottom: 100,
+    top: 100, // Position at top of screen below header
     left: 20,
     right: 20,
     flexDirection: 'row',
@@ -807,10 +819,21 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     gap: 12,
+    zIndex: 1000, // Ensure it appears above other content
+  },
+  feedbackIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   feedbackText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#FFFFFF',
+    flex: 1,
   },
 });
 

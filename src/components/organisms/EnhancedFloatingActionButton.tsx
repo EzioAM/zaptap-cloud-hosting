@@ -278,11 +278,11 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     // CRITICAL FIX: Position FAB higher to avoid overlap with bottom navigation
-    bottom: Platform.OS === 'ios' ? 120 : 110,
+    bottom: Platform.OS === 'ios' ? 100 : 90,
     right: 24,
     alignItems: 'flex-end',
-    // Ensure FAB doesn't block navigation touches
-    zIndex: 1000,
+    // Ensure FAB is below navigation bar (which has zIndex: 1000)
+    zIndex: 999,
   },
   overlay: {
     position: 'absolute',

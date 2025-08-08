@@ -1,289 +1,191 @@
-import React, { useEffect, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+/**
+ * AuthInitializer Component - Fixed Version
+ * Handles authentication initialization and recovery
+ */
+
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { useAppDispatch, useAppSelector } from '../../hooks/redux';
+import { restoreSession, refreshProfile, signOutSuccess, clearError } from '../../store/slices/authSlice';
 import { supabase, ensureValidSession } from '../../services/supabase/client';
-import authSlice, { recoverAuthState, shouldAttemptRecovery } from '../../store/slices/authSlice';
-import { AppDispatch, RootState, resetApiState } from '../../store';
-import { automationApi } from '../../store/api/automationApi';
-import { analyticsApi } from '../../store/api/analyticsApi';
-import NetInfo from '@react-native-community/netinfo';
-import { DEFAULT_AVATAR } from '../../constants/defaults';
 import { EventLogger } from '../../utils/EventLogger';
 
-export const AuthInitializer: React.FC<{ children: React.ReactNode }> = React.memo(({ children }) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const authState = useSelector((state: RootState) => state.auth);
-  const hasInitialized = useRef(false);
-  const tokenRefreshAttempted = useRef(false);
-  const recoveryCheckInterval = useRef<NodeJS.Timeout>();
+interface AuthInitializerProps {
+  children: React.ReactNode;
+}
+
+export const AuthInitializer: React.FC<AuthInitializerProps> = ({ children }) => {
+  const dispatch = useAppDispatch();
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
+  const initAttempted = useRef(false);
+  const authListenerRef = useRef<any>(null);
+
+  const { isAuthenticated, error: authError } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
-    // Prevent double initialization
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
+    // Only initialize once
+    if (initAttempted.current) {
+      return;
+    }
+    initAttempted.current = true;
 
-    EventLogger.debug('Authentication', '🔐 AuthInitializer: Starting session restoration check...');
+    const initializeAuth = async () => {
+      try {
+        EventLogger.debug('AuthInitializer', 'Starting auth initialization...');
+        setInitError(null);
 
-    // DEFERRED: Check for existing session after UI renders to improve startup time
-    const initTimer = setTimeout(() => {
-      checkSession().catch(error => {
-        EventLogger.warn('Authentication', 'Session check failed during startup, continuing without auth:', error);
-      });
-    }, 500); // Reduced delay for faster session restoration
+        // Clear any previous auth errors
+        dispatch(clearError());
 
-    // Listen for auth state changes
-    let authListener: any;
-    try {
-      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-        EventLogger.debug('Authentication', 'Auth state changed:', event, session?.user?.email);
+        // Check for existing session
+        const session = await ensureValidSession();
         
-        try {
-          if (event === 'SIGNED_IN' && session) {
-            // Non-blocking profile fetch
-            handleSignIn(session).catch(error => {
-              EventLogger.warn('Authentication', 'Profile fetch failed after sign in:', error);
-            });
-        } else if (event === 'SIGNED_OUT') {
-          EventLogger.debug('Authentication', '🚪 User signed out');
-          dispatch(authSlice.actions.signOutSuccess());
+        if (session && session.user) {
+          EventLogger.debug('AuthInitializer', 'Found existing session for:', session.user.email);
           
-          // Clear API caches on sign out
-          resetApiState();
-          
-          // Reset refresh attempt flag
-          tokenRefreshAttempted.current = false;
-        } else if (event === 'TOKEN_REFRESHED' && session) {
-          EventLogger.debug('Authentication', '🔄 Token refreshed successfully');
-          dispatch(authSlice.actions.updateTokens({
+          // Restore session in Redux
+          dispatch(restoreSession({
+            user: {
+              id: session.user.id,
+              email: session.user.email!,
+              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+              avatar_url: session.user.user_metadata?.avatar_url,
+              role: session.user.user_metadata?.role || 'user',
+            },
             accessToken: session.access_token,
             refreshToken: session.refresh_token,
           }));
-          
-          // Clear any API errors that might have been caused by expired tokens
-          resetApiState();
-        } else if (event === 'USER_UPDATED' && session) {
-          handleSignIn(session).catch(error => {
-            EventLogger.warn('Authentication', 'Profile update failed:', error);
-          });
-          }
-        } catch (error) {
-          EventLogger.error('Authentication', 'Auth state change handler error:', error as Error);
-        }
-      });
-      authListener = data;
-    } catch (error) {
-      EventLogger.warn('Authentication', 'Failed to set up auth listener:', error);
-    }
 
-    // Set up recovery monitoring
-    const startRecoveryMonitoring = () => {
-      recoveryCheckInterval.current = setInterval(() => {
-        try {
-          const currentAuthState = authState;
-          if (shouldAttemptRecovery(currentAuthState)) {
-            EventLogger.debug('Authentication', '🔄 Auto-recovery needed, attempting...');
-            dispatch(recoverAuthState()).catch(error => {
-              EventLogger.warn('Authentication', 'Auto-recovery failed:', error);
-            });
-          }
-        } catch (error) {
-          EventLogger.error('Authentication', 'Recovery monitoring error:', error as Error);
-        }
-      }, 30000); // Check every 30 seconds
-    };
-
-    // Start monitoring after initialization
-    setTimeout(startRecoveryMonitoring, 10000);
-
-    return () => {
-      clearTimeout(initTimer);
-      authListener?.subscription?.unsubscribe();
-      if (recoveryCheckInterval.current) {
-        clearInterval(recoveryCheckInterval.current);
-      }
-    };
-  }, [dispatch, authState]);
-
-  const handleSignIn = async (session: any) => {
-    try {
-      // Validate session before processing
-      if (!session || !session.user || !session.access_token) {
-        EventLogger.error('Authentication', '❌ Invalid session data received');
-        dispatch(authSlice.actions.signOutSuccess());
-        return;
-      }
-
-      // Immediately update Redux with basic session info - don't wait for profile
-      const basicUserData = {
-        id: session.user.id,
-        email: session.user.email!,
-        name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-        avatar_url: session.user.user_metadata?.avatar_url || DEFAULT_AVATAR,
-        role: session.user.user_metadata?.role || 'user',
-        created_at: session.user.created_at
-      };
-
-      dispatch(authSlice.actions.restoreSession({
-        user: basicUserData,
-        accessToken: session.access_token,
-        refreshToken: session.refresh_token,
-      }));
-
-      EventLogger.debug('Authentication', '✅ User session updated successfully (basic)');
-
-      // Background profile fetch - don't block UI
-      try {
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profileError) {
-          // Handle specific auth errors
-          if (profileError.message?.includes('JWT') || profileError.code === 'PGRST301') {
-            EventLogger.warn('Authentication', '⚠️ JWT error during profile fetch, attempting token refresh...');
-            if (!tokenRefreshAttempted.current) {
-              tokenRefreshAttempted.current = true;
-              const refreshedSession = await supabase.auth.refreshSession();
-              if (refreshedSession.data.session) {
-                // Retry profile fetch with new token
-                const { data: retryProfile } = await supabase
-                  .from('users')
-                  .select('*')
-                  .eq('id', session.user.id)
-                  .single();
-                
-                if (retryProfile) {
-                  const enhancedUserData = {
-                    ...basicUserData,
-                    name: retryProfile.name || basicUserData.name,
-                    avatar_url: retryProfile.avatar_url || DEFAULT_AVATAR,
-                    role: retryProfile.role || basicUserData.role,
-                    created_at: retryProfile.created_at || basicUserData.created_at
-                  };
-                  
-                  dispatch(authSlice.actions.updateProfile(enhancedUserData));
-                  EventLogger.debug('Authentication', '✅ Profile data loaded after token refresh');
-                  return;
-                }
-              }
-            }
-            throw profileError;
-          }
-          throw profileError;
-        }
-        
-        if (profile) {
-          const enhancedUserData = {
-            id: profile.id,
-            email: profile.email,
-            name: profile.name || basicUserData.name,
-            avatar_url: profile.avatar_url || DEFAULT_AVATAR,
-            role: profile.role || basicUserData.role,
-            created_at: profile.created_at || basicUserData.created_at
-          };
-
-          dispatch(authSlice.actions.updateProfile(enhancedUserData));
-          EventLogger.debug('Authentication', '✅ Profile data loaded and updated');
-        }
-      } catch (profileError: any) {
-        EventLogger.warn('Authentication', '⚠️ Failed to fetch profile, using basic data:', profileError?.message || profileError);
-      }
-    } catch (error) {
-      EventLogger.error('Authentication', '❌ Failed to handle sign in:', error as Error);
-      // Even if everything fails, try basic session restore
-      const fallbackUserData = {
-        id: session.user.id,
-        email: session.user.email!,
-        name: session.user.email?.split('@')[0] || 'User',
-        avatar_url: DEFAULT_AVATAR,
-        role: 'user',
-        created_at: session.user.created_at
-      };
-
-      dispatch(authSlice.actions.restoreSession({
-        user: fallbackUserData,
-        accessToken: session.access_token,
-        refreshToken: session.refresh_token,
-      }));
-    }
-  };
-
-  const checkSession = async () => {
-    try {
-      EventLogger.debug('Authentication', '🔍 Checking for existing session...');
-      
-      // Check network connectivity first to avoid unnecessary errors
-      const netInfo = await NetInfo.fetch();
-      if (!netInfo.isConnected) {
-        EventLogger.debug('Authentication', '📴 No network connection - skipping session check');
-        // Don't clear auth state when offline - user might have valid cached session
-        return;
-      }
-      
-      // First try to get the session directly (faster than ensureValidSession)
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        EventLogger.warn('Authentication', 'Session fetch error:', sessionError.message);
-        // Don't clear auth state on error - might be temporary
-        return;
-      }
-      
-      if (session) {
-        EventLogger.debug('Authentication', '✅ Found valid session for:', session.user.email);
-        
-        // Check if token needs refresh
-        const expiresAt = session.expires_at;
-        const now = Math.floor(Date.now() / 1000);
-        const timeUntilExpiry = expiresAt ? expiresAt - now : 0;
-        
-        if (timeUntilExpiry < 300) { // Less than 5 minutes until expiry
-          EventLogger.debug('Authentication', '🔄 Token expiring soon, refreshing...');
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-          if (!refreshError && refreshData.session) {
-            await handleSignIn(refreshData.session);
-          } else {
-            await handleSignIn(session); // Use existing session if refresh fails
+          // Try to refresh profile data
+          try {
+            await dispatch(refreshProfile()).unwrap();
+            EventLogger.debug('AuthInitializer', 'Profile refreshed successfully');
+          } catch (profileError: any) {
+            // Profile refresh failure is not critical
+            EventLogger.warn('AuthInitializer', 'Profile refresh failed:', profileError);
           }
         } else {
-          EventLogger.debug('Authentication', '🔐 Restoring user session automatically...');
-          await handleSignIn(session);
+          EventLogger.debug('AuthInitializer', 'No existing session found');
+          // Ensure clean state
+          dispatch(signOutSuccess());
+        }
+
+        // Set up auth state change listener
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+          EventLogger.debug('AuthInitializer', `Auth event: ${event}`);
+          
+          switch (event) {
+            case 'SIGNED_IN':
+            case 'TOKEN_REFRESHED':
+              if (session) {
+                dispatch(restoreSession({
+                  user: {
+                    id: session.user.id,
+                    email: session.user.email!,
+                    name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+                    avatar_url: session.user.user_metadata?.avatar_url,
+                    role: session.user.user_metadata?.role || 'user',
+                  },
+                  accessToken: session.access_token,
+                  refreshToken: session.refresh_token,
+                }));
+              }
+              break;
+            
+            case 'SIGNED_OUT':
+              dispatch(signOutSuccess());
+              break;
+            
+            case 'USER_UPDATED':
+              if (session) {
+                try {
+                  await dispatch(refreshProfile()).unwrap();
+                } catch (error) {
+                  EventLogger.warn('AuthInitializer', 'Failed to refresh profile after user update:', error);
+                }
+              }
+              break;
+          }
+        });
+
+        authListenerRef.current = authListener;
+        
+        EventLogger.info('AuthInitializer', 'Auth initialization completed');
+        setIsInitializing(false);
+      } catch (error: any) {
+        EventLogger.error('AuthInitializer', 'Auth initialization failed:', error);
+        
+        // Handle specific error types
+        if (error?.message?.includes('Network')) {
+          setInitError('Network connection unavailable. Some features may be limited.');
+        } else {
+          setInitError('Failed to initialize authentication. Please try again.');
         }
         
-        EventLogger.debug('Authentication', '✅ Session restored successfully - user will remain signed in!');
-      } else {
-        EventLogger.debug('Authentication', 'ℹ️ No valid session found - user needs to sign in');
-        dispatch(authSlice.actions.signOutSuccess());
-        
-        // Mark session as invalid to prevent unnecessary recovery attempts
-        dispatch(authSlice.actions.setSessionValidity(false));
-        
-        // Clear any stale API data
-        resetApiState();
+        // Still allow app to load in offline/error mode
+        setIsInitializing(false);
       }
-    } catch (error: any) {
-      // Only log network errors once, not as errors
-      if (error?.message?.includes('Network request failed') || 
-          error?.message?.includes('Failed to fetch') ||
-          error?.name === 'NetworkError' ||
-          error?.name === 'AuthRetryableFetchError') {
-        EventLogger.debug('Authentication', '📴 Network unavailable for session check');
-        // Don't clear auth state when network is down
-        return;
-      }
-      
-      EventLogger.warn('Authentication', '⚠️ Session check failed:', error?.message || 'Unknown error');
-      // For non-network errors, clear auth state
-      dispatch(authSlice.actions.signOutSuccess());
-      
-      // Mark session as invalid and track the error
-      dispatch(authSlice.actions.setSessionValidity(false));
-      
-      // Clear any stale API data
-      resetApiState();
-    }
-  };
+    };
 
+    initializeAuth();
+
+    // Cleanup on unmount
+    return () => {
+      if (authListenerRef.current) {
+        authListenerRef.current.subscription?.unsubscribe();
+      }
+    };
+  }, [dispatch]);
+
+  // Show loading screen during initialization
+  if (isInitializing) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#6200ee" />
+        <Text style={styles.loadingText}>Initializing...</Text>
+      </View>
+    );
+  }
+
+  // Show error screen if critical error occurred
+  if (initError && !isAuthenticated) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>{initError}</Text>
+        <Text style={styles.continueText}>Continuing in offline mode...</Text>
+        {children}
+      </View>
+    );
+  }
+
+  // Render children when ready
   return <>{children}</>;
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6200ee',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#B00020',
+    textAlign: 'center',
+    marginHorizontal: 32,
+    marginBottom: 8,
+  },
+  continueText: {
+    fontSize: 12,
+    color: '#666666',
+    fontStyle: 'italic',
+    marginBottom: 16,
+  },
 });

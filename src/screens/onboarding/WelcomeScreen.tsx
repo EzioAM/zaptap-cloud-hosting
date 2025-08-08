@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+// import { BlurView } from 'expo-blur'; // DIAGNOSTIC: Temporarily disabled BlurView
 import { useNavigation } from '@react-navigation/native';
 import Animated, {
   useSharedValue,
@@ -76,6 +76,7 @@ export function WelcomeScreen() {
     
     if (navigation) {
       console.log('🚀 Navigating to OnboardingFlow');
+      // Navigate to OnboardingFlow screen in the same stack
       navigation.navigate('OnboardingFlow' as never);
     } else {
       console.log('⚠️ Navigation not available, completing onboarding');
@@ -122,24 +123,7 @@ export function WelcomeScreen() {
     >
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      {/* Test button to verify touches work */}
-      {__DEV__ && (
-        <View style={{ position: 'absolute', top: 100, left: 20, zIndex: 9999 }}>
-          <Pressable
-            onPress={() => {
-              console.log('🚨 TEST BUTTON PRESSED!');
-              alert('Touch is working!');
-            }}
-            style={{ 
-              backgroundColor: 'red', 
-              padding: 20, 
-              borderRadius: 10 
-            }}
-          >
-            <Text style={{ color: 'white', fontWeight: 'bold' }}>TEST TOUCH</Text>
-          </Pressable>
-        </View>
-      )}
+      {/* Test button removed - touch issues have been resolved */}
       
       <SafeAreaView style={styles.safeArea}>
         {/* Skip Button */}
@@ -150,9 +134,10 @@ export function WelcomeScreen() {
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <BlurView intensity={10} style={styles.skipBlur}>
+            {/* DIAGNOSTIC: Replaced BlurView with regular View */}
+            <View style={[styles.skipBlur, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
               <Text style={styles.skipText}>Skip</Text>
-            </BlurView>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -169,7 +154,8 @@ export function WelcomeScreen() {
           {/* Features Section */}
           <Animated.View style={[styles.featuresContainer, contentAnimatedStyle]}>
             <View style={styles.feature}>
-              <BlurView intensity={15} style={styles.featureBlur}>
+              {/* DIAGNOSTIC: Replaced BlurView with regular View */}
+              <View style={[styles.featureBlur, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                 <View style={[styles.featureIcon, { backgroundColor: '#FF6B6B' }]}>
                   <MaterialCommunityIcons name="robot" size={32} color="#FFFFFF" />
                 </View>
@@ -179,11 +165,12 @@ export function WelcomeScreen() {
                     Create powerful workflows with our intuitive builder
                   </Text>
                 </View>
-              </BlurView>
+              </View>
             </View>
 
             <View style={styles.feature}>
-              <BlurView intensity={15} style={styles.featureBlur}>
+              {/* DIAGNOSTIC: Replaced BlurView with regular View */}
+              <View style={[styles.featureBlur, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                 <View style={[styles.featureIcon, { backgroundColor: '#4ECDC4' }]}>
                   <MaterialCommunityIcons name="share-variant" size={32} color="#FFFFFF" />
                 </View>
@@ -193,11 +180,12 @@ export function WelcomeScreen() {
                     Share via QR codes, NFC tags, or simple links
                   </Text>
                 </View>
-              </BlurView>
+              </View>
             </View>
 
             <View style={styles.feature}>
-              <BlurView intensity={15} style={styles.featureBlur}>
+              {/* DIAGNOSTIC: Replaced BlurView with regular View */}
+              <View style={[styles.featureBlur, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                 <View style={[styles.featureIcon, { backgroundColor: '#45B7D1' }]}>
                   <MaterialCommunityIcons name="view-gallery" size={32} color="#FFFFFF" />
                 </View>
@@ -207,39 +195,36 @@ export function WelcomeScreen() {
                     Browse community automations and templates
                   </Text>
                 </View>
-              </BlurView>
+              </View>
             </View>
           </Animated.View>
 
           {/* Action Buttons */}
           <Animated.View style={[styles.buttonContainer, contentAnimatedStyle]}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.getStartedButton,
-                pressed && { opacity: 0.7 }
-              ]}
+            <TouchableOpacity
+              style={styles.getStartedButton}
               onPress={handleGetStarted}
               onPressIn={() => console.log('🔽 Get Started button pressed in')}
               onPressOut={() => console.log('🔼 Get Started button pressed out')}
+              activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <BlurView intensity={20} style={styles.buttonBlur}>
+              {/* DIAGNOSTIC: Replaced BlurView with regular View */}
+              <View style={[styles.buttonBlur, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
                 <Text style={styles.getStartedButtonText}>Get Started</Text>
                 <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
-              </BlurView>
-            </Pressable>
+              </View>
+            </TouchableOpacity>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.skipButton,
-                pressed && { opacity: 0.5 }
-              ]}
+            <TouchableOpacity
+              style={styles.skipButton}
               onPress={handleSkip}
               onPressIn={() => console.log('🔽 Skip Tutorial button pressed in')}
               onPressOut={() => console.log('🔼 Skip Tutorial button pressed out')}
+              activeOpacity={0.5}
             >
               <Text style={styles.skipButtonText}>Skip Tutorial</Text>
-            </Pressable>
+            </TouchableOpacity>
           </Animated.View>
         </View>
       </SafeAreaView>

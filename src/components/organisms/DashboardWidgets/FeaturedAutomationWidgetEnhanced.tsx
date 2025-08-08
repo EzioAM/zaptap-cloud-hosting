@@ -18,8 +18,100 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { useGetFeaturedAutomationQuery } from '../../../store/api/dashboardApi';
 import EnhancedLoadingSkeleton from '../../common/EnhancedLoadingSkeleton';
-import { gradients, subtleGradients } from '../../../theme/gradients';
-import { typography, fontWeights, textShadows } from '../../../theme/typography';
+// Safe imports with fallbacks
+let gradients: any = {};
+let subtleGradients: any = {};
+let typography: any = {};
+let fontWeights: any = {};
+let textShadows: any = {};
+
+try {
+  const gradientsModule = require('../../../theme/gradients');
+  gradients = gradientsModule.gradients || {
+    ocean: { colors: ['#0EA5E9', '#38BDF8'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    success: { colors: ['#10B981', '#34D399'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    secondary: { colors: ['#EC4899', '#F472B6'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    warning: { colors: ['#F59E0B', '#FBBF24'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    error: { colors: ['#EF4444', '#F87171'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    cosmic: { colors: ['#7C3AED', '#A855F7'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    primary: { colors: ['#6366F1', '#8B5CF6'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    premium: { colors: ['#F59E0B', '#EF4444', '#EC4899', '#8B5CF6'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+  };
+  subtleGradients = gradientsModule.subtleGradients || {
+    lightPurple: { colors: ['#F3E8FF', '#E9D5FF', '#D8B4FE'], start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
+  };
+} catch (error) {
+  console.warn('Gradients theme not found, using defaults');
+  gradients = {
+    ocean: { colors: ['#0EA5E9', '#38BDF8'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    success: { colors: ['#10B981', '#34D399'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    secondary: { colors: ['#EC4899', '#F472B6'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    warning: { colors: ['#F59E0B', '#FBBF24'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    error: { colors: ['#EF4444', '#F87171'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    cosmic: { colors: ['#7C3AED', '#A855F7'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    primary: { colors: ['#6366F1', '#8B5CF6'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    premium: { colors: ['#F59E0B', '#EF4444', '#EC4899', '#8B5CF6'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+  };
+  subtleGradients = {
+    lightPurple: { colors: ['#F3E8FF', '#E9D5FF', '#D8B4FE'], start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
+  };
+}
+
+try {
+  const typographyModule = require('../../../theme/typography');
+  typography = typographyModule.typography || {
+    titleMedium: { fontSize: 16, fontWeight: '500' },
+    bodyLarge: { fontSize: 16, fontWeight: '400' },
+    labelSmall: { fontSize: 11, fontWeight: '500' },
+    labelMedium: { fontSize: 14, fontWeight: '500' },
+    heroMedium: { fontSize: 48, fontWeight: 'bold' },
+  };
+  fontWeights = typographyModule.fontWeights || {
+    regular: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+  };
+  textShadows = typographyModule.textShadows || {
+    strong: {
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 0, height: 4 },
+      textShadowRadius: 8,
+    },
+    medium: {
+      textShadowColor: 'rgba(0, 0, 0, 0.2)',
+      textShadowOffset: { width: 0, height: 2 },
+      textShadowRadius: 4,
+    },
+  };
+} catch (error) {
+  console.warn('Typography theme not found, using defaults');
+  typography = {
+    titleMedium: { fontSize: 16, fontWeight: '500' },
+    bodyLarge: { fontSize: 16, fontWeight: '400' },
+    labelSmall: { fontSize: 11, fontWeight: '500' },
+    labelMedium: { fontSize: 14, fontWeight: '500' },
+    heroMedium: { fontSize: 48, fontWeight: 'bold' },
+  };
+  fontWeights = {
+    regular: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+  };
+  textShadows = {
+    strong: {
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 0, height: 4 },
+      textShadowRadius: 8,
+    },
+    medium: {
+      textShadowColor: 'rgba(0, 0, 0, 0.2)',
+      textShadowOffset: { width: 0, height: 2 },
+      textShadowRadius: 4,
+    },
+  };
+}
 import * as Haptics from 'expo-haptics';
 import { EventLogger } from '../../../utils/EventLogger';
 

@@ -14,12 +14,34 @@ const { width: screenWidth } = Dimensions.get('window');
 
 // Staggered entry animation for lists
 export const useStaggeredAnimation = (items: any[], delay: number = 100) => {
+  // Handle undefined or empty items
+  const safeItems = items || [];
+  
   const animatedValues = useRef(
-    items.map(() => new Animated.Value(0))
+    safeItems.map(() => new Animated.Value(0))
   ).current;
 
+  // Update animated values if items length changes
   useEffect(() => {
-    const animations = items.map((_, index) =>
+    const currentLength = animatedValues.length;
+    const newLength = safeItems.length;
+    
+    if (newLength > currentLength) {
+      // Add new animated values for new items
+      for (let i = currentLength; i < newLength; i++) {
+        animatedValues.push(new Animated.Value(0));
+      }
+    } else if (newLength < currentLength) {
+      // Remove excess animated values
+      animatedValues.splice(newLength);
+    }
+  }, [safeItems.length, animatedValues]);
+
+  useEffect(() => {
+    // Only animate if we have items
+    if (safeItems.length === 0) return;
+    
+    const animations = safeItems.map((_, index) =>
       Animated.timing(animatedValues[index], {
         toValue: 1,
         duration: 500,
@@ -29,38 +51,63 @@ export const useStaggeredAnimation = (items: any[], delay: number = 100) => {
     );
 
     Animated.stagger(delay, animations).start();
-  }, [items.length, animatedValues, delay]);
+  }, [safeItems.length, animatedValues, delay]);
 
   return animatedValues;
 };
 
 // Animated container with staggered children
 export const StaggeredContainer: React.FC<{
-  children: React.ReactNode[];
+  children: React.ReactNode;
   delay?: number;
 }> = ({ children, delay = 100 }) => {
-  const animatedValues = useStaggeredAnimation(children, delay);
+  // Safely convert React children to array
+  const childrenArray = React.Children.toArray(children);
+  
+  // On web, just render children without animation to avoid issues
+  if (Platform.OS === 'web') {
+    return (
+      <View>
+        {childrenArray.map((child, index) => (
+          <View key={index}>
+            {child}
+          </View>
+        ))}
+      </View>
+    );
+  }
+  
+  const animatedValues = useStaggeredAnimation(childrenArray, delay);
+
+  // Handle empty children
+  if (childrenArray.length === 0) {
+    return null;
+  }
 
   return (
     <View>
-      {children.map((child, index) => (
-        <Animated.View
-          key={index}
-          style={{
-            opacity: animatedValues[index],
-            transform: [
-              {
-                translateY: animatedValues[index].interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [30, 0],
-                }),
-              },
-            ],
-          }}
-        >
-          {child}
-        </Animated.View>
-      ))}
+      {childrenArray.map((child, index) => {
+        const animatedValue = animatedValues[index] || new Animated.Value(1);
+        
+        return (
+          <Animated.View
+            key={index}
+            style={{
+              opacity: animatedValue,
+              transform: [
+                {
+                  translateY: animatedValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [30, 0],
+                  }),
+                },
+              ],
+            }}
+          >
+            {child}
+          </Animated.View>
+        );
+      })}
     </View>
   );
 };

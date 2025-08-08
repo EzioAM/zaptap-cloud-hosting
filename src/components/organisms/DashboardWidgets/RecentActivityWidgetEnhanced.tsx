@@ -17,8 +17,75 @@ import { BlurView } from 'expo-blur';
 import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
 import { useGetRecentActivityQuery } from '../../../store/api/dashboardApi';
 import EnhancedLoadingSkeleton from '../../common/EnhancedLoadingSkeleton';
-import { gradients, subtleGradients } from '../../../theme/gradients';
-import { typography, fontWeights } from '../../../theme/typography';
+// Safe imports with fallbacks
+let gradients: any = {};
+let subtleGradients: any = {};
+let typography: any = {};
+let fontWeights: any = {};
+
+try {
+  const gradientsModule = require('../../../theme/gradients');
+  gradients = gradientsModule.gradients || {
+    success: { colors: ['#10B981', '#34D399'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    error: { colors: ['#EF4444', '#F87171'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    ocean: { colors: ['#0EA5E9', '#38BDF8'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    primary: { colors: ['#6366F1', '#8B5CF6'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+  };
+  subtleGradients = gradientsModule.subtleGradients || {
+    lightGray: { colors: ['#f8f9fa', '#e9ecef', '#dee2e6'], start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
+    lightBlue: { colors: ['#EFF6FF', '#DBEAFE', '#BFDBFE'], start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
+  };
+} catch (error) {
+  console.warn('Gradients theme not found, using defaults');
+  gradients = {
+    success: { colors: ['#10B981', '#34D399'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    error: { colors: ['#EF4444', '#F87171'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    ocean: { colors: ['#0EA5E9', '#38BDF8'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+    primary: { colors: ['#6366F1', '#8B5CF6'], start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+  };
+  subtleGradients = {
+    lightGray: { colors: ['#f8f9fa', '#e9ecef', '#dee2e6'], start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
+    lightBlue: { colors: ['#EFF6FF', '#DBEAFE', '#BFDBFE'], start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
+  };
+}
+
+try {
+  const typographyModule = require('../../../theme/typography');
+  typography = typographyModule.typography || {
+    titleMedium: { fontSize: 16, fontWeight: '500' },
+    bodySmall: { fontSize: 14, fontWeight: '400' },
+    overline: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+    headlineMedium: { fontSize: 20, fontWeight: '600' },
+    labelMedium: { fontSize: 14, fontWeight: '500' },
+    titleSmall: { fontSize: 14, fontWeight: '500' },
+    caption: { fontSize: 12, fontWeight: '400' },
+    labelSmall: { fontSize: 11, fontWeight: '500' },
+  };
+  fontWeights = typographyModule.fontWeights || {
+    regular: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+  };
+} catch (error) {
+  console.warn('Typography theme not found, using defaults');
+  typography = {
+    titleMedium: { fontSize: 16, fontWeight: '500' },
+    bodySmall: { fontSize: 14, fontWeight: '400' },
+    overline: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+    headlineMedium: { fontSize: 20, fontWeight: '600' },
+    labelMedium: { fontSize: 14, fontWeight: '500' },
+    titleSmall: { fontSize: 14, fontWeight: '500' },
+    caption: { fontSize: 12, fontWeight: '400' },
+    labelSmall: { fontSize: 11, fontWeight: '500' },
+  };
+  fontWeights = {
+    regular: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+  };
+}
 import * as Haptics from 'expo-haptics';
 import { EventLogger } from '../../../utils/EventLogger';
 

@@ -106,8 +106,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
           <BlurView intensity={70} tint={theme} style={styles.cardBlur}>
             <LinearGradient
               colors={[
-                category.gradient[0] + '15',
-                category.gradient[1] + '08',
+                (category.gradient?.[0] || '#8B5CF6') + '15',
+                (category.gradient?.[1] || '#7C3AED') + '08',
               ]}
               style={styles.cardGradient}
             />
@@ -119,8 +119,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
         {/* Gradient Overlay */}
         <LinearGradient
           colors={[
-            category.gradient[0] + '20',
-            category.gradient[1] + '10',
+            (category.gradient?.[0] || '#8B5CF6') + '20',
+            (category.gradient?.[1] || '#7C3AED') + '10',
             'transparent'
           ]}
           style={styles.gradientOverlay}
@@ -139,7 +139,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
         {/* Icon */}
         <View style={styles.iconContainer}>
           <LinearGradient
-            colors={category.gradient}
+            colors={category.gradient && category.gradient.length >= 2 ? category.gradient : ['#8B5CF6', '#7C3AED']}
             style={styles.iconBackground}
           >
             <Ionicons

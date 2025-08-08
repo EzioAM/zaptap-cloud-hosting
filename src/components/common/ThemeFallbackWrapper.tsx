@@ -23,6 +23,7 @@ export const useSafeTheme = () => {
   // Create a theme object that matches the expected structure
   return {
     mode: 'light',
+    dark: false,
     colors: {
       brand: {
         primary: paperTheme.colors.primary,
@@ -81,6 +82,10 @@ export const useSafeTheme = () => {
       surface: paperTheme.colors.surface,
       error: paperTheme.colors.error,
       text: paperTheme.colors.onBackground,
+      textSecondary: paperTheme.colors.onSurfaceVariant || paperTheme.colors.onSurface,
+      onSurface: paperTheme.colors.onSurface,
+      onBackground: paperTheme.colors.onBackground,
+      onPrimary: paperTheme.colors.onPrimary,
     },
     typography: {
       h1: { fontSize: 32, lineHeight: 40 },
@@ -102,9 +107,35 @@ export const useSafeTheme = () => {
       xxl: 48,
     },
     shadows: {
-      sm: { elevation: 2 },
-      md: { elevation: 4 },
-      lg: { elevation: 8 },
+      none: {},
+      sm: { 
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.18,
+        shadowRadius: 1.0,
+      },
+      md: { 
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      },
+      lg: { 
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.30,
+        shadowRadius: 4.65,
+      },
+      xl: { 
+        elevation: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.37,
+        shadowRadius: 7.49,
+      },
     },
     constants: {
       borderWidth: 1,

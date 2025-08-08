@@ -75,20 +75,57 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
   };
 
   const handleUseTemplate = (template: AutomationTemplate) => {
-    setSelectedTemplate(template);
-    setCustomTitle(template.title);
-    
-    // Extract phone number requirements from template steps
-    const phoneRequirements: Record<string, string> = {};
-    template.steps.forEach(step => {
-      if (step.config.phoneNumber === '') {
-        const stepKey = step.id.replace(`${template.id}-`, '');
-        phoneRequirements[stepKey] = '';
-      }
-    });
-    setPhoneNumbers(phoneRequirements);
-    
-    setShowCustomizeModal(true);
+    // Show options for how to use the template
+    Alert.alert(
+      'Use Template',
+      `How would you like to use "${template.title}"?`,
+      [
+        {
+          text: 'Quick Load',
+          onPress: () => {
+            // Load directly into builder without customization
+            const automation = AutomationTemplateService.createAutomationFromTemplate(
+              template,
+              user?.id || 'guest',
+              { title: `${template.title} (from template)` }
+            );
+            navigation.navigate('AutomationBuilder', {
+              automation: automation,
+              isTemplate: false,
+              showQRGenerator: false
+            });
+            Alert.alert(
+              'Template Loaded! 🎉',
+              `"${automation.title}" has been loaded with all ${automation.steps.length} steps.`
+            );
+          }
+        },
+        {
+          text: 'Customize First',
+          onPress: () => {
+            // Open customization modal
+            setSelectedTemplate(template);
+            setCustomTitle(template.title);
+            
+            // Extract phone number requirements from template steps
+            const phoneRequirements: Record<string, string> = {};
+            template.steps.forEach(step => {
+              if (step.config.phoneNumber === '') {
+                const stepKey = step.id.replace(`${template.id}-`, '');
+                phoneRequirements[stepKey] = '';
+              }
+            });
+            setPhoneNumbers(phoneRequirements);
+            
+            setShowCustomizeModal(true);
+          }
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ]
+    );
   };
 
   const handleCreateFromTemplate = async () => {
@@ -108,33 +145,24 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
         }
       );
 
-      const { error } = await supabase
-        .from('automations')
-        .insert({
-          title: automation.title,
-          description: automation.description,
-          steps: automation.steps,
-          category: automation.category,
-          tags: automation.tags,
-          created_by: automation.created_by,
-          is_public: false
-        });
-
-      if (error) {
-        throw error;
-      }
-
       setShowCustomizeModal(false);
+      
+      // Navigate to AutomationBuilder with the template steps
+      navigation.navigate('AutomationBuilder', {
+        automation: automation,
+        isTemplate: false,
+        showQRGenerator: false
+      });
+      
       Alert.alert(
-        'Template Created! 🎉',
-        `"${automation.title}" has been added to your automations.`,
+        'Template Loaded! 🎉',
+        `"${automation.title}" has been loaded into the builder with all ${automation.steps.length} steps. You can now customize and save it.`,
         [
-          { text: 'View Automations', onPress: () => navigation.navigate('MyAutomations') },
           { text: 'OK' }
         ]
       );
     } catch (error: any) {
-      Alert.alert('Error', `Failed to create automation: ${error.message}`);
+      Alert.alert('Error', `Failed to load template: ${error.message}`);
     } finally {
       setIsCreating(false);
     }
@@ -211,22 +239,33 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
         
         <View style={styles.cardActions}>
           <Button
-            mode="outlined"
-            onPress={() => handleUseTemplate(template)}
-            icon="download"
+            mode="contained"
+            onPress={() => {
+              // Quick load directly into builder
+              const automation = AutomationTemplateService.createAutomationFromTemplate(
+                template, 
+                user?.id || 'guest',
+                { title: `${template.title} (from template)` }
+              );
+              navigation.navigate('AutomationBuilder', {
+                automation: automation,
+                isTemplate: false,
+                showQRGenerator: false
+              });
+            }}
+            icon="lightning-bolt"
             style={styles.useButton}
           >
-            Use Template
+            Quick Use
           </Button>
-          <IconButton
-            icon="eye"
-            size={20}
-            onPress={() => navigation.navigate('AutomationBuilder', { 
-              automation: AutomationTemplateService.createAutomationFromTemplate(template, 'preview'),
-              readonly: true,
-              isTemplate: true
-            })}
-          />
+          <Button
+            mode="outlined"
+            onPress={() => handleUseTemplate(template)}
+            icon="pencil"
+            style={[styles.customizeButton, { marginLeft: 8 }]}
+          >
+            Customize
+          </Button>
         </View>
         </Card.Content>
       </Pressable>
@@ -439,7 +478,7 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
                     disabled={isCreating}
                     style={styles.createButton}
                   >
-                    Create Automation
+                    Load into Builder
                   </Button>
                 </View>
               </>
@@ -629,7 +668,9 @@ const styles = StyleSheet.create({
   },
   useButton: {
     flex: 1,
-    marginRight: 8,
+  },
+  customizeButton: {
+    flex: 1,
   },
   emptyState: {
     alignItems: 'center',

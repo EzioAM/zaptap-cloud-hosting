@@ -40,6 +40,7 @@ import { EventLogger } from '../../utils/EventLogger';
   import StepConfigModal from '../../components/automation/StepConfigModal';
   import ModernStepConfigRenderer from '../../components/automation/ModernStepConfigRenderer';
   import { VisualStepEditor } from '../../components/organisms/StepEditor';
+  import { SafeStepEditor } from '../../components/automation/simple/SafeStepEditor';
   import { useUnifiedTheme as useTheme } from '../../contexts/ThemeCompatibilityShim';
 
   type Props = NativeStackScreenProps<RootStackParamList, 'AutomationBuilder'>;
@@ -63,6 +64,8 @@ import { EventLogger } from '../../utils/EventLogger';
     const [stepConfig, setStepConfig] = useState<Record<string, any>>({});
     const [isDragMode, setIsDragMode] = useState(false);
     const [isTemplatePreview, setIsTemplatePreview] = useState(false);
+    const [useSafeEditor, setUseSafeEditor] = useState(false);
+    const [templateLoadMessage, setTemplateLoadMessage] = useState<string | null>(null);
 
     const [createAutomation] = useCreateAutomationMutation();
     
@@ -80,11 +83,35 @@ import { EventLogger } from '../../utils/EventLogger';
       const isTemplate = route?.params?.isTemplate;
       
       if (automation) {
+        EventLogger.debug('Automation', 'Loading automation into builder:', { 
+          title: automation.title, 
+          stepsCount: automation.steps?.length || 0,
+          isTemplate 
+        });
+        
         setAutomationTitle(automation.title);
-        setSteps(automation.steps || []);
+        
+        // Ensure steps are properly structured
+        const loadedSteps = (automation.steps || []).map((step: any) => ({
+          id: step.id || `step_${Date.now()}_${Math.random()}`,
+          type: step.type,
+          title: step.title || step.type,
+          enabled: step.enabled !== false,
+          config: step.config || {},
+        }));
+        
+        setSteps(loadedSteps);
+        
+        EventLogger.debug('Automation', 'Steps loaded:', { count: loadedSteps.length });
+        
+        // Show template load message if coming from templates
+        if (!isTemplate && loadedSteps.length > 0 && automation.description?.includes('template')) {
+          setTemplateLoadMessage(`Template loaded with ${loadedSteps.length} steps! Tap any step to configure.`);
+          setTimeout(() => setTemplateLoadMessage(null), 5000);
+        }
         
         // Only set saved ID if it's not a template preview
-        if (!isTemplate) {
+        if (!isTemplate && automation.id) {
           setSavedAutomationId(automation.id);
         }
         
@@ -104,28 +131,59 @@ import { EventLogger } from '../../utils/EventLogger';
       };
     }, [
       route?.params?.automation?.id, // Only track ID to prevent deep comparison issues
+      route?.params?.automation?.steps?.length, // Track steps length to detect changes
       route?.params?.showQRGenerator,
       route?.params?.isTemplate,
       fetchedAutomation?.id // Only track ID to prevent deep comparison issues
     ]);
 
     const availableSteps = useMemo(() => [
-      { type: 'notification' as StepType, label: 'Show Notification', icon: 'bell', description: 'Display a notification' },
-      { type: 'sms' as StepType, label: 'Send SMS', icon: 'message-text', description: 'Send a text message' },
-      { type: 'email' as StepType, label: 'Send Email', icon: 'email', description: 'Send an email' },
-      { type: 'webhook' as StepType, label: 'Call Webhook', icon: 'webhook', description: 'Make HTTP request' },
-      { type: 'delay' as StepType, label: 'Add Delay', icon: 'clock', description: 'Wait for specified time' },
-      { type: 'variable' as StepType, label: 'Set Variable', icon: 'variable', description: 'Store a value' },
-      { type: 'get_variable' as StepType, label: 'Get Variable', icon: 'variable-box', description: 'Retrieve a stored value' },
-      { type: 'prompt_input' as StepType, label: 'Ask for Input', icon: 'comment-question', description: 'Prompt user for input' },
-      { type: 'location' as StepType, label: 'Location Services', icon: 'map-marker', description: 'Get location, share coordinates, or open maps' },
-      { type: 'condition' as StepType, label: 'If Statement', icon: 'code-braces', description: 'Execute steps based on conditions' },
-      { type: 'loop' as StepType, label: 'Repeat Actions', icon: 'refresh', description: 'Repeat a set of actions' },
-      { type: 'text' as StepType, label: 'Text Processing', icon: 'format-text', description: 'Format, combine, or transform text' },
-      { type: 'math' as StepType, label: 'Calculate', icon: 'calculator', description: 'Perform mathematical calculations' },
-      { type: 'photo' as StepType, label: 'Take Photo', icon: 'camera', description: 'Capture or select photos' },
-      { type: 'clipboard' as StepType, label: 'Clipboard', icon: 'content-paste', description: 'Copy or paste text' },
-      { type: 'app' as StepType, label: 'Open App', icon: 'application', description: 'Launch another application' },
+      // Communication
+      { type: 'notification' as StepType, label: 'Show Notification', icon: 'bell', description: 'Display a system notification', category: 'Communication' },
+      { type: 'sms' as StepType, label: 'Send SMS', icon: 'message-text', description: 'Send a text message', category: 'Communication' },
+      { type: 'email' as StepType, label: 'Send Email', icon: 'email', description: 'Send an email', category: 'Communication' },
+      { type: 'speak_text' as StepType, label: 'Speak Text', icon: 'text-to-speech', description: 'Convert text to speech', category: 'Communication' },
+      
+      // Web & Network
+      { type: 'webhook' as StepType, label: 'Call Webhook', icon: 'webhook', description: 'Make HTTP request', category: 'Web & Network' },
+      { type: 'http_request' as StepType, label: 'HTTP Request', icon: 'cloud-upload', description: 'Advanced HTTP request', category: 'Web & Network' },
+      { type: 'wifi' as StepType, label: 'Toggle WiFi', icon: 'wifi', description: 'Turn WiFi on/off', category: 'Web & Network' },
+      { type: 'bluetooth' as StepType, label: 'Toggle Bluetooth', icon: 'bluetooth', description: 'Turn Bluetooth on/off', category: 'Web & Network' },
+      
+      // Control Flow
+      { type: 'delay' as StepType, label: 'Add Delay', icon: 'clock', description: 'Wait for specified time', category: 'Control Flow' },
+      { type: 'condition' as StepType, label: 'If Condition', icon: 'help-rhombus', description: 'Conditional execution', category: 'Control Flow' },
+      { type: 'variable' as StepType, label: 'Set Variable', icon: 'variable', description: 'Store a value', category: 'Control Flow' },
+      { type: 'get_variable' as StepType, label: 'Get Variable', icon: 'variable-box', description: 'Retrieve a stored value', category: 'Control Flow' },
+      { type: 'prompt_input' as StepType, label: 'Ask for Input', icon: 'comment-question', description: 'Prompt user for input', category: 'Control Flow' },
+      { type: 'loop' as StepType, label: 'Repeat Actions', icon: 'refresh', description: 'Repeat a set of actions', category: 'Control Flow' },
+      { type: 'script' as StepType, label: 'Run Script', icon: 'code-braces', description: 'Execute JavaScript', category: 'Control Flow' },
+      
+      // Device
+      { type: 'location' as StepType, label: 'Get Location', icon: 'map-marker', description: 'Get current location', category: 'Device' },
+      { type: 'clipboard' as StepType, label: 'Clipboard', icon: 'content-paste', description: 'Copy or paste text', category: 'Device' },
+      { type: 'sound' as StepType, label: 'Play Sound', icon: 'volume-high', description: 'Play a sound effect', category: 'Device' },
+      { type: 'vibration' as StepType, label: 'Vibrate', icon: 'vibrate', description: 'Vibrate the device', category: 'Device' },
+      { type: 'flashlight' as StepType, label: 'Toggle Flashlight', icon: 'flashlight', description: 'Turn flashlight on/off', category: 'Device' },
+      { type: 'brightness' as StepType, label: 'Set Brightness', icon: 'brightness-6', description: 'Adjust screen brightness', category: 'Device' },
+      { type: 'photo' as StepType, label: 'Take Photo', icon: 'camera', description: 'Capture or select photos', category: 'Device' },
+      
+      // Apps & System
+      { type: 'app' as StepType, label: 'Open App', icon: 'application', description: 'Launch another application', category: 'Apps & System' },
+      { type: 'close_app' as StepType, label: 'Close App', icon: 'close-box', description: 'Close an application', category: 'Apps & System' },
+      { type: 'share' as StepType, label: 'Share Content', icon: 'share-variant', description: 'Share via system dialog', category: 'Apps & System' },
+      { type: 'shortcut' as StepType, label: 'Run Shortcut', icon: 'apple', description: 'Execute iOS Shortcut', category: 'Apps & System' },
+      
+      // Productivity
+      { type: 'calendar' as StepType, label: 'Add Calendar Event', icon: 'calendar', description: 'Create calendar entry', category: 'Productivity' },
+      { type: 'reminder' as StepType, label: 'Set Reminder', icon: 'reminder', description: 'Create a reminder', category: 'Productivity' },
+      { type: 'contact' as StepType, label: 'Call Contact', icon: 'contacts', description: 'Call a contact', category: 'Productivity' },
+      { type: 'translate' as StepType, label: 'Translate Text', icon: 'translate', description: 'Translate between languages', category: 'Productivity' },
+      { type: 'text' as StepType, label: 'Text Processing', icon: 'format-text', description: 'Format, combine, or transform text', category: 'Productivity' },
+      { type: 'math' as StepType, label: 'Calculate', icon: 'calculator', description: 'Perform mathematical calculations', category: 'Productivity' },
+      
+      // Data
+      { type: 'weather' as StepType, label: 'Get Weather', icon: 'weather-partly-cloudy', description: 'Fetch weather data', category: 'Data' },
     ], []);
 
     const addStep = useCallback((stepType: StepType) => {
@@ -1107,54 +1165,141 @@ import { EventLogger } from '../../utils/EventLogger';
             />
           )}
           <Appbar.Action
+            icon={useSafeEditor ? "gesture-tap" : "gesture-swipe"}
+            onPress={() => setUseSafeEditor(!useSafeEditor)}
+          />
+          <Appbar.Action
             icon="play"
             onPress={executeAutomation}
             disabled={isExecuting}
           />
         </Appbar.Header>
 
-        <ScrollView style={styles.content}>
-          <Card style={styles.infoCard}>
-            <Card.Content>
-              {isEditingTitle ? (
-                <RNTextInput
-                  style={styles.titleInput}
-                  value={automationTitle}
-                  onChangeText={setAutomationTitle}
-                  onBlur={() => setIsEditingTitle(false)}
-                  autoFocus
-                  placeholder="Automation Name"
+        {steps.length > 0 ? (
+          <View style={styles.contentWithSteps}>
+            <ScrollView style={styles.headerSection} showsVerticalScrollIndicator={false}>
+              <Card style={styles.infoCard}>
+                <Card.Content>
+                  {isEditingTitle ? (
+                    <TextInput
+                      mode="outlined"
+                      style={styles.titleInput}
+                      value={automationTitle}
+                      onChangeText={setAutomationTitle}
+                      onBlur={() => setIsEditingTitle(false)}
+                      autoFocus
+                      placeholder="Automation Name"
+                      theme={{ colors: { primary: colors.primary } }}
+                    />
+                  ) : (
+                    <TouchableOpacity onPress={() => setIsEditingTitle(true)}>
+                      <View style={styles.titleContainer}>
+                        <Text style={styles.title}>{automationTitle || 'Tap to set name'}</Text>
+                        <Icon name="pencil" size={16} color="#666" style={styles.editIcon} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                  <View style={styles.meta}>
+                    <Chip icon="layers" compact>{steps.length} steps</Chip>
+                    <Chip icon="check-circle" compact>
+                      {steps.filter(s => s.enabled).length} enabled
+                    </Chip>
+                    <Chip icon="clock" compact>
+                      ~{steps.length * 0.5}s runtime
+                    </Chip>
+                  </View>
+                </Card.Content>
+              </Card>
+              
+              {/* Template Load Message */}
+              {templateLoadMessage && (
+                <Card style={[styles.infoCard, { backgroundColor: '#4CAF50' }]}>
+                  <Card.Content>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Icon name="check-circle" size={20} color="white" style={{ marginRight: 8 }} />
+                      <Text style={{ color: 'white', flex: 1 }}>{templateLoadMessage}</Text>
+                    </View>
+                  </Card.Content>
+                </Card>
+              )}
+            </ScrollView>
+            
+            <View style={styles.stepEditorContainer}>
+              {useSafeEditor ? (
+                <SafeStepEditor
+                  steps={steps}
+                  onStepsChange={setSteps}
+                  onStepEdit={openStepConfig}
+                  onStepDelete={removeStep}
+                  readonly={route?.params?.readonly}
                 />
               ) : (
-                <TouchableOpacity onPress={() => setIsEditingTitle(true)}>
-                  <View style={styles.titleContainer}>
-                    <Text style={styles.title}>{automationTitle || 'Tap to set name'}</Text>
-                    <Icon name="pencil" size={16} color="#666" style={styles.editIcon} />
-                  </View>
-                </TouchableOpacity>
+                <VisualStepEditor
+                  steps={steps}
+                  onStepsChange={setSteps}
+                  onStepEdit={openStepConfig}
+                  onStepDelete={removeStep}
+                  readonly={route?.params?.readonly}
+                />
               )}
-              <View style={styles.meta}>
-                <Chip icon="layers" compact>{steps.length} steps</Chip>
-                <Chip icon="check-circle" compact>
-                  {steps.filter(s => s.enabled).length} enabled
-                </Chip>
-                <Chip icon="clock" compact>
-                  ~{steps.length * 0.5}s runtime
-                </Chip>
-              </View>
-            </Card.Content>
-          </Card>
-
-          <View style={styles.stepEditorContainer}>
-            <VisualStepEditor
-              steps={steps}
-              onStepsChange={setSteps}
-              onStepEdit={openStepConfig}
-              onStepDelete={removeStep}
-              readonly={route?.params?.readonly}
-            />
+            </View>
           </View>
-        </ScrollView>
+        ) : (
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            <Card style={styles.infoCard}>
+              <Card.Content>
+                {isEditingTitle ? (
+                  <TextInput
+                    mode="outlined"
+                    style={styles.titleInput}
+                    value={automationTitle}
+                    onChangeText={setAutomationTitle}
+                    onBlur={() => setIsEditingTitle(false)}
+                    autoFocus
+                    placeholder="Automation Name"
+                    theme={{ colors: { primary: colors.primary } }}
+                  />
+                ) : (
+                  <TouchableOpacity onPress={() => setIsEditingTitle(true)}>
+                    <View style={styles.titleContainer}>
+                      <Text style={styles.title}>{automationTitle || 'Tap to set name'}</Text>
+                      <Icon name="pencil" size={16} color="#666" style={styles.editIcon} />
+                    </View>
+                  </TouchableOpacity>
+                )}
+                <View style={styles.meta}>
+                  <Chip icon="layers" compact>{steps.length} steps</Chip>
+                  <Chip icon="check-circle" compact>
+                    {steps.filter(s => s.enabled).length} enabled
+                  </Chip>
+                  <Chip icon="clock" compact>
+                    ~{steps.length * 0.5}s runtime
+                  </Chip>
+                </View>
+              </Card.Content>
+            </Card>
+            
+            <Card style={styles.emptyCard}>
+              <Card.Content>
+                <View style={styles.emptyState}>
+                  <Icon name="robot" size={64} color="#ccc" />
+                  <Text style={styles.emptyTitle}>No Steps Added</Text>
+                  <Text style={styles.emptyDescription}>
+                    Tap the + button to add your first automation step
+                  </Text>
+                  <Button
+                    mode="contained"
+                    onPress={() => setShowStepPicker(true)}
+                    icon="plus"
+                    style={styles.emptyButton}
+                  >
+                    Add First Step
+                  </Button>
+                </View>
+              </Card.Content>
+            </Card>
+          </ScrollView>
+        )}
 
         {renderStepPicker()}
 
@@ -1304,6 +1449,14 @@ import { EventLogger } from '../../utils/EventLogger';
             onClose={() => setShowShareModal(false)}
           />
         )}
+        
+        {/* Floating Action Button for adding steps */}
+        <FAB
+          icon="plus"
+          style={styles.fab}
+          onPress={() => setShowStepPicker(true)}
+          label="Add Step"
+        />
       </View>
     );
   };
@@ -1317,6 +1470,13 @@ import { EventLogger } from '../../utils/EventLogger';
       flex: 1,
       padding: 16,
       paddingBottom: Platform.OS === 'ios' ? 100 : 90,
+    },
+    contentWithSteps: {
+      flex: 1,
+    },
+    headerSection: {
+      maxHeight: 150,
+      padding: 16,
     },
     infoCard: {
       marginBottom: 16,
@@ -1333,16 +1493,8 @@ import { EventLogger } from '../../utils/EventLogger';
       marginBottom: 12,
     },
     titleInput: {
-      fontSize: 20,
-      fontWeight: '600',
-      marginBottom: 12,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderWidth: 1,
-      borderColor: '#6200ee',
-      borderRadius: 8,
-      backgroundColor: '#f5f5f5',
-      textAlign: 'center',
+    marginBottom: 12,
+    textAlign: 'center',
     },
     editIcon: {
       marginLeft: 8,
@@ -1488,7 +1640,29 @@ import { EventLogger } from '../../utils/EventLogger';
     },
     stepEditorContainer: {
       flex: 1,
+    },
+    emptyCard: {
+      marginTop: 32,
+    },
+    emptyState: {
+      alignItems: 'center',
+      padding: 32,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '600',
       marginTop: 16,
+      marginBottom: 8,
+    },
+    emptyDescription: {
+      fontSize: 14,
+      color: '#666',
+      textAlign: 'center',
+      marginBottom: 24,
+      lineHeight: 20,
+    },
+    emptyButton: {
+      minWidth: 150,
     },
   });
 

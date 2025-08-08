@@ -30,6 +30,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase/client';
 import Constants from 'expo-constants';
 import { EventLogger } from '../../utils/EventLogger';
+import { onboardingManager } from '../../utils/OnboardingManager';
 
 interface DeveloperMenuScreenProps {
   navigation: any;
@@ -333,6 +334,37 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
                 } catch (error) {
                   Alert.alert('Error', 'Failed to export debug bundle');
                 }
+              }}
+            />
+            <Divider style={styles.toolDivider} />
+            <List.Item
+              title="Reset Onboarding"
+              description="Show onboarding screens again (requires app restart)"
+              left={(props) => <List.Icon {...props} icon="restart" color="#9c27b0" />}
+              onPress={async () => {
+                Alert.alert(
+                  'Reset Onboarding',
+                  'This will reset the onboarding state and show the welcome screens on next app launch. Continue?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Reset',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await onboardingManager.resetOnboarding();
+                          Alert.alert(
+                            'Success', 
+                            'Onboarding has been reset. Please restart the app to see the welcome screens.',
+                            [{ text: 'OK' }]
+                          );
+                        } catch (error) {
+                          Alert.alert('Error', 'Failed to reset onboarding');
+                        }
+                      }
+                    }
+                  ]
+                );
               }}
             />
           </Card.Content>

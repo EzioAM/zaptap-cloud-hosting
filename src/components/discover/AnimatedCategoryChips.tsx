@@ -22,14 +22,14 @@ interface Category {
 interface AnimatedCategoryChipsProps {
   categories: Category[];
   selectedCategory: string;
-  onCategorySelect: (categoryId: string) => void;
+  onCategorySelect?: (categoryId: string) => void; // Made optional to match default
   showCounts?: boolean;
 }
 
 export const AnimatedCategoryChips: React.FC<AnimatedCategoryChipsProps> = ({
   categories,
   selectedCategory,
-  onCategorySelect,
+  onCategorySelect = () => {}, // Default empty function to prevent errors
   showCounts = false,
 }) => {
   const theme = useSafeTheme();
@@ -109,7 +109,12 @@ export const AnimatedCategoryChips: React.FC<AnimatedCategoryChipsProps> = ({
       ]).start();
     }
 
-    onCategorySelect(categoryId);
+    // Safety check to prevent "onCategorySelect is not a function" errors
+    if (typeof onCategorySelect === 'function') {
+      onCategorySelect(categoryId);
+    } else {
+      console.warn('AnimatedCategoryChips: onCategorySelect prop is not a function');
+    }
   };
 
   const getCategoryGradient = (category: Category, isSelected: boolean) => {
@@ -184,7 +189,10 @@ export const AnimatedCategoryChips: React.FC<AnimatedCategoryChipsProps> = ({
           ]}
         >
           <LinearGradient
-            colors={[`${gradient[0]}40`, `${gradient[1]}40`]}
+            colors={[
+              `${(gradient?.[0] || '#667eea')}40`,
+              `${(gradient?.[1] || '#764ba2')}40`
+            ]}
             style={styles.glow}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -197,7 +205,7 @@ export const AnimatedCategoryChips: React.FC<AnimatedCategoryChipsProps> = ({
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={isSelected ? gradient : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
+            colors={isSelected && gradient ? gradient : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
             style={styles.chipBackground}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}

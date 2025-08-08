@@ -33,7 +33,7 @@ export interface SampleAutomation {
 
 export const sampleAutomations: SampleAutomation[] = [
   {
-    id: 'morning-routine',
+    id: '550e8400-e29b-41d4-a716-446655440004',
     name: 'Perfect Morning',
     description: 'Start your day with automated morning routine',
     icon: 'weather-sunny',
@@ -98,7 +98,7 @@ export const sampleAutomations: SampleAutomation[] = [
     ],
   },
   {
-    id: 'meeting-mode',
+    id: '550e8400-e29b-41d4-a716-446655440005',
     name: 'Meeting Mode',
     description: 'Instantly prepare your device for important meetings',
     icon: 'account-group',
@@ -151,7 +151,7 @@ export const sampleAutomations: SampleAutomation[] = [
     ],
   },
   {
-    id: 'bedtime-routine',
+    id: '550e8400-e29b-41d4-a716-446655440006',
     name: 'Sleep Well',
     description: 'Wind down with a relaxing bedtime routine',
     icon: 'weather-night',
@@ -213,7 +213,7 @@ export const sampleAutomations: SampleAutomation[] = [
     ],
   },
   {
-    id: 'workout-prep',
+    id: '550e8400-e29b-41d4-a716-446655440007',
     name: 'Workout Ready',
     description: 'Get pumped up for your fitness session',
     icon: 'dumbbell',
@@ -275,7 +275,7 @@ export const sampleAutomations: SampleAutomation[] = [
     ],
   },
   {
-    id: 'commute-helper',
+    id: '550e8400-e29b-41d4-a716-446655440008',
     name: 'Smart Commute',
     description: 'Optimize your daily commute experience',
     icon: 'car',
@@ -338,7 +338,7 @@ export const sampleAutomations: SampleAutomation[] = [
     ],
   },
   {
-    id: 'focus-time',
+    id: '550e8400-e29b-41d4-a716-446655440009',
     name: 'Deep Focus',
     description: 'Eliminate distractions for productive work sessions',
     icon: 'target',
@@ -391,7 +391,7 @@ export const sampleAutomations: SampleAutomation[] = [
     ],
   },
   {
-    id: 'date-night',
+    id: '550e8400-e29b-41d4-a716-446655440010',
     name: 'Date Night',
     description: 'Set the perfect mood for a romantic evening',
     icon: 'heart',
@@ -441,7 +441,7 @@ export const sampleAutomations: SampleAutomation[] = [
     ],
   },
   {
-    id: 'study-session',
+    id: '550e8400-e29b-41d4-a716-446655440011',
     name: 'Study Mode',
     description: 'Create the perfect learning environment',
     icon: 'book-open-variant',

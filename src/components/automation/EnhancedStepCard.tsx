@@ -145,9 +145,9 @@ export const EnhancedStepCard: React.FC<EnhancedStepCardProps> = ({
     <View style={styles.cardContainer}>
       {/* Drop zone indicator */}
       <DropZoneIndicator
-        isActive={isDropTarget}
-        position="top"
-        color={step.color}
+      isActive={isDropTarget}
+      position="top"
+      color={step.color || '#8B5CF6'}
       />
       
       <PanGestureHandler
@@ -170,7 +170,7 @@ export const EnhancedStepCard: React.FC<EnhancedStepCardProps> = ({
                   style={[
                     StyleSheet.absoluteFillObject,
                     styles.glowEffect,
-                    { backgroundColor: step.color + '40' },
+                    { backgroundColor: (step.color || '#8B5CF6') + '40' },
                     glowStyle,
                   ]}
                 />
@@ -191,8 +191,8 @@ export const EnhancedStepCard: React.FC<EnhancedStepCardProps> = ({
                 <LinearGradient
                   colors={[
                     'transparent',
-                    step.color + '08',
-                    step.color + '12',
+                    (step.color || '#8B5CF6') + '08',
+                    (step.color || '#8B5CF6') + '12',
                   ]}
                   style={StyleSheet.absoluteFillObject}
                   start={{ x: 0, y: 0 }}
@@ -210,7 +210,10 @@ export const EnhancedStepCard: React.FC<EnhancedStepCardProps> = ({
                     {/* Icon with animated background */}
                     <View style={styles.stepIconContainer}>
                       <LinearGradient
-                        colors={[step.color, step.color + 'CC']}
+                        colors={[
+                          step.color || '#8B5CF6',
+                          (step.color || '#8B5CF6') + 'CC'
+                        ]}
                         style={styles.stepIcon}
                       >
                         <MaterialCommunityIcons
@@ -273,7 +276,7 @@ export const EnhancedStepCard: React.FC<EnhancedStepCardProps> = ({
                         <MaterialCommunityIcons
                           name={step.enabled ? 'toggle-switch' : 'toggle-switch-off'}
                           size={32}
-                          color={step.enabled ? step.color : '#ccc'}
+                          color={step.enabled ? (step.color || '#8B5CF6') : '#ccc'}
                         />
                       </View>
                     </PressableAnimated>
@@ -336,12 +339,12 @@ export const EnhancedStepCard: React.FC<EnhancedStepCardProps> = ({
       {/* Connection line to next step */}
       {showConnectionLine && (
         <View style={styles.connectionContainer}>
-          <View style={[styles.connectionLine, { backgroundColor: step.color + '40' }]} />
+          <View style={[styles.connectionLine, { backgroundColor: (step.color || '#8B5CF6') + '40' }]} />
           <View style={styles.connectionArrow}>
             <MaterialCommunityIcons
               name="chevron-down"
               size={16}
-              color={step.color}
+              color={step.color || '#8B5CF6'}
             />
           </View>
         </View>

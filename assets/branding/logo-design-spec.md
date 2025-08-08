@@ -18,7 +18,7 @@ The ZapTap logo combines two core elements:
 - **Typography:** Clean, modern sans-serif font (suggested: Inter, Poppins, or custom)
 
 ### Color Specifications
-- **Primary:** #6200ee (Purple)
+- **Primary:**rgb(52, 0, 238) (Purple)
 - **Secondary:** #FFD600 (Yellow)
 - **Gradient Option:** Linear gradient from #6200ee to #FFD600
 - **Monochrome:** Pure black (#000000) or white (#FFFFFF)
