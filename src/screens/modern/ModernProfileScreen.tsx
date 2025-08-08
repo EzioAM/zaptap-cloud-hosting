@@ -680,20 +680,16 @@ const ModernProfileScreen: React.FC = memo(() => {
                         icon: 'account-edit',
                         label: 'Edit Profile',
                         onPress: () => {
-                          console.log('Edit Profile button pressed');
                           triggerHaptic('light');
-                          // Directly use NavigationHelper which is initialized
-                          NavigationHelper.navigate('EditProfile');
+                          navigation.navigate('EditProfile' as never);
                         },
                       },
                       {
                         icon: 'cog',
                         label: 'Settings',
                         onPress: () => {
-                          console.log('Settings button pressed');
                           triggerHaptic('light');
-                          // Directly use NavigationHelper which is initialized
-                          NavigationHelper.navigate('Settings');
+                          navigation.navigate('Settings' as never);
                         },
                       },
                     ],
@@ -728,7 +724,7 @@ const ModernProfileScreen: React.FC = memo(() => {
                         label: 'Privacy & Security',
                         onPress: () => {
                           triggerHaptic('light');
-                          NavigationHelper.navigate('Privacy');
+                          navigation.navigate('Privacy' as never);
                         },
                       },
                       {
@@ -736,7 +732,7 @@ const ModernProfileScreen: React.FC = memo(() => {
                         label: 'Help & Support',
                         onPress: () => {
                           triggerHaptic('light');
-                          NavigationHelper.navigate('Help');
+                          navigation.navigate('Help' as never);
                         },
                       },
                     ],
