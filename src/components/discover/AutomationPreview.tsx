@@ -38,6 +38,7 @@ import {
   createShareUrl,
   createDeepLink 
 } from '../../store/api/searchApi';
+import ShareHelper from '../../utils/ShareHelper';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -170,20 +171,8 @@ export const AutomationPreview: React.FC<AutomationPreviewProps> = ({
   const handleShare = async () => {
     if (!automation) return;
     
-    try {
-      const shareUrl = createShareUrl(automation.publicId || '');
-      
-      const shareContent = {
-        title: automation.title,
-        message: `Check out this automation: ${automation.title}\n\n${automation.description}\n\n${shareUrl}`,
-        url: Platform.OS === 'ios' ? shareUrl : undefined,
-      };
-
-      await Share.share(shareContent);
-    } catch (error) {
-      EventLogger.error('Automation', 'Error sharing automation:', error as Error);
-      Alert.alert('Share Error', 'Unable to share this automation.');
-    }
+    // Use centralized ShareHelper for consistent sharing
+    await ShareHelper.shareAutomation(automation);
   };
 
   const handleDeploy = (type: 'nfc' | 'qr') => {

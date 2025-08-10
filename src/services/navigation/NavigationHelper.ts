@@ -1,14 +1,18 @@
 import { CommonActions } from '@react-navigation/native';
 import { EventLogger } from '../../utils/EventLogger';
+import { navigationStateTracker } from './NavigationStateTracker';
 
 export class NavigationHelper {
   private static navigationRef: any = null;
 
   static setNavigationRef(ref: any) {
     this.navigationRef = ref;
+    // Also set it in the state tracker
+    navigationStateTracker.setNavigationRef(ref);
   }
 
   static navigate(routeName: string, params?: any) {
+    console.log('NavigationHelper.navigate called with:', routeName, params);
     try {
       // Map old route names to new ones
       const routeMapping: Record<string, string> = {
@@ -118,5 +122,42 @@ export class NavigationHelper {
 
     const actualTab = tabMapping[tabName.toLowerCase()] || tabName;
     return this.navigate(actualTab);
+  }
+
+  // New methods for state and params management
+  static getCurrentRoute(): string | null {
+    return navigationStateTracker.getCurrentRoute();
+  }
+
+  static getCurrentParams(): any {
+    return navigationStateTracker.getCurrentParams();
+  }
+
+  static getPreviousRoute(): string | null {
+    return navigationStateTracker.getPreviousRoute();
+  }
+
+  static getNavigationStack(): string[] {
+    return navigationStateTracker.getNavigationStack();
+  }
+
+  static isRouteInStack(routeName: string): boolean {
+    return navigationStateTracker.isRouteInStack(routeName);
+  }
+
+  static getRouteParams(routeName: string): any {
+    return navigationStateTracker.getRouteParams(routeName);
+  }
+
+  static subscribeToStateChanges(id: string, callback: (state: any) => void) {
+    navigationStateTracker.subscribe(id, callback);
+  }
+
+  static unsubscribeFromStateChanges(id: string) {
+    navigationStateTracker.unsubscribe(id);
+  }
+
+  static clearNavigationState() {
+    navigationStateTracker.clearState();
   }
 }

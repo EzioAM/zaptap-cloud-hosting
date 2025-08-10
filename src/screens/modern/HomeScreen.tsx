@@ -57,13 +57,16 @@ export const HomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
               refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor={colors.brand.primary}
-              colors={[colors.brand.primary]}
+              colors={[colors.brand?.primary || colors.primary || '#6200ee']}
             />
           }
         >
           {/* Hero Section */}
           <LinearGradient
-            colors={[colors.brand.primary, colors.brand.primaryDark]}
+            colors={[
+              colors.brand?.primary || colors.primary || '#6200ee',
+              colors.brand?.primaryDark || colors.primaryContainer || '#7c4dff'
+            ]}
             style={styles.heroSection}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}

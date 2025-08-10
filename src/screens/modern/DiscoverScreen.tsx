@@ -336,8 +336,12 @@ const DiscoverScreen: React.FC = memo(() => {
       case 'header':
         return (
           <View style={styles.headerSection}>
-            {/* Search Bar */}
-            <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
+            {/* Search Bar - Navigate to dedicated Search screen */}
+            <TouchableOpacity 
+              style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}
+              onPress={() => navigation.navigate('Search' as never, { query: searchQuery } as never)}
+              activeOpacity={0.8}
+            >
               <MaterialCommunityIcons name="magnify" size={20} color={theme.colors.onSurfaceVariant} />
               <TextInput
                 style={[styles.searchInput, { color: theme.colors.onSurface }]}
@@ -345,13 +349,15 @@ const DiscoverScreen: React.FC = memo(() => {
                 placeholderTextColor={theme.colors.onSurfaceVariant}
                 value={searchQuery}
                 onChangeText={handleSearch}
+                onFocus={() => navigation.navigate('Search' as never, { query: searchQuery } as never)}
+                editable={false} // Make it non-editable as it navigates to Search screen
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
                   <MaterialCommunityIcons name="close-circle" size={18} color={theme.colors.onSurfaceVariant} />
                 </TouchableOpacity>
               )}
-            </View>
+            </TouchableOpacity>
             
             {/* Categories */}
             <View style={styles.categoriesSection}>

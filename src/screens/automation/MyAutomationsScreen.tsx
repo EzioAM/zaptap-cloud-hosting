@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,15 +6,19 @@ import {
   RefreshControl,
   Alert,
   Pressable,
+  Animated,
+  Text as RNText,
+  StatusBar,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import {
-  Appbar,
   Card,
   Text,
   Chip,
   Button,
   IconButton,
-  FAB,
   ActivityIndicator,
   Searchbar,
 } from 'react-native-paper';
@@ -30,6 +34,9 @@ import { AutomationCard } from '../../components/automation/AutomationCard';
 import { EmptyState } from '../../components/common/EmptyState';
 import { SkeletonCard, SkeletonList } from '../../components/common/LoadingSkeleton';
 import { EventLogger } from '../../utils/EventLogger';
+import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 interface MyAutomationsScreenProps {
   navigation: any;
@@ -46,6 +53,13 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
   const [selectedAutomationForNFC, setSelectedAutomationForNFC] = useState<AutomationData | null>(null);
   
   const insets = useSafeAreaInsets();
+  const theme = useSafeTheme();
+  
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(-50)).current;
+  const fabScale = useRef(new Animated.Value(0)).current;
+  const cardAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
   
   // Fetch automations from Supabase
   const { 
@@ -65,7 +79,49 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
     return unsubscribe;
   }, [navigation, refetch]);
 
+  useEffect(() => {
+    // Initial animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(fabScale, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  useEffect(() => {
+    // Animate cards with staggered entrance
+    if (filteredAutomations.length > 0) {
+      const animations = filteredAutomations.map((automation, index) => {
+        if (!cardAnimations[automation.id]) {
+          cardAnimations[automation.id] = new Animated.Value(0);
+        }
+        return Animated.timing(cardAnimations[automation.id], {
+          toValue: 1,
+          duration: 400,
+          delay: index * 100,
+          useNativeDriver: true,
+        });
+      });
+      
+      Animated.stagger(100, animations).start();
+    }
+  }, [filteredAutomations]);
+
   const handleRefresh = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     try {
       await refetch();
@@ -99,6 +155,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
   });
 
   const handleDeleteAutomation = (automation: AutomationData) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Delete Automation',
       `Are you sure you want to delete "${automation.title}"? This action cannot be undone.`,
@@ -108,6 +165,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             try {
               await deleteAutomation(automation.id).unwrap();
               Alert.alert('Success', 'Automation deleted successfully');
@@ -121,6 +179,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
   };
 
   const handleRunAutomation = async (automation: AutomationData) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     try {
       const { AutomationEngine } = await import('../../services/automation/AutomationEngine');
       const engine = new AutomationEngine();
@@ -134,23 +193,28 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
       const result = await engine.execute(automation);
       
       if (result.success) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(
           'Success! 🎉',
-          `Automation completed successfully!\\n\\n⏱️ Execution time: ${result.executionTime}ms\\n✅ Steps completed: ${result.stepsCompleted}/${result.totalSteps}`
+          `Automation completed successfully!\n\n⏱️ Execution time: ${result.executionTime}ms\n✅ Steps completed: ${result.stepsCompleted}/${result.totalSteps}`
         );
       } else {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Execution Failed', result.error || 'Unknown error occurred');
       }
     } catch (error: any) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', error.message || 'Failed to run automation');
     }
   };
 
   const handleEditAutomation = (automation: AutomationData) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigation.navigate('AutomationBuilder', { automationId: automation.id });
   };
 
   const handleDeployAutomation = (automation: AutomationData) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Deploy Automation',
       'Choose how you want to deploy this automation:',
@@ -172,11 +236,13 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
   };
 
   const handleWriteToNFC = (automation: AutomationData) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedAutomationForNFC(automation);
     setShowNFCWriter(true);
   };
 
   const handleNFCWriteSuccess = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowNFCWriter(false);
     setSelectedAutomationForNFC(null);
     Alert.alert(
@@ -186,6 +252,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
   };
 
   const handlePublishAutomation = (automation: AutomationData) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Publish to Gallery',
       `Publish "${automation.title}" to the public gallery?\n\nOthers will be able to discover and use your automation.`,
@@ -205,6 +272,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
               // Refresh the automations list to reflect the change
               refetch();
               
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert(
                 'Published! 🎉',
                 'Your automation is now live in the Gallery!',
@@ -214,6 +282,7 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
                 ]
               );
             } catch (error) {
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', 'Failed to publish automation');
             }
           },
@@ -304,93 +373,200 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
     }
   };
 
-  const renderAutomationCard = (automation: AutomationData) => (
-    <AutomationCard
-      key={automation.id}
-      automation={automation}
-      onPress={() => navigation.navigate('AutomationDetails', { automationId: automation.id })}
-      onRun={() => handleRunAutomation(automation)}
-      onPublish={!automation.is_public ? () => handlePublishAutomation(automation) : undefined}
-      onLocationTrigger={() => navigation.navigate('LocationTriggers')}
-      onEdit={() => navigation.navigate('AutomationBuilder', { automationId: automation.id })}
-      onDelete={async () => {
-        Alert.alert(
-          'Delete Automation',
-          'Are you sure you want to delete this automation?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Delete',
-              style: 'destructive',
-              onPress: async () => {
-                try {
-                  await supabase
-                    .from('automations')
-                    .delete()
-                    .eq('id', automation.id);
-                  refetch();
-                  Alert.alert('Success', 'Automation deleted');
-                } catch (error) {
-                  Alert.alert('Error', 'Failed to delete automation');
-                }
+  const handleFilterPress = async (newFilter: FilterType) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setFilter(newFilter);
+  };
+
+  const handleNFCButtonPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowNFCScanner(true);
+  };
+
+  const handleFABPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    // Spring animation for FAB press
+    Animated.sequence([
+      Animated.spring(fabScale, {
+        toValue: 0.9,
+        tension: 300,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+      Animated.spring(fabScale, {
+        toValue: 1,
+        tension: 300,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    navigation.navigate('AutomationBuilder');
+  };
+
+  const renderModernFilterButton = (type: FilterType, label: string, isFirst = false, isLast = false) => (
+    <Pressable
+      key={type}
+      style={[
+        styles.modernFilterButton,
+        filter === type && styles.activeModernFilterButton,
+        isFirst && styles.firstFilterButton,
+        isLast && styles.lastFilterButton,
+      ]}
+      onPress={() => handleFilterPress(type)}
+    >
+      <LinearGradient
+        colors={filter === type ? ['#6366F1', '#8B5CF6'] : ['transparent', 'transparent']}
+        style={styles.filterButtonGradient}
+      >
+        <Text style={[
+          styles.modernFilterText,
+          filter === type && styles.activeModernFilterText
+        ]}>
+          {label}
+        </Text>
+      </LinearGradient>
+    </Pressable>
+  );
+
+  const renderAnimatedAutomationCard = (automation: AutomationData, index: number) => {
+    if (!cardAnimations[automation.id]) {
+      cardAnimations[automation.id] = new Animated.Value(0);
+    }
+
+    return (
+      <Animated.View
+        key={automation.id}
+        style={[
+          styles.animatedCardContainer,
+          {
+            opacity: cardAnimations[automation.id],
+            transform: [
+              {
+                translateY: cardAnimations[automation.id].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [50, 0],
+                }),
               },
-            },
-          ]
-        );
-      }}
-    />
-  );
-
-  const renderEmptyState = () => (
-    <EmptyState
-      icon="robot-outline"
-      title="No Automations Found"
-      description={
-        searchQuery || filter !== 'all' 
-          ? 'Try adjusting your search or filter'
-          : 'Create your first automation to get started'
-      }
-      actionLabel={!searchQuery && filter === 'all' ? 'Create Automation' : undefined}
-      onAction={!searchQuery && filter === 'all' ? () => navigation.navigate('AutomationBuilder') : undefined}
-    />
-  );
-
-  const renderSkeletonCard = () => (
-    <Card style={styles.automationCard}>
-      <Card.Content>
-        <View style={styles.skeletonHeader}>
-          <View style={styles.skeletonText} />
-          <View style={styles.skeletonActions}>
-            <View style={styles.skeletonButton} />
-            <View style={styles.skeletonButton} />
-            <View style={styles.skeletonButton} />
-          </View>
+              {
+                scale: cardAnimations[automation.id].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.95, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <View style={styles.modernCardWrapper}>
+          <LinearGradient
+            colors={['#FFFFFF', '#F8FAFC']}
+            style={styles.cardGradientOverlay}
+          >
+            <AutomationCard
+              automation={automation}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.navigate('AutomationDetails', { automationId: automation.id });
+              }}
+              onRun={() => handleRunAutomation(automation)}
+              onPublish={!automation.is_public ? () => handlePublishAutomation(automation) : undefined}
+              onLocationTrigger={() => navigation.navigate('LocationTriggers')}
+              onEdit={() => navigation.navigate('AutomationBuilder', { automationId: automation.id })}
+              onDelete={async () => {
+                Alert.alert(
+                  'Delete Automation',
+                  'Are you sure you want to delete this automation?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await supabase
+                            .from('automations')
+                            .delete()
+                            .eq('id', automation.id);
+                          refetch();
+                          Alert.alert('Success', 'Automation deleted');
+                        } catch (error) {
+                          Alert.alert('Error', 'Failed to delete automation');
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+            />
+          </LinearGradient>
         </View>
-        <View style={styles.skeletonMeta}>
-          <View style={styles.skeletonChip} />
-          <View style={styles.skeletonChip} />
-          <View style={styles.skeletonChip} />
+      </Animated.View>
+    );
+  };
+
+  const renderModernEmptyState = () => (
+    <Animated.View style={[styles.modernEmptyState, { opacity: fadeAnim }]}>
+      <LinearGradient
+        colors={['#F1F5F9', '#E2E8F0']}
+        style={styles.emptyStateGradient}
+      >
+        <View style={styles.emptyIconContainer}>
+          <LinearGradient
+            colors={['#6366F1', '#8B5CF6', '#EC4899']}
+            style={styles.emptyIconGradient}
+          >
+            <Icon name="robot-outline" size={48} color="#FFFFFF" />
+          </LinearGradient>
         </View>
-      </Card.Content>
-    </Card>
+        <Text style={styles.modernEmptyTitle}>
+          {searchQuery || filter !== 'all' ? 'No Results Found' : 'Ready to Automate?'}
+        </Text>
+        <Text style={styles.modernEmptyDescription}>
+          {searchQuery || filter !== 'all' 
+            ? 'Try adjusting your search or filter to find more automations'
+            : 'Create your first automation to streamline your daily tasks'
+          }
+        </Text>
+        {!searchQuery && filter === 'all' && (
+          <Pressable style={styles.modernEmptyButton} onPress={handleFABPress}>
+            <LinearGradient
+              colors={['#6366F1', '#8B5CF6']}
+              style={styles.emptyButtonGradient}
+            >
+              <Icon name="plus" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.modernEmptyButtonText}>Create Automation</Text>
+            </LinearGradient>
+          </Pressable>
+        )}
+      </LinearGradient>
+    </Animated.View>
   );
 
   if (isLoading && !refreshing) {
     return (
       <View style={styles.container}>
-        <Appbar.Header>
-          <Appbar.Content title="My Automations" />
-          <Appbar.Action icon="nfc" disabled />
-          <Appbar.Action icon="refresh" disabled />
-          <Appbar.Action icon="plus" disabled />
-        </Appbar.Header>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient
+          colors={['#6366F1', '#8B5CF6', '#EC4899']}
+          style={[styles.gradientHeader, { paddingTop: insets.top }]}
+        >
+          <View style={styles.headerContent}>
+            <Text style={styles.modernHeaderTitle}>My Automations</Text>
+            <View style={styles.headerActions}>
+              <IconButton icon="nfc" iconColor="#FFFFFF" disabled />
+              <IconButton icon="refresh" iconColor="#FFFFFF" disabled />
+              <IconButton icon="plus" iconColor="#FFFFFF" disabled />
+            </View>
+          </View>
+        </LinearGradient>
+        
         <View style={styles.content}>
-          <View style={styles.searchContainer}>
+          <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface.primary }]}>
             <Searchbar
               placeholder="Search automations..."
               value=""
               editable={false}
-              style={[styles.searchBar, { opacity: 0.5 }]}
+              style={[styles.modernSearchBar, { opacity: 0.5 }]}
             />
           </View>
           <ScrollView style={styles.scrollView} contentContainerStyle={{ padding: 16 }}>
@@ -404,97 +580,100 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
   if (error) {
     return (
       <View style={styles.container}>
-        <Appbar.Header>
-          <Appbar.Content title="My Automations" />
-        </Appbar.Header>
-        <View style={styles.errorContainer}>
-          <Icon name="alert-circle" size={64} color="#f44336" />
-          <Text style={styles.errorTitle}>Failed to Load</Text>
-          <Text style={styles.errorDescription}>
-            Could not load your automations. Check your connection and try again.
-          </Text>
-          <Button mode="contained" onPress={handleRefresh} icon="refresh">
-            Retry
-          </Button>
-        </View>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient
+          colors={['#6366F1', '#8B5CF6', '#EC4899']}
+          style={[styles.gradientHeader, { paddingTop: insets.top }]}
+        >
+          <View style={styles.headerContent}>
+            <Text style={styles.modernHeaderTitle}>My Automations</Text>
+          </View>
+        </LinearGradient>
+        
+        <Animated.View style={[styles.errorContainer, { opacity: fadeAnim }]}>
+          <LinearGradient
+            colors={['#FEE2E2', '#FECACA']}
+            style={styles.errorGradient}
+          >
+            <Icon name="alert-circle" size={64} color="#EF4444" />
+            <Text style={styles.modernErrorTitle}>Failed to Load</Text>
+            <Text style={styles.modernErrorDescription}>
+              Could not load your automations. Check your connection and try again.
+            </Text>
+            <Pressable style={styles.modernRetryButton} onPress={handleRefresh}>
+              <LinearGradient
+                colors={['#EF4444', '#DC2626']}
+                style={styles.retryButtonGradient}
+              >
+                <Icon name="refresh" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.modernRetryButtonText}>Retry</Text>
+              </LinearGradient>
+            </Pressable>
+          </LinearGradient>
+        </Animated.View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Appbar.Header>
-        <Appbar.Content title="My Automations" />
-        <Appbar.Action
-          icon="nfc"
-          onPress={() => setShowNFCScanner(true)}
-        />
-        <Appbar.Action
-          icon="refresh"
-          onPress={handleRefresh}
-        />
-        <Appbar.Action
-          icon="plus"
-          onPress={() => navigation.navigate('AutomationBuilder')}
-        />
-      </Appbar.Header>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface.primary }]}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      {/* Gradient Header */}
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+        <LinearGradient
+          colors={['#6366F1', '#8B5CF6', '#EC4899']}
+          style={[styles.gradientHeader, { paddingTop: insets.top }]}
+        >
+          <View style={styles.headerContent}>
+            <Text style={styles.modernHeaderTitle}>My Automations</Text>
+            <View style={styles.headerActions}>
+              <IconButton 
+                icon="nfc" 
+                iconColor="#FFFFFF" 
+                onPress={handleNFCButtonPress}
+                style={styles.headerActionButton}
+              />
+              <IconButton 
+                icon="refresh" 
+                iconColor="#FFFFFF" 
+                onPress={handleRefresh}
+                style={styles.headerActionButton}
+              />
+              <IconButton 
+                icon="plus" 
+                iconColor="#FFFFFF" 
+                onPress={handleFABPress}
+                style={styles.headerActionButton}
+              />
+            </View>
+          </View>
+        </LinearGradient>
+      </Animated.View>
 
-      <View style={styles.content}>
-        {/* Search and Filters */}
-        <View style={styles.searchContainer}>
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        {/* Modern Search and Filters */}
+        <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface.secondary }]}>
           <Searchbar
             placeholder="Search automations..."
             onChangeText={setSearchQuery}
             value={searchQuery}
-            style={styles.searchbar}
+            style={[styles.modernSearchBar, { backgroundColor: theme.colors.surface.primary }]}
+            inputStyle={{ color: theme.colors.text.primary }}
+            iconColor={theme.colors.text.secondary}
+            placeholderTextColor={theme.colors.text.secondary}
           />
           
-          <View style={styles.customSegmentedButtons}>
-            <Pressable 
-              style={[
-                styles.segmentButton, 
-                styles.leftSegment,
-                filter === 'all' && styles.activeSegment
-              ]}
-              onPress={() => setFilter('all')}
-            >
-              <Text style={[
-                styles.segmentText,
-                filter === 'all' && styles.activeSegmentText
-              ]}>All</Text>
-            </Pressable>
-            <Pressable 
-              style={[
-                styles.segmentButton, 
-                styles.middleSegment,
-                filter === 'recent' && styles.activeSegment
-              ]}
-              onPress={() => setFilter('recent')}
-            >
-              <Text style={[
-                styles.segmentText,
-                filter === 'recent' && styles.activeSegmentText
-              ]}>Recent</Text>
-            </Pressable>
-            <Pressable 
-              style={[
-                styles.segmentButton, 
-                styles.rightSegment,
-                filter === 'favorites' && styles.activeSegment
-              ]}
-              onPress={() => setFilter('favorites')}
-            >
-              <Text style={[
-                styles.segmentText,
-                filter === 'favorites' && styles.activeSegmentText
-              ]}>Top Rated</Text>
-            </Pressable>
+          <View style={styles.modernFiltersContainer}>
+            {renderModernFilterButton('all', 'All', true)}
+            {renderModernFilterButton('recent', 'Recent')}
+            {renderModernFilterButton('favorites', 'Top Rated', false, true)}
           </View>
         </View>
 
         {/* Results Summary */}
-        <View style={styles.summaryContainer}>
-          <Text style={styles.summaryText}>
+        <View style={[styles.summaryContainer, { backgroundColor: theme.colors.surface.secondary }]}>
+          <Text style={[styles.summaryText, { color: theme.colors.text.secondary }]}>
             {filteredAutomations.length} automation{filteredAutomations.length !== 1 ? 's' : ''} found
           </Text>
         </View>
@@ -504,25 +683,43 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={handleRefresh}
+              colors={['#6366F1', '#8B5CF6']}
+              tintColor="#6366F1"
+            />
           }
         >
           {filteredAutomations.length > 0 ? (
-            filteredAutomations.map(renderAutomationCard)
+            filteredAutomations.map(renderAnimatedAutomationCard)
           ) : (
-            renderEmptyState()
+            renderModernEmptyState()
           )}
           
           <View style={styles.bottomSpacer} />
         </ScrollView>
-      </View>
+      </Animated.View>
 
-      {/* Floating Action Button */}
-      <FAB
-        icon="plus"
-        style={[styles.fab, { bottom: insets.bottom + 16 }]}
-        onPress={() => navigation.navigate('AutomationBuilder')}
-      />
+      {/* Modern Floating Action Button */}
+      <Animated.View 
+        style={[
+          styles.modernFABContainer, 
+          { 
+            bottom: insets.bottom + 16,
+            transform: [{ scale: fabScale }],
+          }
+        ]}
+      >
+        <Pressable style={styles.modernFAB} onPress={handleFABPress}>
+          <LinearGradient
+            colors={['#6366F1', '#8B5CF6', '#EC4899']}
+            style={styles.fabGradient}
+          >
+            <Icon name="plus" size={28} color="#FFFFFF" />
+          </LinearGradient>
+        </Pressable>
+      </Animated.View>
 
       {/* NFC Scanner Modal */}
       <FullScreenModal
@@ -561,153 +758,171 @@ const MyAutomationsScreen: React.FC<MyAutomationsScreenProps> = ({ navigation })
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+  },
+  gradientHeader: {
+    paddingBottom: 20,
+    elevation: 8,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  modernHeaderTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  headerActions: {
+    flexDirection: 'row',
+  },
+  headerActionButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginLeft: 8,
   },
   content: {
     flex: 1,
   },
   searchContainer: {
     padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  searchbar: {
-    marginBottom: 12,
+  modernSearchBar: {
+    marginBottom: 16,
+    borderRadius: 12,
+    elevation: 0,
   },
-  customSegmentedButtons: {
+  modernFiltersContainer: {
     flexDirection: 'row',
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.2)',
   },
-  segmentButton: {
+  modernFilterButton: {
     flex: 1,
+  },
+  activeModernFilterButton: {
+    elevation: 2,
+  },
+  firstFilterButton: {
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+  },
+  lastFilterButton: {
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  filterButtonGradient: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
   },
-  leftSegment: {
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
-  },
-  middleSegment: {
-    // No additional styles needed
-  },
-  rightSegment: {
-    borderTopRightRadius: 8,
-    borderBottomRightRadius: 8,
-    borderRightWidth: 0,
-  },
-  activeSegment: {
-    backgroundColor: '#6200ee',
-  },
-  segmentText: {
+  modernFilterText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
+    fontWeight: '600',
+    color: '#6366F1',
   },
-  activeSegmentText: {
-    color: '#fff',
+  activeModernFilterText: {
+    color: '#FFFFFF',
   },
   summaryContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#f9f9f9',
+    paddingVertical: 12,
   },
   summaryText: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '500',
   },
   scrollView: {
     flex: 1,
     padding: 16,
   },
-  automationCard: {
-    marginBottom: 12,
+  animatedCardContainer: {
+    marginBottom: 16,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+  modernCardWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  cardInfo: {
-    flex: 1,
-    marginRight: 12,
+  cardGradientOverlay: {
+    borderRadius: 16,
   },
-  automationTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-    color: '#333',
-  },
-  automationDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  createdDate: {
-    fontSize: 12,
-    color: '#999',
-  },
-  publicStatus: {
-    fontSize: 12,
-    color: '#666',
-  },
-  emptyState: {
+  modernEmptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
     marginTop: 64,
+    marginHorizontal: 16,
+    borderRadius: 24,
+    overflow: 'hidden',
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-    color: '#333',
-  },
-  emptyDescription: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  emptyButton: {
-    minWidth: 180,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  emptyStateGradient: {
+    paddingVertical: 48,
+    paddingHorizontal: 32,
     alignItems: 'center',
+    width: '100%',
   },
-  loadingText: {
-    marginTop: 16,
+  emptyIconContainer: {
+    marginBottom: 24,
+  },
+  emptyIconGradient: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modernEmptyTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#1F2937',
+    textAlign: 'center',
+  },
+  modernEmptyDescription: {
     fontSize: 16,
-    color: '#666',
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  modernEmptyButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  emptyButtonGradient: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modernEmptyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   errorContainer: {
     flex: 1,
@@ -715,82 +930,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
   },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+  errorGradient: {
+    padding: 32,
+    borderRadius: 24,
+    alignItems: 'center',
+    width: '100%',
+  },
+  modernErrorTitle: {
+    fontSize: 24,
+    fontWeight: '700',
     marginTop: 16,
     marginBottom: 8,
-    color: '#333',
+    color: '#1F2937',
+    textAlign: 'center',
   },
-  errorDescription: {
+  modernErrorDescription: {
     fontSize: 16,
-    color: '#666',
+    color: '#6B7280',
     textAlign: 'center',
     marginBottom: 24,
-    lineHeight: 22,
+    lineHeight: 24,
   },
-  fab: {
+  modernRetryButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  retryButtonGradient: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modernRetryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  modernFABContainer: {
     position: 'absolute',
-    margin: 16,
-    right: 0,
+    right: 16,
+  },
+  modernFAB: {
+    borderRadius: 28,
+    overflow: 'hidden',
+    elevation: 8,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  fabGradient: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bottomSpacer: {
-    height: 80,
-  },
-  fullScreenModal: {
-    flex: 1,
-    margin: 0,
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    margin: 20,
-    borderRadius: 8,
-    maxHeight: '80%',
-  },
-  // Skeleton loading styles
-  skeletonHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  skeletonText: {
-    height: 20,
-    width: '60%',
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-  },
-  skeletonActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  skeletonButton: {
-    width: 32,
-    height: 32,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 16,
-  },
-  skeletonMeta: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  skeletonChip: {
-    height: 24,
-    width: 60,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 12,
-  },
-  skeletonSearchbar: {
-    height: 48,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 24,
-    marginBottom: 12,
-  },
-  skeletonFilters: {
-    height: 40,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 20,
+    height: 100,
   },
 });
 

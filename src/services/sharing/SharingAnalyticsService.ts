@@ -153,7 +153,7 @@ export class SharingAnalyticsService {
 
       // Get execution data
       const { data: executions } = await supabase
-        .from('executions')
+        .from('automation_executions')
         .select('*')
         .eq('automation_id', automationId)
         .eq('source', 'web');
@@ -322,11 +322,10 @@ export class SharingAnalyticsService {
 
       // Get executions from this share
       const { data: executions } = await supabase
-        .from('executions')
+        .from('automation_executions')
         .select('*')
         .eq('automation_id', share.automation_id)
-        .eq('source', 'web')
-        .gte('started_at', share.created_at);
+        .gte('created_at', share.created_at);
 
       return {
         views: share.access_count || 0,
@@ -382,11 +381,10 @@ export class SharingAnalyticsService {
         .gte('shared_at', thirtyDaysAgo.toISOString());
 
       const { data: executions } = await supabase
-        .from('executions')
-        .select('started_at')
+        .from('automation_executions')
+        .select('created_at')
         .eq('automation_id', automationId)
-        .eq('source', 'web')
-        .gte('started_at', thirtyDaysAgo.toISOString());
+        .gte('created_at', thirtyDaysAgo.toISOString());
 
       // Group by day
       const dailyMap = new Map<string, DailyStats>();
@@ -413,7 +411,7 @@ export class SharingAnalyticsService {
 
       // Count executions
       (executions || []).forEach(exec => {
-        const dateStr = new Date(exec.started_at).toISOString().split('T')[0];
+        const dateStr = new Date(exec.created_at).toISOString().split('T')[0];
         const stats = dailyMap.get(dateStr);
         if (stats) stats.executions += 1;
       });

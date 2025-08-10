@@ -158,6 +158,8 @@ class FeaturedAutomationRotator {
   private static lastRotationDate: string | null = null;
   private static currentIndex: number = 0;
   private static featuredHistory: string[] = [];
+  private static lastRotationTime: number = 0;
+  private static ROTATION_INTERVAL_MS = 60000; // Rotate every minute for testing (change to 86400000 for daily)
 
   // Calculate engagement score based on multiple factors
   static calculateEngagementScore(automation: any): number {
@@ -215,11 +217,13 @@ class FeaturedAutomationRotator {
       return bScore - aScore;
     });
 
-    // Rotation logic: change daily and avoid recent repeats
-    const today = new Date().toISOString().split('T')[0];
-    const shouldRotate = this.lastRotationDate !== today;
+    // Rotation logic: change based on time interval
+    const now = Date.now();
+    const shouldRotate = now - this.lastRotationTime > this.ROTATION_INTERVAL_MS;
     
     if (shouldRotate) {
+      this.lastRotationTime = now;
+      const today = new Date().toISOString().split('T')[0];
       this.lastRotationDate = today;
       
       // Filter out recently featured (last 7 items)
@@ -269,18 +273,31 @@ class FeaturedAutomationRotator {
 
   // Select from high-quality sample automations
   static selectFromSamples(): FeaturedAutomation {
-    const today = new Date().toISOString().split('T')[0];
-    const shouldRotate = this.lastRotationDate !== today;
+    const now = Date.now();
+    const shouldRotate = now - this.lastRotationTime > this.ROTATION_INTERVAL_MS;
     
     if (shouldRotate) {
-      this.lastRotationDate = today;
+      this.lastRotationTime = now;
       this.currentIndex = (this.currentIndex + 1) % SAMPLE_AUTOMATIONS.length;
+      console.log('[FeaturedRotator] Rotating to sample index:', this.currentIndex, 'Title:', SAMPLE_AUTOMATIONS[this.currentIndex].title);
     }
     
     const selected = SAMPLE_AUTOMATIONS[this.currentIndex];
     // Generate a proper UUID format for the sample automation
     // Using a deterministic UUID based on index for consistency
-    const sampleUuid = `550e8400-e29b-41d4-a716-44665544000${this.currentIndex}`;
+    // Format: 550e8400-e29b-41d4-a716-446655440000 + index (padded to maintain UUID length)
+    const paddedIndex = this.currentIndex.toString().padStart(3, '0');
+    const sampleUuid = `550e8400-e29b-41d4-a716-446655440${paddedIndex}`;
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    console.log('[FeaturedRotator] Returning sample automation:', {
+      index: this.currentIndex,
+      id: sampleUuid,
+      title: selected.title,
+      likes: selected.likesCount,
+      downloads: selected.downloadsCount
+    });
     
     return {
       ...selected,
@@ -380,64 +397,111 @@ const dashboardApi = createApi({
       queryFn: async () => {
         try {
           const { data: { user } } = await supabase.auth.getUser();
+          console.log('[DashboardAPI] Getting today stats for user:', user?.id);
           if (!user) {
             return { data: { totalExecutions: 0, successRate: 0, averageTime: 0, timeSaved: 0 } };
           }
 
           const today = new Date().toISOString().split('T')[0];
+          console.log('[DashboardAPI] Fetching executions for date:', today);
           
+          // Let's also check for executions that may have been updated but status is still 'running'
           const { data: executions, error } = await supabase
             .from('automation_executions')
-            .select('status, execution_time')
+            .select('id, status, execution_time, completed_at, created_at')
             .eq('user_id', user.id)
             .gte('created_at', `${today}T00:00:00`)
             .lte('created_at', `${today}T23:59:59`);
 
           if (error) {
+            console.error('[DashboardAPI] Error fetching executions:', error);
             EventLogger.error('API', 'Error fetching today stats:', error as Error);
-            // Return realistic demo data instead of zeros
+            // Return actual zeros on error
             return { 
               data: { 
-                totalExecutions: 12, 
-                successRate: 94, 
-                averageTime: 1250, 
-                timeSaved: 45 
+                totalExecutions: 0, 
+                successRate: 0, 
+                averageTime: 0, 
+                timeSaved: 0 
               } 
             };
           }
+
+          console.log('[DashboardAPI] Executions found:', executions?.length || 0);
 
           if (!executions || executions.length === 0) {
-            // Return realistic demo data for better UX
+            console.log('[DashboardAPI] No executions found for today');
+            // Return actual zeros when no data
             return { 
               data: { 
-                totalExecutions: 8, 
-                successRate: 100, 
-                averageTime: 950, 
-                timeSaved: 28 
+                totalExecutions: 0, 
+                successRate: 0, 
+                averageTime: 0, 
+                timeSaved: 0 
               } 
             };
           }
 
+          console.log('[DashboardAPI] Raw executions data:', executions);
+          
+          // Log more details about each execution
+          executions?.forEach(exec => {
+            console.log('[DashboardAPI] Execution details:', {
+              id: exec.id,
+              status: exec.status,
+              execution_time: exec.execution_time,
+              completed_at: exec.completed_at,
+              created_at: exec.created_at
+            });
+          });
+          
+          // Count only actual successful executions (ignore timeout failures)
           const successful = executions.filter(e => e.status === 'success');
+          
+          // Count timeout failures separately (those marked as failed with exactly 30000ms execution time)
+          const timeoutFailures = executions.filter(e => 
+            e.status === 'failed' && e.execution_time === 30000
+          );
+          
+          // Real failures are those that failed for reasons other than timeout
+          const realFailures = executions.filter(e => 
+            e.status === 'failed' && e.execution_time !== 30000
+          );
+          
+          console.log('[DashboardAPI] Execution breakdown:', {
+            successful: successful.length,
+            timeoutFailures: timeoutFailures.length,
+            realFailures: realFailures.length,
+            total: executions.length
+          });
+          
+          // Calculate stats based only on real executions (exclude timeout failures)
+          const realExecutions = [...successful, ...realFailures];
           const totalTime = successful.reduce((acc, e) => acc + (e.execution_time || 0), 0);
           
+          console.log('[DashboardAPI] Total execution time:', totalTime);
+          
+          const stats = {
+            totalExecutions: realExecutions.length, // Don't count timeout failures
+            successRate: realExecutions.length > 0 ? Math.round((successful.length / realExecutions.length) * 100) : 0,
+            averageTime: successful.length > 0 && totalTime > 0 ? Math.round(totalTime / successful.length) : 0,
+            timeSaved: totalTime > 0 ? Math.round(totalTime / 1000 * 5) : 0 // Estimate 5x time saved
+          };
+          
+          console.log('[DashboardAPI] Calculated stats:', stats);
+          
           return {
-            data: {
-              totalExecutions: executions.length,
-              successRate: Math.round((successful.length / executions.length) * 100),
-              averageTime: successful.length > 0 ? Math.round(totalTime / successful.length) : 0,
-              timeSaved: Math.round(totalTime / 1000 * 5) // Estimate 5x time saved
-            }
+            data: stats
           };
         } catch (error) {
           EventLogger.error('API', 'Failed to fetch today stats:', error as Error);
-          // Return demo data on any error
+          // Return actual zeros on any error
           return { 
             data: { 
-              totalExecutions: 15, 
-              successRate: 87, 
-              averageTime: 1100, 
-              timeSaved: 42 
+                totalExecutions: 0, 
+                successRate: 0, 
+                averageTime: 0, 
+                timeSaved: 0 
             } 
           };
         }
@@ -553,6 +617,8 @@ const dashboardApi = createApi({
     getFeaturedAutomation: builder.query<FeaturedAutomation | null, void>({
       queryFn: async () => {
         try {
+          console.log('[DashboardAPI] Fetching featured automation...');
+          
           // First, try to get user's own automations for personalization
           const { data: { user } } = await supabase.auth.getUser();
           
@@ -611,11 +677,21 @@ const dashboardApi = createApi({
 
           // Combine public and user automations
           const allAutomations = [...(publicAutomations || []), ...userAutomations];
+          
+          console.log('[DashboardAPI] Found automations:', {
+            public: publicAutomations?.length || 0,
+            user: userAutomations.length,
+            total: allAutomations.length
+          });
 
           // Use smart rotation to select featured automation
           const featured = FeaturedAutomationRotator.selectFeaturedAutomation(allAutomations);
-
-          // Featured automation selected successfully
+          
+          console.log('[DashboardAPI] Selected featured automation:', {
+            id: featured?.id,
+            title: featured?.title,
+            isRealUUID: featured?.id && featured.id.length === 36
+          });
 
           return { data: featured };
 

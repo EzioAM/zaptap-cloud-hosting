@@ -13,6 +13,7 @@ import { OnboardingFlow } from '../screens/onboarding/OnboardingFlow';
 import { NotificationProvider } from '../components/notifications/NotificationProvider';
 import { EventLogger } from '../utils/EventLogger';
 import { NavigationHelper } from '../services/navigation/NavigationHelper';
+import { navigationStateTracker } from '../services/navigation/NavigationStateTracker';
 
 // Error Boundaries and Recovery
 import { BaseErrorBoundary, NavigationErrorBoundary } from '../components/ErrorBoundaries';
@@ -184,10 +185,15 @@ const AppNavigatorContent = React.memo(() => {
       const state = navigationRef.current.getRootState();
       const currentRoute = state?.routes[state.index];
       
+      // Update navigation state tracker
+      navigationStateTracker.updateState(state);
+      
       // Log navigation for debugging if needed
       if (__DEV__) {
         EventLogger.debug('Navigation', 'Navigation state changed', { 
-          currentRoute: currentRoute?.name 
+          currentRoute: currentRoute?.name,
+          currentParams: navigationStateTracker.getCurrentParams(),
+          stack: navigationStateTracker.getNavigationStack()
         });
       }
     }

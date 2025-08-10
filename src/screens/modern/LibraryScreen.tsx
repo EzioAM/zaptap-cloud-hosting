@@ -13,11 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import * as Haptics from 'expo-haptics';
+import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 
 // API hooks for real data
 import {
@@ -47,7 +47,7 @@ interface AutomationItem {
 }
 
 const LibraryScreen: React.FC = () => {
-  const theme = useTheme();
+  const theme = useSafeTheme();
   const navigation = useNavigation();
   const { user } = useSelector((state: RootState) => state.auth);
   
@@ -288,9 +288,9 @@ const LibraryScreen: React.FC = () => {
       <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
         <MaterialCommunityIcons name="magnify" size={20} color={theme.colors.onSurfaceVariant} />
         <TextInput
-          style={[styles.searchInput, { color: theme.colors.onSurface }]}
+          style={[styles.searchInput, { color: theme.colors.text?.primary || '#000000' }]}
           placeholder="Search your automations..."
-          placeholderTextColor={theme.colors.onSurfaceVariant}
+          placeholderTextColor={theme.colors.text?.secondary || '#666666'}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -316,8 +316,8 @@ const LibraryScreen: React.FC = () => {
                   selectedCategory === item && styles.categoryChipSelected,
                   { 
                     backgroundColor: selectedCategory === item 
-                      ? theme.colors.primary 
-                      : theme.colors.surfaceVariant 
+                      ? theme.colors.brand?.primary || '#6200ee' 
+                      : theme.colors.surface?.secondary || '#F5F5F5' 
                   }
                 ]}
                 onPress={() => setSelectedCategory(item)}
@@ -328,7 +328,7 @@ const LibraryScreen: React.FC = () => {
                     { 
                       color: selectedCategory === item 
                         ? 'white' 
-                        : theme.colors.onSurfaceVariant 
+                        : theme.colors.text?.secondary || '#666666' 
                     }
                   ]}
                 >
@@ -342,7 +342,7 @@ const LibraryScreen: React.FC = () => {
       
       {/* Sort Options */}
       <View style={styles.sortContainer}>
-        <Text style={[styles.sortLabel, { color: theme.colors.onSurfaceVariant }]}>Sort by:</Text>
+        <Text style={[styles.sortLabel, { color: theme.colors.text?.secondary || '#666666' }]}>Sort by:</Text>
         {['recent', 'name', 'runs'].map((option) => (
           <TouchableOpacity
             key={option}
@@ -351,7 +351,7 @@ const LibraryScreen: React.FC = () => {
               sortBy === option && styles.sortChipSelected,
               { 
                 backgroundColor: sortBy === option 
-                  ? theme.colors.primary + '20' 
+                  ? (theme.colors.brand?.primary || '#6200ee') + '20' 
                   : 'transparent' 
               }
             ]}
@@ -362,8 +362,8 @@ const LibraryScreen: React.FC = () => {
                 styles.sortChipText,
                 { 
                   color: sortBy === option 
-                    ? theme.colors.primary 
-                    : theme.colors.onSurfaceVariant 
+                    ? theme.colors.brand?.primary || '#6200ee' 
+                    : theme.colors.text?.secondary || '#666666' 
                 }
               ]}
             >
@@ -375,7 +375,7 @@ const LibraryScreen: React.FC = () => {
       
       {/* Results Count */}
       {filteredAutomations.length > 0 && (
-        <Text style={[styles.resultsCount, { color: theme.colors.onSurfaceVariant }]}>
+        <Text style={[styles.resultsCount, { color: theme.colors.text?.secondary || '#666666' }]}>
           {filteredAutomations.length} automation{filteredAutomations.length !== 1 ? 's' : ''}
         </Text>
       )}
@@ -384,15 +384,15 @@ const LibraryScreen: React.FC = () => {
   
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background?.primary || '#F5F5F5' }]}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.colors.onBackground }]}>
+          <Text style={[styles.title, { color: theme.colors.text?.primary || '#000000' }]}>
             My Library
           </Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>
+          <ActivityIndicator size="large" color={theme.colors.brand?.primary || '#6200ee'} />
+          <Text style={[styles.loadingText, { color: theme.colors.text?.secondary || '#666666' }]}>
             Loading your automations...
           </Text>
         </View>
@@ -402,9 +402,9 @@ const LibraryScreen: React.FC = () => {
   
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background?.primary || '#F5F5F5' }]}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.colors.onBackground }]}>
+          <Text style={[styles.title, { color: theme.colors.text?.primary || '#000000' }]}>
             My Library
           </Text>
         </View>
@@ -426,13 +426,26 @@ const LibraryScreen: React.FC = () => {
         <Text style={[styles.title, { color: theme.colors.onBackground }]}>
           My Library
         </Text>
-        <TouchableOpacity
-          style={[styles.createButton, { backgroundColor: theme.colors.primary }]}
-          onPress={handleCreateNew}
-        >
-          <MaterialCommunityIcons name="plus" size={20} color="white" />
-          <Text style={styles.createButtonText}>Create</Text>
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={[styles.galleryButton, { 
+              backgroundColor: theme.colors.surface?.secondary || '#F0F0F0',
+              borderWidth: 1,
+              borderColor: theme.colors.border?.light || '#E0E0E0'
+            }]}
+            onPress={() => navigation.navigate('Gallery' as never)}
+          >
+            <MaterialCommunityIcons name="view-gallery-outline" size={20} color={theme.colors.brand?.secondary || '#03DAC6'} />
+            <Text style={[styles.galleryButtonText, { color: theme.colors.text?.primary || '#333333' }]}>Gallery</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.createButton, { backgroundColor: theme.colors.brand?.primary || '#6200ee' }]}
+            onPress={handleCreateNew}
+          >
+            <MaterialCommunityIcons name="plus" size={20} color="white" />
+            <Text style={styles.createButtonText}>Create</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       
       {filteredAutomations.length === 0 && !isLoading ? (
@@ -478,7 +491,7 @@ const LibraryScreen: React.FC = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor={theme.colors.primary}
+              tintColor={theme.colors.brand?.primary || '#6200ee'}
             />
           }
         />
@@ -503,6 +516,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -513,6 +530,18 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  galleryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
+  },
+  galleryButtonText: {
     fontWeight: '600',
     fontSize: 14,
   },

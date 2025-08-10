@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform, Text, Animated } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { useSafeTheme } from '../components/common/ThemeFallbackWrapper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventLogger } from '../utils/EventLogger';
 
@@ -101,7 +101,7 @@ export const ModernBottomTabNavigator = () => {
   let insets = { bottom: 0, top: 0, left: 0, right: 0 };
   
   try {
-    theme = useTheme();
+    theme = useSafeTheme();
   } catch (error) {
     EventLogger.warn('Navigation', 'Failed to get theme context, using defaults:', error);
     theme = {

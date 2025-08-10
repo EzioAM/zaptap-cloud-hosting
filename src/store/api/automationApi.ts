@@ -621,7 +621,7 @@ export const automationApi = createApi({
             .from('automation_executions')
             .select(`
               *,
-              automation:automations(id, name, title)
+              automation:automations(id, title)
             `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })

@@ -34,11 +34,11 @@ import { getExtendedColors, getGlassStyle } from '../../theme/colors';
 import { 
   useSearchAutomationsQuery,
   useLazySearchAutomationsQuery,
-  SearchFilters,
+  SearchFilters as SearchFiltersType,
   SearchResult,
 } from '../../store/api/searchApi';
 import SearchBar from '../../components/search/SearchBar';
-import SearchFilters from '../../components/search/SearchFilters';
+import SearchFiltersComponent from '../../components/search/SearchFilters';
 import AutomationPreview from '../../components/discover/AutomationPreview';
 import { EmptyState } from '../../components/molecules/EmptyState';
 import { EnhancedLoadingSkeleton } from '../../components/common/EnhancedLoadingSkeleton';
@@ -231,7 +231,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
   theme = 'light',
 }) => {
   const [searchQuery, setSearchQuery] = useState(route?.params?.initialQuery || '');
-  const [filters, setFilters] = useState<SearchFilters>({
+  const [filters, setFilters] = useState<SearchFiltersType>({
     category: route?.params?.initialCategory,
     sortBy: 'relevance',
   });
@@ -258,7 +258,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
 
   // Execute search when query or filters change
   useEffect(() => {
-    if (searchQuery.trim() || Object.keys(filters).some(key => filters[key as keyof SearchFilters])) {
+    if (searchQuery.trim() || Object.keys(filters).some(key => filters[key as keyof SearchFiltersType])) {
       handleSearch(true);
     }
   }, [searchQuery, filters]);

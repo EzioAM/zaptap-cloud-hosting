@@ -19,6 +19,12 @@ export const FeaturedAutomationWidget: React.FC = () => {
     'Health': ['#F59E0B', '#FCD34D'],
     'Entertainment': ['#8B5CF6', '#A78BFA'],
     'Finance': ['#06B6D4', '#67E8F9'],
+    'Travel': ['#FF6B6B', '#FF8E53'],
+    'Education': ['#667EEA', '#764BA2'],
+    'Shopping': ['#F093FB', '#F5576C'],
+    'Security': ['#FA709A', '#FEE140'],
+    'Marketing': ['#4FACFE', '#00F2FE'],
+    'Other': ['#667EEA', '#764BA2'],
   };
 
   if (isLoading) {

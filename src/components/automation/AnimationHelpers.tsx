@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -255,63 +256,147 @@ export const PressableAnimated: React.FC<{
   );
 };
 
-// Success/Error feedback animation
+// Modern Success/Error feedback toast with glassmorphism
 export const FeedbackAnimation: React.FC<{
   type: 'success' | 'error' | 'warning';
   visible: boolean;
   message: string;
 }> = ({ type, visible, message }) => {
-  const slideValue = useRef(new Animated.Value(-100)).current;
+  const slideValue = useRef(new Animated.Value(-150)).current;
   const fadeValue = useRef(new Animated.Value(0)).current;
+  const scaleValue = useRef(new Animated.Value(0.9)).current;
+  const progressValue = useRef(new Animated.Value(0)).current;
+  const { top } = useSafeAreaInsets();
 
   useEffect(() => {
     if (visible) {
+      // Trigger haptic on show
+      if (Platform.OS !== 'web') {
+        Vibration.vibrate(10);
+      }
+
+      // Show animation with spring effect
       Animated.parallel([
-        Animated.timing(slideValue, {
+        Animated.spring(slideValue, {
           toValue: 0,
-          duration: 300,
+          tension: 65,
+          friction: 10,
           useNativeDriver: true,
         }),
         Animated.timing(fadeValue, {
           toValue: 1,
-          duration: 300,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleValue, {
+          toValue: 1,
+          tension: 65,
+          friction: 10,
           useNativeDriver: true,
         }),
       ]).start();
+
+      // Progress animation
+      Animated.timing(progressValue, {
+        toValue: 1,
+        duration: 3000,
+        useNativeDriver: false,
+      }).start();
 
       // Auto-hide after 3 seconds
       setTimeout(() => {
         Animated.parallel([
           Animated.timing(slideValue, {
-            toValue: -100,
-            duration: 300,
+            toValue: -150,
+            duration: 200,
             useNativeDriver: true,
           }),
           Animated.timing(fadeValue, {
             toValue: 0,
-            duration: 300,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleValue, {
+            toValue: 0.9,
+            duration: 200,
             useNativeDriver: true,
           }),
         ]).start();
       }, 3000);
+    } else {
+      // Reset values
+      slideValue.setValue(-150);
+      fadeValue.setValue(0);
+      scaleValue.setValue(0.9);
+      progressValue.setValue(0);
     }
-  }, [visible, slideValue, fadeValue]);
+  }, [visible, slideValue, fadeValue, scaleValue, progressValue]);
 
-  const backgroundColor =
-    type === 'success' ? '#4CAF50' : type === 'error' ? '#F44336' : '#FF9800';
+  const iconName = 
+    type === 'success' ? '✓' : 
+    type === 'error' ? '✕' : 
+    '⚠';
+
+  const gradientColors = 
+    type === 'success' ? ['#10B981', '#059669'] : 
+    type === 'error' ? ['#EF4444', '#DC2626'] : 
+    ['#F59E0B', '#D97706'];
+
+  const progressWidth = progressValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
     <Animated.View
+      pointerEvents={visible ? 'auto' : 'none'}
       style={[
-        styles.feedbackContainer,
+        styles.modernFeedbackContainer,
         {
-          backgroundColor,
-          transform: [{ translateY: slideValue }],
+          transform: [
+            { translateY: slideValue },
+            { scale: scaleValue },
+          ],
           opacity: fadeValue,
+          top: top + 10, // Position below the notch with margin
         },
       ]}
     >
-      <Animated.Text style={styles.feedbackText}>{message}</Animated.Text>
+      <View style={styles.modernFeedbackContent}>
+        {/* Glass background effect */}
+        <View style={styles.glassBackground} />
+        
+        {/* Content */}
+        <View style={styles.toastContent}>
+          {/* Icon with gradient background */}
+          <LinearGradient
+            colors={gradientColors}
+            style={styles.iconContainer}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Animated.Text style={styles.toastIcon}>{iconName}</Animated.Text>
+          </LinearGradient>
+          
+          {/* Message */}
+          <Animated.Text style={styles.modernFeedbackText} numberOfLines={2}>
+            {message}
+          </Animated.Text>
+        </View>
+        
+        {/* Progress bar */}
+        <View style={styles.progressBarContainer}>
+          <Animated.View 
+            style={[
+              styles.progressBar,
+              {
+                width: progressWidth,
+                backgroundColor: gradientColors[0],
+              },
+            ]} 
+          />
+        </View>
+      </View>
     </Animated.View>
   );
 };
@@ -457,6 +542,70 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  // Modern toast styles
+  modernFeedbackContainer: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    zIndex: 10000,
+    elevation: 10,
+  },
+  modernFeedbackContent: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  glassBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backdropFilter: 'blur(20px)',
+  },
+  toastContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  toastIcon: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modernFeedbackText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+    lineHeight: 20,
+  },
+  progressBarContainer: {
+    height: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 1.5,
   },
   loadingPulse: {
     borderRadius: 20,

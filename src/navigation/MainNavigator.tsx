@@ -11,7 +11,7 @@ import TemplatesScreen from '../screens/automation/TemplatesScreen';
 import LocationTriggersScreen from '../screens/automation/LocationTriggersScreen';
 import ReviewsScreen from '../screens/automation/ReviewsScreen';
 import { DeveloperMenuScreen } from '../screens/developer/DeveloperMenuScreen';
-import ModernReviewsScreenSafe from '../screens/modern/ModernReviewsScreenSafe';
+// ModernReviewsScreenSafe was removed - using ReviewsScreen instead
 import ModernCommentsScreen from '../screens/modern/ModernCommentsScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { OnboardingFlow } from '../screens/onboarding/OnboardingFlow';
@@ -31,6 +31,12 @@ import EmailPreferencesScreen from '../screens/settings/EmailPreferencesScreen';
 import PrivacyPolicyScreen from '../screens/placeholder/PrivacyPolicyScreen';
 import EnhancedSettingsScreen from '../screens/settings/EnhancedSettingsScreen';
 import ScannerScreen from '../screens/modern/ScannerScreen';
+// Orphaned screens to be integrated
+import SearchScreen from '../screens/discover/SearchScreen';
+import { AnalyticsScreen } from '../screens/AnalyticsScreen';
+import MyAutomationsScreen from '../screens/automation/MyAutomationsScreen';
+import GalleryScreenWrapper from '../screens/automation/GalleryScreenWrapper';
+import { AnalyticsDashboard } from '../screens/profile/AnalyticsDashboard';
 import { RootStackParamList } from './types';
 import { EventLogger } from '../utils/EventLogger';
 import { NavigationErrorBoundary } from '../components/ErrorBoundaries';
@@ -225,7 +231,7 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
       />
       <Stack.Screen
         name="ModernReviews"
-        component={ModernReviewsScreenSafe}
+        component={ReviewsScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen
@@ -312,6 +318,32 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         name="PrivacyPolicy"
         component={PrivacyPolicyScreen}
         options={{ title: 'Privacy Policy' }}
+      />
+      {/* Newly integrated orphaned screens */}
+      <Stack.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{ title: 'Search' }}
+      />
+      <Stack.Screen
+        name="Analytics"
+        component={AnalyticsScreen}
+        options={{ title: 'Analytics' }}
+      />
+      <Stack.Screen
+        name="MyAutomations"
+        component={MyAutomationsScreen}
+        options={{ title: 'My Automations' }}
+      />
+      <Stack.Screen
+        name="Gallery"
+        component={GalleryScreenWrapper}
+        options={{ title: 'Gallery' }}
+      />
+      <Stack.Screen
+        name="AnalyticsDashboard"
+        component={AnalyticsDashboard}
+        options={{ title: 'Analytics Dashboard' }}
       />
       </Stack.Navigator>
     );

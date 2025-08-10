@@ -31,10 +31,7 @@ export class VersionHistoryService {
     try {
       const { data, error } = await supabase
         .from('automation_versions')
-        .select(`
-          *,
-          profiles:created_by(display_name, email)
-        `)
+        .select('*')
         .eq('automation_id', automationId)
         .order('version_number', { ascending: false });
 

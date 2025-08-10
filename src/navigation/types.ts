@@ -77,6 +77,11 @@ export type RootStackParamList = {
   // Additional Settings
   EmailPreferences: undefined;
   PrivacyPolicy: undefined;
+  
+  // Newly integrated screens (previously orphaned)
+  Search: { query?: string; category?: string } | undefined;
+  Analytics: undefined;
+  AnalyticsDashboard: undefined;
 };
 
 // More specific navigation types

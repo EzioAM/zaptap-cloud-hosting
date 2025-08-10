@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from 'react-native-paper';
+import { useSafeTheme } from '../common/ThemeFallbackWrapper';
 import { useOptimizedTextInput } from '../../utils/textInputFixes';
 
 export interface ThemedInputProps extends Omit<TextInputProps, 'style'> {
@@ -43,7 +43,7 @@ export const ThemedInput = forwardRef<TextInput, ThemedInputProps>(({
   secureTextEntry,
   ...textInputProps
 }, ref) => {
-  const theme = useTheme();
+  const theme = useSafeTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
 

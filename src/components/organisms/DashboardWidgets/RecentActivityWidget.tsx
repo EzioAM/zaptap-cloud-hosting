@@ -15,7 +15,7 @@ const formatTime = (dateString: string) => {
 
 interface ExecutionItemProps {
   title: string;
-  status: 'success' | 'failed' | 'running';
+  status: 'success' | 'failed' | 'running' | 'cancelled';
   timestamp: string;
   duration?: number;
   delay?: number;
@@ -56,9 +56,7 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({
   const config = statusConfig[status];
 
   return (
-    <View
-      style={[styles.executionItem, { borderBottomColor: '#e0e0e0' }]}
-    >
+    <View style={[styles.executionItem, { borderBottomColor: '#e0e0e0' }]}>
       <View style={[styles.statusIcon, { backgroundColor: `${config.color}15` }]}>
         <MaterialCommunityIcons
           name={config.icon}
@@ -73,15 +71,8 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({
         <View style={styles.executionMeta}>
           <Text style={[styles.executionTime, { color: theme.colors?.textSecondary || '#666' }]}>
             {formatTime(timestamp)}
+            {duration ? ` • ${duration < 1000 ? `${duration}ms` : `${(duration / 1000).toFixed(1)}s`}` : ''}
           </Text>
-          {duration && (
-            <>
-              <Text style={[styles.dot, { color: theme.colors?.textSecondary || '#666' }]}>•</Text>
-              <Text style={[styles.executionTime, { color: theme.colors?.textSecondary || '#666' }]}>
-                {duration < 1000 ? `${duration}ms` : `${(duration / 1000).toFixed(1)}s`}
-              </Text>
-            </>
-          )}
         </View>
       </View>
       <Text style={[styles.statusLabel, { color: config.color }]}>
@@ -159,16 +150,18 @@ export const RecentActivityWidget: React.FC = () => {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        {activities.slice(0, 5).map((activity: any, index: number) => (
-          <ExecutionItem
-            key={activity.id}
-            title={activity.automation?.title || 'Unknown Automation'}
-            status={activity.status}
-            timestamp={activity.createdAt}
-            duration={activity.executionTime}
-            delay={index * 50}
-          />
-        ))}
+        {activities.slice(0, 5).map((activity: any, index: number) => {
+          return (
+            <ExecutionItem
+              key={activity.id}
+              title={activity.automation?.title || 'Unknown Automation'}
+              status={activity.status}
+              timestamp={activity.createdAt}
+              duration={activity.executionTime}
+              delay={index * 50}
+            />
+          );
+        })}
       </ScrollView>
     </View>
   );

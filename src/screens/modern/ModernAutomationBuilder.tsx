@@ -8,7 +8,6 @@ import {
   TextInput as RNTextInput,
   Modal,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Animated,
@@ -19,37 +18,76 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { TextInput } from 'react-native-paper';
 import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { useCreateAutomationMutation } from '../../store/api/automationApi';
-import { ModernStepConfigRenderer } from '../../components/automation/ModernStepConfigRenderer';
+import ModernStepConfigRenderer from '../../components/automation/ModernStepConfigRenderer';
 import { AutomationTemplateService, AutomationTemplate } from '../../services/templates/AutomationTemplates';
 import * as Haptics from 'expo-haptics';
 import { v4 as uuidv4 } from 'uuid';
 import { useOptimizedTextInput } from '../../utils/textInputFixes';
+import { StepType, AutomationStep as BaseAutomationStep, StepConfig } from '../../types';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
 
-interface AutomationStep {
-  id: string;
-  type: string;
-  title: string;
+interface AutomationStep extends BaseAutomationStep {
   icon: string;
   color: string;
-  config?: any;
-  enabled?: boolean;
 }
+
+// Helper function to get default config for each step type
+const getDefaultConfig = (type: StepType): StepConfig => {
+  switch (type) {
+    case 'notification':
+      return { title: '', message: '' };
+    case 'sms':
+      return { phoneNumber: '', message: '' };
+    case 'email':
+      return { email: '', subject: '', message: '' };
+    case 'webhook':
+      return { url: '', method: 'GET' };
+    case 'delay':
+      return { delay: 1000 };
+    case 'variable':
+      return { name: '', value: '' };
+    case 'get_variable':
+      return { name: '' };
+    case 'prompt_input':
+      return { title: '', message: '', variableName: '' };
+    case 'location':
+      return { action: 'get_current' };
+    case 'condition':
+      return { variable: '', condition: 'equals', value: '' };
+    case 'loop':
+      return { type: 'count', count: 1 };
+    case 'text':
+      return { action: 'combine', text1: '' };
+    case 'math':
+      return { operation: 'add', number1: 0, number2: 0 };
+    case 'photo':
+      return { action: 'take' };
+    case 'clipboard':
+      return { action: 'copy', text: '' };
+    case 'app':
+      return { appName: '' };
+    case 'open_url':
+      return { url: '' } as any;
+    case 'share_text':
+      return { text: '' } as any;
+    default:
+      return {} as any;
+  }
+};
 
 // Enhanced step types with all available actions
 const stepTypes = [
   // Communication & Notifications
-  { type: 'sms', title: 'Send SMS', icon: 'message-text', color: '#2196F3', category: 'Communication' },
-  { type: 'email', title: 'Send Email', icon: 'email', color: '#4CAF50', category: 'Communication' },
-  { type: 'notification', title: 'Show Notification', icon: 'bell', color: '#FF9800', category: 'Communication' },
+  { type: 'sms' as StepType, title: 'Send SMS', icon: 'message-text', color: '#2196F3', category: 'Communication' },
+  { type: 'email' as StepType, title: 'Send Email', icon: 'email', color: '#4CAF50', category: 'Communication' },
+  { type: 'notification' as StepType, title: 'Show Notification', icon: 'bell', color: '#FF9800', category: 'Communication' },
   { type: 'call', title: 'Make Phone Call', icon: 'phone', color: '#00BCD4', category: 'Communication' },
   { type: 'facetime', title: 'FaceTime', icon: 'video', color: '#34C759', category: 'Communication' },
   
@@ -203,7 +241,7 @@ const ModernAutomationBuilder: React.FC = memo(() => {
       title: stepType.title,
       icon: stepType.icon,
       color: stepType.color,
-      config: {},
+      config: getDefaultConfig(stepType.type),
       enabled: true,
     };
 
@@ -246,7 +284,7 @@ const ModernAutomationBuilder: React.FC = memo(() => {
   const handleSaveStepConfig = useCallback(() => {
     if (!selectedStep) return;
 
-    handleUpdateStep(selectedStep.id, { config: stepConfig });
+    handleUpdateStep(selectedStep.id, { config: stepConfig as StepConfig });
     setIsConfigModalVisible(false);
     setSelectedStep(null);
     setStepConfig({});
@@ -267,7 +305,7 @@ const ModernAutomationBuilder: React.FC = memo(() => {
       title: stepData.title,
       icon: stepData.icon || 'cog',
       color: stepData.color || '#8B5CF6',
-      config: stepData.config || {},
+      config: stepData.config || getDefaultConfig(stepData.type),
       enabled: stepData.enabled !== false,
     }));
 
@@ -317,9 +355,9 @@ const ModernAutomationBuilder: React.FC = memo(() => {
 
     try {
       const automationData = {
-        name: automationName.trim(),
+        title: automationName.trim(),
         description: automationDescription.trim(),
-        steps: steps.map(({ id, ...step }) => step),
+        steps: steps,
         user_id: user?.id,
         is_public: false,
         created_at: new Date().toISOString(),
@@ -735,7 +773,14 @@ const ModernAutomationBuilder: React.FC = memo(() => {
                   Steps
                 </Text>
                 <TouchableOpacity
-                  style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+                  style={[
+                    styles.addButton, 
+                    { 
+                      backgroundColor: '#6366F1',
+                      borderWidth: 2,
+                      borderColor: '#FFFFFF',
+                    }
+                  ]}
                   onPress={() => setIsStepPickerVisible(true)}
                 >
                   <MaterialCommunityIcons name="plus" size={20} color="white" />
@@ -1211,11 +1256,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   addButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     marginLeft: 8,
     fontWeight: '600',
+    fontSize: 16,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   stepCard: {
     marginHorizontal: 20,

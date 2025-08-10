@@ -80,6 +80,9 @@
 		<string>nearby-interaction</string>
 		<string>processing</string>
 		<string>external-accessory</string>
+		<string>remote-notification</string>
+		<string>audio</string>
+		<string>voip</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>SplashScreen</string>

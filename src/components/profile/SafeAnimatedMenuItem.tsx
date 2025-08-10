@@ -348,13 +348,15 @@ export const SafeAnimatedMenuItem: React.FC<AnimatedMenuItemProps> = (props) => 
   // Safe press handler wrapper
   const handlePress = useCallback(() => {
     try {
+      console.log('SafeAnimatedMenuItem handlePress called for:', label);
       if (!safeDisabled && safeType !== 'switch' && typeof onPress === 'function') {
+        console.log('Calling onPress for:', label);
         onPress();
       }
     } catch (error) {
       console.warn('Press handler failed:', error);
     }
-  }, [onPress, safeDisabled, safeType]);
+  }, [onPress, safeDisabled, safeType, label]);
 
   // Safe switch handler
   const handleSwitchChange = useCallback((newValue: boolean) => {
@@ -661,8 +663,13 @@ export const SafeAnimatedMenuSection: React.FC<AnimatedMenuSectionProps> = ({
   // Safe item press handler
   const handleItemPress = useCallback((item: MenuItem, itemIndex: number) => {
     try {
+      // Call the custom handler if provided
       if (typeof onItemPress === 'function') {
         onItemPress(item, itemIndex);
+      }
+      // Also call the item's own onPress if it exists
+      if (typeof item.onPress === 'function') {
+        item.onPress();
       }
     } catch (error) {
       console.warn('Item press handler failed:', error);

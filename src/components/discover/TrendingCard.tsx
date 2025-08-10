@@ -31,6 +31,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { getExtendedColors, getGlassStyle } from '../../theme/colors';
 import { TrendingAutomation, createShareUrl, createDeepLink } from '../../store/api/searchApi';
 import { EventLogger } from '../../utils/EventLogger';
+import ShareHelper from '../../utils/ShareHelper';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.85;
@@ -79,25 +80,14 @@ export const TrendingCard: React.FC<TrendingCardProps> = ({
   };
 
   const handleShare = async () => {
-    try {
-      const shareUrl = createShareUrl(automation.publicId);
-      const deepLink = createDeepLink(automation.publicId);
-      
-      const shareContent = {
-        title: automation.title,
-        message: `Check out this trending automation: ${automation.title}\n\n${automation.description}\n\n${shareUrl}`,
-        url: Platform.OS === 'ios' ? shareUrl : undefined,
-      };
-
-      if (onSharePress) {
-        onSharePress(automation);
-      } else {
-        const result = await Share.share(shareContent);
-        
-        if (result.action === Share.sharedAction) {
-          // Shared successfully
-          EventLogger.debug('TrendingCard', 'Automation shared successfully');
-        }
+    if (onSharePress) {
+      onSharePress(automation);
+    } else {
+      // Use centralized ShareHelper for consistent sharing
+      const success = await ShareHelper.shareAutomation(automation);
+      if (success) {
+        EventLogger.debug('TrendingCard', 'Automation shared successfully');
+      }
       }
     } catch (error) {
       EventLogger.error('TrendingCard', 'Error sharing automation:', error as Error);

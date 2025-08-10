@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Modal, TouchableOpacity, Pressable } from 'react-native';
-import { Text, Button, IconButton, useTheme, MD3Theme } from 'react-native-paper';
+import { Text, Button, IconButton, MD3Theme } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventLogger } from '../../utils/EventLogger';
+import { useSafeTheme } from '../common/ThemeFallbackWrapper';
 
 const ICON_MAP = {
   sms: 'message-text',
@@ -44,7 +45,7 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
   onCancel,
   renderConfigForm,
 }) => {
-  const theme = useTheme();
+  const theme = useSafeTheme();
   const insets = useSafeAreaInsets();
 
   // Dev-only visibility trace

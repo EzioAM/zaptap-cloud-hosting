@@ -194,7 +194,7 @@ export const Button: React.FC<ButtonProps> = ({
     );
   };
 
-  const rippleColor = colors.states.pressed;
+  const rippleColor = colors.states?.pressed || '#00000020';
 
   return (
     <AnimatedPressable

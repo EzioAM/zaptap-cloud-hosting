@@ -55,8 +55,8 @@ export default {
       ],
       infoPlist: {
         NSCameraUsageDescription: "This app uses the camera to scan QR codes for automations.",
-        NSLocationAlwaysAndWhenInUseUsageDescription: "This app uses location services to trigger location-based automations.",
-        NSLocationWhenInUseUsageDescription: "This app uses location services to trigger location-based automations.",
+        NSLocationAlwaysAndWhenInUseUsageDescription: "This app uses location services to trigger location-based automations and provide accurate weather information.",
+        NSLocationWhenInUseUsageDescription: "This app uses location services to trigger location-based automations and provide accurate weather information.",
         NSPhotoLibraryUsageDescription: "This app needs access to your photos to select images for automations.",
         NFCReaderUsageDescription: "This app uses NFC to read and write automation tags.",
         NSFaceIDUsageDescription: "This app uses Face ID for secure automation access.",
@@ -66,7 +66,8 @@ export default {
         ITSAppUsesNonExemptEncryption: false
       },
       entitlements: {
-        "com.apple.developer.nfc.readersession.formats": ["NDEF", "TAG"]
+        "com.apple.developer.nfc.readersession.formats": ["NDEF", "TAG"],
+        "com.apple.developer.weatherkit": true
       }
     },
     android: {
@@ -123,8 +124,8 @@ export default {
     },
     platforms: ["ios", "android"],
     updates: {
-      enabled: true,
-      checkAutomatically: "ON_LOAD",
+      enabled: false,
+      checkAutomatically: "NEVER",
       fallbackToCacheTimeout: 0,
       url: "https://u.expo.dev/c9104518-2191-4a5a-aa20-76cebb5193cd"
     },
@@ -134,6 +135,7 @@ export default {
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       claudeApiKey: process.env.CLAUDE_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
+      openWeatherApiKey: process.env.OPENWEATHER_API_KEY,
       eas: {
         projectId: "c9104518-2191-4a5a-aa20-76cebb5193cd"
       }

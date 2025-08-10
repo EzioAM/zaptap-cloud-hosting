@@ -18,6 +18,9 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# WeatherKit configuration (contains sensitive keys)
+ios/Zaptap/WeatherKitConfig.swift
+
 # Metro
 .metro-health-check*
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,20 +7,22 @@ import {
   Alert,
   FlatList,
   Pressable,
+  Animated,
+  Text as RNText,
+  TextInput,
+  TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import {
-  Appbar,
-  Card,
-  Text,
-  Chip,
-  Button,
-  IconButton,
   ActivityIndicator,
-  Searchbar,
-  Surface,
+  Text,
+  IconButton,
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { AutomationData } from '../../types';
 import { supabase } from '../../services/supabase/client';
 import StarRating from '../../components/reviews/StarRating';
@@ -29,6 +31,8 @@ import { AutomationFilters, FilterOptions } from '../../components/filtering/Aut
 import { automationFilterService } from '../../services/filtering/AutomationFilterService';
 import { AutomationCard } from '../../components/automation/AutomationCard';
 import { EventLogger } from '../../utils/EventLogger';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 interface GalleryScreenProps {
   navigation: any;
@@ -61,6 +65,7 @@ const categories: GalleryCategory[] = [
 ];
 
 const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
+  const theme = useSafeTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [automations, setAutomations] = useState<AutomationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,6 +74,74 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
   const [availableCategories, setAvailableCategories] = useState<GalleryCategory[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+
+  // Define component functions inside GalleryScreen
+  const ModernSearchBar = ({ value, onChangeText }: { value: string; onChangeText: (text: string) => void }) => (
+    <View style={[styles.modernSearchContainer, { 
+      borderColor: theme.colors.border?.light || '#E0E0E0',
+      backgroundColor: theme.colors.surface?.primary || '#FFFFFF'
+    }]}>
+      <Icon name="magnify" size={20} color={theme.colors.text?.secondary || '#666666'} />
+      <TextInput
+        style={[styles.modernSearchInput, { color: theme.colors.text?.primary || '#000000' }]}
+        placeholder="Search automations..."
+        placeholderTextColor={theme.colors.text?.secondary || '#666666'}
+        value={value}
+        onChangeText={onChangeText}
+      />
+    </View>
+  );
+
+  const ModernFilterChip = ({ label, onPress, onClose }: { label: string; onPress?: () => void; onClose?: () => void }) => (
+    <LinearGradient
+      colors={[theme.colors.brand?.primary || '#6200ee', theme.colors.brand?.secondary || '#03DAC6']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.modernFilterChip}
+    >
+      <TouchableOpacity
+        onPress={onPress}
+        style={styles.modernFilterChipContent}
+      >
+        <Text style={styles.modernFilterChipText}>{label}</Text>
+        {onClose && (
+          <TouchableOpacity onPress={onClose} style={styles.filterChipClose}>
+            <Icon name="close" size={16} color="white" />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    </LinearGradient>
+  );
+
+  const ModernSortButton = ({ title, active, onPress }: { title: string; active: boolean; onPress: () => void }) => (
+    active ? (
+      <LinearGradient
+        colors={['#6366F1', '#8B5CF6', '#EC4899']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.sortButton}
+      >
+        <TouchableOpacity
+          onPress={onPress}
+          style={styles.sortButtonContent}
+        >
+          <Text style={styles.sortButtonTextActive}>{title}</Text>
+        </TouchableOpacity>
+      </LinearGradient>
+    ) : (
+      <TouchableOpacity
+        onPress={onPress}
+        style={[styles.sortButton, { backgroundColor: theme.colors.surface?.secondary || '#F5F5F5' }]}
+      >
+        <Text style={[styles.sortButtonText, { color: theme.colors.text?.secondary || '#666666' }]}>{title}</Text>
+      </TouchableOpacity>
+    )
+  );
+
+  // Animation values
+  const fadeInAnim = useRef(new Animated.Value(0)).current;
+  const slideInAnim = useRef(new Animated.Value(50)).current;
+  const headerOpacity = useRef(new Animated.Value(0)).current;
   
   // Initialize filters with route category if provided
   const [filters, setFilters] = useState<FilterOptions>({
@@ -85,6 +158,25 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
+    // Initial animations
+    Animated.parallel([
+      Animated.timing(headerOpacity, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeInAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideInAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     loadAvailableFilters();
     loadAutomations();
   }, []);
@@ -123,9 +215,9 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
     } catch (error: any) {
       EventLogger.error('Automation', 'Error loading gallery automations:', {
         message: error.message,
-        details: error.stack || error.toString( as Error);,
+        details: error.stack || error.toString(),
         url: Constants.expoConfig?.extra?.supabaseUrl
-      });
+      } as Error);
       Alert.alert('Error', `Failed to load automations: ${error.message || 'Unknown error'}`);
     } finally {
       setIsLoading(false);
@@ -133,6 +225,7 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
   };
 
   const handleRefresh = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     await loadAvailableFilters();
     await loadAutomations();
@@ -140,10 +233,12 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
   };
 
   const handleFiltersChange = (newFilters: FilterOptions) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setFilters(newFilters);
   };
 
   const handleResetFilters = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const defaultFilters: FilterOptions = {
       category: null,
       sortBy: 'created_at',
@@ -162,8 +257,19 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
     setSearchQuery(query);
   };
 
+  const handleCategorySelect = (categoryId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setFilters(prev => ({ ...prev, category: categoryId }));
+  };
+
+  const handleSortChange = (sortBy: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setFilters(prev => ({ ...prev, sortBy }));
+  };
+
   const handleImportAutomation = async (automation: AutomationData) => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       Alert.alert(
         'Import Automation',
         `Do you want to add "${automation.title}" to your library?`,
@@ -172,6 +278,7 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
           {
             text: 'Import',
             onPress: async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
               const { data: { user } } = await supabase.auth.getUser();
               if (!user) {
                 Alert.alert('Authentication Required', 'Please sign in to import automations');
@@ -194,6 +301,7 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
               if (error) {
                 Alert.alert('Import Failed', 'Could not import this automation');
               } else {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 Alert.alert('Success!', 'Automation imported to your library');
               }
             },
@@ -207,241 +315,392 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
 
   const filteredAutomations = automations;
 
-  const renderCategoryCard = ({ item }: { item: GalleryCategory }) => (
-    <Pressable 
-      onPress={() => setFilters(prev => ({ ...prev, category: item.id }))}
-      style={({ pressed }) => [
-        { opacity: pressed ? 0.7 : 1 }
-      ]}
-    >
-      <Surface 
-        style={[styles.categoryCard, { borderLeftColor: item.color }]} 
-        elevation={2}
-      >
-        <View style={styles.categoryContent}>
-          <Icon name={item.icon} size={32} color={item.color} />
-          <View style={styles.categoryText}>
-            <Text style={styles.categoryName}>{item.name}</Text>
-            <Text style={styles.categoryDescription}>{item.description}</Text>
-          </View>
-          <IconButton
-            icon="chevron-right"
-            size={20}
-            onPress={() => setFilters(prev => ({ ...prev, category: item.id }))}
-          />
-        </View>
-      </Surface>
-    </Pressable>
-  );
+  const renderCategoryCard = ({ item, index }: { item: GalleryCategory; index: number }) => {
+    const animatedValue = useRef(new Animated.Value(0)).current;
+    const scaleValue = useRef(new Animated.Value(1)).current;
 
-  const renderAutomationCard = (automation: AutomationData) => (
-    <AutomationCard
-      key={automation.id}
-      automation={automation}
-      onPress={() => navigation.navigate('AutomationDetails', { automationId: automation.id, fromGallery: true })}
-      onRun={() => handleImportAutomation(automation)}
-      showActions={true}
-    />
-  );
+    useEffect(() => {
+      Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 600,
+        delay: index * 100,
+        useNativeDriver: true,
+      }).start();
+    }, []);
+
+    const handlePressIn = () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Animated.spring(scaleValue, {
+        toValue: 0.98,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    const handlePressOut = () => {
+      Animated.spring(scaleValue, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    const translateY = animatedValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: [30, 0],
+    });
+
+    return (
+      <Animated.View
+        style={{
+          opacity: animatedValue,
+          transform: [{ translateY }, { scale: scaleValue }],
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => handleCategorySelect(item.id)}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={[
+            styles.modernCategoryCard,
+            { backgroundColor: theme.colors.surface.primary }
+          ]}
+        >
+          <LinearGradient
+            colors={[`${item.color}20`, `${item.color}10`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.categoryGradientOverlay}
+          />
+          <View style={styles.categoryContent}>
+            <View style={[styles.categoryIconContainer, { backgroundColor: `${item.color}20` }]}>
+              <Icon name={item.icon} size={28} color={item.color} />
+            </View>
+            <View style={styles.categoryText}>
+              <Text style={[styles.categoryName, { color: theme.colors.text.primary }]}>{item.name}</Text>
+              <Text style={[styles.categoryDescription, { color: theme.colors.text.secondary }]}>{item.description}</Text>
+            </View>
+            <Icon name="chevron-right" size={20} color={theme.colors.text.secondary} />
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  const renderAutomationCard = (automation: AutomationData, index: number) => {
+    const animatedValue = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 500,
+        delay: index * 100,
+        useNativeDriver: true,
+      }).start();
+    }, []);
+
+    const translateY = animatedValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: [20, 0],
+    });
+
+    return (
+      <Animated.View
+        key={automation.id}
+        style={{
+          opacity: animatedValue,
+          transform: [{ translateY }],
+          marginBottom: 12,
+        }}
+      >
+        <AutomationCard
+          automation={automation}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            navigation.navigate('AutomationDetails', { automationId: automation.id, fromGallery: true });
+          }}
+          onRun={() => handleImportAutomation(automation)}
+          showActions={true}
+        />
+      </Animated.View>
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <Appbar.Header>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Gallery" />
-        <Appbar.Action
-          icon="filter-variant"
-          onPress={() => setShowFilters(true)}
-        />
-        <Appbar.Action
-          icon="refresh"
-          onPress={handleRefresh}
-        />
-      </Appbar.Header>
+    <View style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      {/* Gradient Header */}
+      <Animated.View style={{ opacity: headerOpacity }}>
+        <LinearGradient
+          colors={['#6366F1', '#8B5CF6', '#EC4899']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.gradientHeader, { paddingTop: insets.top }]}
+        >
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.goBack();
+              }}
+              style={styles.headerButton}
+            >
+              <Icon name="arrow-left" size={24} color="white" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Gallery</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowFilters(true);
+                }}
+                style={styles.headerButton}
+              >
+                <Icon name="filter-variant" size={22} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleRefresh}
+                style={styles.headerButton}
+              >
+                <Icon name="refresh" size={22} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </LinearGradient>
+      </Animated.View>
 
-      <View style={styles.content}>
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Searchbar
-            placeholder="Search automations..."
-            onChangeText={handleSearch}
+      <Animated.View
+        style={[
+          styles.content,
+          {
+            opacity: fadeInAnim,
+            transform: [{ translateY: slideInAnim }],
+          },
+        ]}
+      >
+        {/* Modern Search Bar */}
+        <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface.primary }]}>
+          <ModernSearchBar
             value={searchQuery}
-            style={styles.searchbar}
+            onChangeText={handleSearch}
           />
         </View>
 
         {/* Active Filters Summary */}
         {(filters.category || filters.minRating > 0 || filters.tags.length > 0 || filters.dateRange !== 'all') && (
-          <View style={styles.filterSummary}>
+          <View style={[styles.filterSummary, { backgroundColor: theme.colors.surface.secondary }]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {filters.category && (
-                <Chip
-                  style={styles.filterChip}
+                <ModernFilterChip
+                  label={availableCategories.find(c => c.id === filters.category)?.name || filters.category}
                   onClose={() => setFilters(prev => ({ ...prev, category: null }))}
-                >
-                  {availableCategories.find(c => c.id === filters.category)?.name || filters.category}
-                </Chip>
+                                  />
               )}
               {filters.minRating > 0 && (
-                <Chip
-                  style={styles.filterChip}
+                <ModernFilterChip
+                  label={`${filters.minRating}+ stars`}
                   onClose={() => setFilters(prev => ({ ...prev, minRating: 0 }))}
-                >
-                  {filters.minRating}+ stars
-                </Chip>
+                                  />
               )}
               {filters.tags.map(tag => (
-                <Chip
+                <ModernFilterChip
                   key={tag}
-                  style={styles.filterChip}
+                  label={tag}
                   onClose={() => setFilters(prev => ({ 
                     ...prev, 
                     tags: prev.tags.filter(t => t !== tag) 
                   }))}
-                >
-                  {tag}
-                </Chip>
+                                  />
               ))}
               {filters.dateRange !== 'all' && (
-                <Chip
-                  style={styles.filterChip}
+                <ModernFilterChip
+                  label={filters.dateRange === 'week' ? 'This Week' : 
+                         filters.dateRange === 'month' ? 'This Month' : 
+                         filters.dateRange === 'year' ? 'This Year' : filters.dateRange}
                   onClose={() => setFilters(prev => ({ ...prev, dateRange: 'all' }))}
-                >
-                  {filters.dateRange === 'week' ? 'This Week' : 
-                   filters.dateRange === 'month' ? 'This Month' : 
-                   filters.dateRange === 'year' ? 'This Year' : filters.dateRange}
-                </Chip>
+                                  />
               )}
             </ScrollView>
-            <Button 
-              mode="text" 
+            <TouchableOpacity 
               onPress={handleResetFilters}
-              labelStyle={{ fontSize: 12 }}
+              style={styles.clearAllButton}
             >
-              Clear All
-            </Button>
+              <Text style={[styles.clearAllText, { color: theme.colors.brand.primary }]}>Clear All</Text>
+            </TouchableOpacity>
           </View>
         )}
 
 
         {/* Category Navigation */}
         {!filters.category && (
-          <View style={styles.categoriesSection}>
-            <Text style={styles.sectionTitle}>Browse Categories</Text>
+          <View style={[styles.categoriesSection, { backgroundColor: theme.colors.surface.primary }]}>
+            <LinearGradient
+              colors={['#6366F120', '#8B5CF610']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.sectionHeaderGradient}
+            >
+              <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Browse Categories</Text>
+            </LinearGradient>
             <FlatList
               data={categories}
-              renderItem={renderCategoryCard}
+              renderItem={({ item, index }) => renderCategoryCard({ item, index })}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
               style={styles.categoriesList}
+              contentContainerStyle={styles.categoriesListContainer}
             />
           </View>
         )}
 
         {/* Category Header when filtered */}
         {filters.category && (
-          <View style={styles.categoryHeader}>
+          <LinearGradient
+            colors={['#6366F1', '#8B5CF6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.categoryHeader}
+          >
             <View style={styles.categoryHeaderContent}>
-              <Icon 
-                name={categories.find(c => c.id === filters.category)?.icon || 'folder'} 
-                size={24} 
-                color={categories.find(c => c.id === filters.category)?.color || '#6200ee'} 
-              />
+              <View style={styles.categoryHeaderIcon}>
+                <Icon 
+                  name={categories.find(c => c.id === filters.category)?.icon || 'folder'} 
+                  size={24} 
+                  color="white" 
+                />
+              </View>
               <Text style={styles.categoryHeaderTitle}>
                 {categories.find(c => c.id === filters.category)?.name || 'Category'}
               </Text>
             </View>
-            <Button 
-              mode="outlined" 
-              compact 
-              onPress={() => setFilters(prev => ({ ...prev, category: null }))}
-              icon="arrow-left"
+            <TouchableOpacity 
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setFilters(prev => ({ ...prev, category: null }));
+              }}
+              style={styles.backButton}
             >
-              Back to Categories
-            </Button>
-          </View>
+              <Icon name="arrow-left" size={20} color="white" />
+              <Text style={styles.backButtonText}>Back</Text>
+            </TouchableOpacity>
+          </LinearGradient>
         )}
 
-        {/* Sorting Tabs - Only show when viewing automations */}
+        {/* Modern Sorting Tabs - Only show when viewing automations */}
         {(filters.category || searchQuery || automations.length > 0) && (
-          <View style={styles.sortingContainer}>
-            <View style={styles.customSegmentedButtons}>
-              <Pressable 
-                style={[
-                  styles.segmentButton, 
-                  styles.leftSegment,
-                  filters.sortBy === 'popularity' && styles.activeSegment
-                ]}
-                onPress={() => setFilters(prev => ({ ...prev, sortBy: 'popularity' }))}
-              >
-                <Text style={[
-                  styles.segmentText,
-                  filters.sortBy === 'popularity' && styles.activeSegmentText
-                ]}>Trending</Text>
-              </Pressable>
-              <Pressable 
-                style={[
-                  styles.segmentButton, 
-                  styles.middleSegment,
-                  filters.sortBy === 'created_at' && styles.activeSegment
-                ]}
-                onPress={() => setFilters(prev => ({ ...prev, sortBy: 'created_at' }))}
-              >
-                <Text style={[
-                  styles.segmentText,
-                  filters.sortBy === 'created_at' && styles.activeSegmentText
-                ]}>Newest</Text>
-              </Pressable>
-              <Pressable 
-                style={[
-                  styles.segmentButton, 
-                  styles.rightSegment,
-                  filters.sortBy === 'rating' && styles.activeSegment
-                ]}
-                onPress={() => setFilters(prev => ({ ...prev, sortBy: 'rating' }))}
-              >
-                <Text style={[
-                  styles.segmentText,
-                  filters.sortBy === 'rating' && styles.activeSegmentText
-                ]}>Top Rated</Text>
-              </Pressable>
+          <View style={[styles.sortingContainer, { backgroundColor: theme.colors.surface.primary }]}>
+            <View style={styles.modernSortButtons}>
+              <ModernSortButton
+                title="Trending"
+                active={filters.sortBy === 'popularity'}
+                onPress={() => handleSortChange('popularity')}
+                              />
+              <ModernSortButton
+                title="Newest"
+                active={filters.sortBy === 'created_at'}
+                onPress={() => handleSortChange('created_at')}
+                              />
+              <ModernSortButton
+                title="Top Rated"
+                active={filters.sortBy === 'rating'}
+                onPress={() => handleSortChange('rating')}
+                              />
             </View>
           </View>
         )}
 
         {/* Automations List */}
         {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" />
-            <Text style={styles.loadingText}>Loading gallery...</Text>
-          </View>
+          <LinearGradient
+            colors={[theme.colors.surface.primary, theme.colors.surface.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.loadingContainer}
+          >
+            <Animated.View
+              style={{
+                transform: [{
+                  rotate: fadeInAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  })
+                }]
+              }}
+            >
+              <Icon name="loading" size={48} color={theme.colors.brand.primary} />
+            </Animated.View>
+            <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>
+              Loading gallery...
+            </Text>
+          </LinearGradient>
         ) : (
           <ScrollView
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+              <RefreshControl 
+                refreshing={refreshing} 
+                onRefresh={handleRefresh}
+                colors={[theme.colors.brand.primary]}
+                tintColor={theme.colors.brand.primary}
+              />
             }
           >
             {filteredAutomations.length > 0 ? (
-              filteredAutomations.map(renderAutomationCard)
+              filteredAutomations.map((automation, index) => renderAutomationCard(automation, index))
             ) : (
-              <View style={styles.emptyState}>
-                <Icon name="robot-confused" size={64} color="#ccc" />
-                <Text style={styles.emptyTitle}>No Automations Found</Text>
-                <Text style={styles.emptyDescription}>
-                  {searchQuery 
-                    ? 'Try adjusting your search terms'
-                    : 'No public automations available in this category'
-                  }
-                </Text>
-              </View>
+              <LinearGradient
+                colors={['#6366F108', '#8B5CF608', '#EC489908']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.emptyState}
+              >
+                <Animated.View
+                  style={{
+                    opacity: fadeInAnim,
+                    transform: [{
+                      scale: fadeInAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.5, 1],
+                      })
+                    }]
+                  }}
+                >
+                  <View style={[styles.emptyIconContainer, { backgroundColor: theme.colors.surface.primary }]}>
+                    <Icon name="robot-confused" size={64} color={theme.colors.text.secondary} />
+                  </View>
+                  <Text style={[styles.emptyTitle, { color: theme.colors.text.primary }]}>
+                    No Automations Found
+                  </Text>
+                  <Text style={[styles.emptyDescription, { color: theme.colors.text.secondary }]}>
+                    {searchQuery 
+                      ? 'Try adjusting your search terms or filters'
+                      : 'No public automations available in this category'
+                    }
+                  </Text>
+                  {searchQuery && (
+                    <TouchableOpacity 
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setSearchQuery('');
+                      }}
+                      style={styles.clearSearchButton}
+                    >
+                      <LinearGradient
+                        colors={['#6366F1', '#8B5CF6']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.clearSearchButtonGradient}
+                      >
+                        <Text style={styles.clearSearchButtonText}>Clear Search</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+                </Animated.View>
+              </LinearGradient>
             )}
             
             <View style={styles.bottomSpacer} />
           </ScrollView>
         )}
-      </View>
+      </Animated.View>
 
       {/* Filter Modal */}
       <AutomationFilters
@@ -450,7 +709,10 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
         categories={availableCategories}
         availableTags={availableTags}
         onFiltersChange={handleFiltersChange}
-        onClose={() => setShowFilters(false)}
+        onClose={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setShowFilters(false);
+        }}
         onReset={handleResetFilters}
       />
     </View>
@@ -460,256 +722,346 @@ const GalleryScreen: React.FC<GalleryScreenProps> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
+  
+  // Header Styles
+  gradientHeader: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    elevation: 8,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: 'white',
+    letterSpacing: 0.5,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+
+  // Content Styles
   content: {
     flex: 1,
   },
+  
+  // Modern Search Bar Styles
   searchContainer: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    padding: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  searchbar: {
-    elevation: 0,
+  modernSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 2,
+    gap: 12,
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
+  modernSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+
+  // Modern Filter Styles
+  filterSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 12,
+  },
+  modernFilterChip: {
+    borderRadius: 20,
+    marginRight: 8,
+    elevation: 2,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  modernFilterChipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  modernFilterChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+  filterChipClose: {
+    padding: 2,
+  },
+  clearAllButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  clearAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Categories Section Styles
   categoriesSection: {
-    backgroundColor: '#fff',
-    paddingTop: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    paddingBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  sectionHeaderGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   categoriesList: {
-    paddingHorizontal: 16,
-    maxHeight: 300,
+    paddingHorizontal: 20,
   },
-  categoryCard: {
-    marginBottom: 8,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    backgroundColor: '#fff',
+  categoriesListContainer: {
+    paddingBottom: 8,
+  },
+
+  // Modern Category Card Styles
+  modernCategoryCard: {
+    marginBottom: 12,
+    borderRadius: 20,
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    overflow: 'hidden',
+  },
+  categoryGradientOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   categoryContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
+    gap: 16,
+  },
+  categoryIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryText: {
     flex: 1,
-    marginLeft: 16,
+    gap: 4,
   },
   categoryName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   categoryDescription: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '500',
+    opacity: 0.8,
   },
+
+  // Category Header Styles
   categoryHeader: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    padding: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   categoryHeaderContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    gap: 16,
+  },
+  categoryHeaderIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   categoryHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 12,
-    color: '#333',
+    fontSize: 22,
+    fontWeight: '700',
+    color: 'white',
+    letterSpacing: 0.5,
   },
-  sortingContainer: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  categoryFilter: {
+  backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    flexWrap: 'wrap',
-  },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginRight: 8,
-  },
-  categoryChip: {
-    marginRight: 8,
-  },
-  customSegmentedButtons: {
-    flexDirection: 'row',
-    borderRadius: 25,
-    overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
-  },
-  segmentButton: {
-    flex: 1,
-    paddingVertical: 10,
     paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    gap: 8,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+
+  // Modern Sort Buttons
+  sortingContainer: {
+    padding: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  modernSortButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  sortButtonContainer: {
+    flex: 1,
+  },
+  sortButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  sortButtonContent: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  leftSegment: {
-    // No specific styles needed due to overflow: 'hidden' on parent
-  },
-  middleSegment: {
-    marginHorizontal: 1,
-  },
-  rightSegment: {
-    // No specific styles needed
-  },
-  activeSegment: {
-    backgroundColor: '#6200ee',
-    borderRadius: 25,
-  },
-  segmentText: {
+  sortButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
   },
-  activeSegmentText: {
-    color: '#fff',
-  },
-  scrollView: {
-    flex: 1,
-    padding: 16,
-  },
-  automationCard: {
-    marginBottom: 12,
-  },
-  cardHeader: {
-    marginBottom: 12,
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  automationTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  automationAuthor: {
+  sortButtonTextActive: {
     fontSize: 14,
-    color: '#6200ee',
-    marginBottom: 8,
+    fontWeight: '700',
+    color: 'white',
   },
-  automationDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  ratingContainer: {
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  noRatingText: {
-    fontSize: 12,
-    color: '#999',
-    fontStyle: 'italic',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  importButton: {
-    flex: 1,
-    marginRight: 8,
-  },
+
+  // Loading and Empty States
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: 40,
+    margin: 20,
+    borderRadius: 24,
+    gap: 20,
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
-    marginTop: 64,
+    padding: 40,
+    margin: 20,
+    borderRadius: 24,
+    marginTop: 80,
+  },
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    elevation: 4,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-    color: '#333',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 12,
+    letterSpacing: 0.5,
   },
   emptyDescription: {
     fontSize: 16,
-    color: '#666',
+    fontWeight: '500',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
+    marginBottom: 24,
+    opacity: 0.8,
+  },
+  clearSearchButton: {
+    marginTop: 8,
+  },
+  clearSearchButtonGradient: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  clearSearchButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    textAlign: 'center',
+  },
+
+  // Other Styles
+  scrollView: {
+    flex: 1,
+    padding: 20,
   },
   bottomSpacer: {
-    height: 80,
-  },
-  filterSummary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#f0f0f0',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  filterChip: {
-    marginRight: 8,
-    backgroundColor: '#6200ee20',
-  },
-  resultsSummary: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  resultsText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  sortText: {
-    fontSize: 12,
-    color: '#666',
+    height: 100,
   },
 });
 

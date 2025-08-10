@@ -10,6 +10,7 @@ import {
   ScrollView,
   PanResponder,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -142,6 +143,7 @@ const getActivityIcon = (type?: string): string => {
   }
 };
 
+// Fixed text rendering issue - replaced fragment with View
 const TimelineItem: React.FC<TimelineItemProps> = ({ 
   activity, 
   isLast, 
@@ -342,16 +344,11 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
               <Text style={[styles.timeText, { color: theme.colors?.textSecondary || '#666' }]}>
                 {timeAgo}
               </Text>
-              {activity.executionTime && (
-                <>
-                  <Text style={[styles.separator, { color: theme.colors?.textSecondary || '#666' }]}>
-                    •
-                  </Text>
-                  <Text style={[styles.executionTime, { color: theme.colors?.textSecondary || '#666' }]}>
-                    {activity.executionTime}ms
-                  </Text>
-                </>
-              )}
+              {activity.executionTime ? (
+                <Text style={[styles.executionTime, { color: theme.colors?.textSecondary || '#666' }]}>
+                  {` • ${activity.executionTime}ms`}
+                </Text>
+              ) : null}
             </View>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor() + '20' }]}>

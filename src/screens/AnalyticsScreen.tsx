@@ -33,24 +33,23 @@ try {
 }
 import { Card, CardHeader, CardBody } from '../components/atoms/Card';
 import { Button, Badge, Shimmer, ShimmerPlaceholder } from '../components/atoms';
-import { useUnifiedTheme as useTheme } from '../contexts/UnifiedThemeProvider';
-import { theme } from '../theme';
+import { useSafeTheme } from '../components/common/ThemeFallbackWrapper';
+// import { theme } from '../theme';
 import { useGetAnalyticsQuery } from '../store/api/analyticsApi';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { formatDistanceToNow } from 'date-fns';
 import { EventLogger } from '../utils/EventLogger';
 
 const { width } = Dimensions.get('window');
-const chartWidth = width - theme.spacing.md * 2;
 
 type TimeRange = '24h' | '7d' | '30d' | 'all';
 
 const TimeRangeSelector: React.FC<{
   selected: TimeRange;
   onChange: (range: TimeRange) => void;
-}> = ({ selected, onChange }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  theme: any;
+}> = ({ selected, onChange, theme }) => {
+  const colors = theme.colors;
   
   const ranges: { value: TimeRange; label: string }[] = [
     { value: '24h', label: '24H' },
@@ -67,13 +66,13 @@ const TimeRangeSelector: React.FC<{
           onPress={() => onChange(range.value)}
           style={[
             styles.timeRangeButton,
-            selected === range.value && { backgroundColor: colors.brand.primary },
+            selected === range.value && { backgroundColor: colors.brand?.primary || '#6200ee' },
           ]}
         >
           <Text
             style={[
               styles.timeRangeText,
-              { color: selected === range.value ? '#FFFFFF' : colors.text.secondary },
+              { color: selected === range.value ? '#FFFFFF' : colors.text?.secondary || '#666666' },
             ]}
           >
             {range.label}
@@ -85,8 +84,9 @@ const TimeRangeSelector: React.FC<{
 };
 
 export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const { theme: currentTheme } = useTheme();
-  const colors = theme.getColors(currentTheme);
+  const theme = useSafeTheme();
+  const colors = theme.colors;
+  const chartWidth = width - (theme.spacing?.md || 16) * 2;
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
   const { data: analytics, isLoading } = useGetAnalyticsQuery({ timeRange });
   
@@ -122,12 +122,12 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
   };
   
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background?.primary || colors.background || '#F5F5F5' }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text.primary }]}>Analytics</Text>
-          <TimeRangeSelector selected={timeRange} onChange={setTimeRange} />
+          <Text style={[styles.title, { color: colors.text?.primary || '#000000' }]}>Analytics</Text>
+          <TimeRangeSelector selected={timeRange} onChange={setTimeRange} theme={theme} />
         </View>
         
         {/* Summary Stats */}
@@ -151,12 +151,12 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
                       <MaterialCommunityIcons
                         name="play-circle"
                         size={24}
-                        color={colors.brand.primary}
+                        color={colors.brand?.primary || '#6200ee'}
                       />
-                      <Text style={[styles.statValue, { color: colors.text.primary }]}>
+                      <Text style={[styles.statValue, { color: colors.text?.primary || '#000000' }]}>
                         {stats.totalExecutions}
                       </Text>
-                      <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
+                      <Text style={[styles.statLabel, { color: colors.text?.secondary || '#666666' }]}>
                         Total Runs
                       </Text>
                     </View>
@@ -164,12 +164,12 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
                   <MaterialCommunityIcons
                     name="timer"
                     size={24}
-                    color={colors.brand.accent}
+                    color={colors.brand?.accent || '#BB86FC'}
                   />
-                  <Text style={[styles.statValue, { color: colors.text.primary }]}>
+                  <Text style={[styles.statValue, { color: colors.text?.primary || '#000000' }]}>
                     {stats.avgExecutionTime}s
                   </Text>
-                  <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
+                  <Text style={[styles.statLabel, { color: colors.text?.secondary || '#666666' }]}>
                     Avg Time
                   </Text>
                 </View>
@@ -177,12 +177,12 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
                   <MaterialCommunityIcons
                     name="clock-check"
                     size={24}
-                    color={colors.semantic.success}
+                    color={colors.semantic?.success || '#4CAF50'}
                   />
-                  <Text style={[styles.statValue, { color: colors.text.primary }]}>
+                  <Text style={[styles.statValue, { color: colors.text?.primary || '#000000' }]}>
                     {stats.timeSaved}h
                   </Text>
-                  <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
+                  <Text style={[styles.statLabel, { color: colors.text?.secondary || '#666666' }]}>
                     Time Saved
                   </Text>
                 </View>
@@ -190,12 +190,12 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
                   <MaterialCommunityIcons
                     name="robot"
                     size={24}
-                    color={colors.brand.secondary}
+                    color={colors.brand?.secondary || '#03DAC6'}
                   />
-                  <Text style={[styles.statValue, { color: colors.text.primary }]}>
+                  <Text style={[styles.statValue, { color: colors.text?.primary || '#000000' }]}>
                     {stats.activeAutomations}
                   </Text>
-                  <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
+                  <Text style={[styles.statLabel, { color: colors.text?.secondary || '#666666' }]}>
                     Active
                   </Text>
                 </View>
@@ -225,20 +225,20 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
                 <VictoryAxis
                   dependentAxis
                   style={{
-                    grid: { stroke: colors.border.light },
-                    tickLabels: { fill: colors.text.secondary, fontSize: 12 },
+                    grid: { stroke: colors.border?.light || '#E0E0E0' },
+                    tickLabels: { fill: colors.text?.secondary || '#666666', fontSize: 12 },
                   }}
                 />
                 <VictoryAxis
                   style={{
-                    grid: { stroke: colors.border.light },
-                    tickLabels: { fill: colors.text.secondary, fontSize: 12 },
+                    grid: { stroke: colors.border?.light || '#E0E0E0' },
+                    tickLabels: { fill: colors.text?.secondary || '#666666', fontSize: 12 },
                   }}
                 />
                 <VictoryLine
                   data={executionData}
                   style={{
-                    data: { stroke: colors.brand.primary, strokeWidth: 3 },
+                    data: { stroke: colors.brand?.primary || '#6200ee', strokeWidth: 3 },
                   }}
                   interpolation="catmullRom"
                 />
@@ -260,17 +260,17 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
                   height={200}
                   innerRadius={60}
                   padAngle={3}
-                  colorScale={[colors.semantic.success, colors.semantic.error]}
+                  colorScale={[colors.semantic?.success || '#4CAF50', colors.semantic?.error || '#F44336']}
                   labelRadius={({ innerRadius }) => (innerRadius as number) + 30}
                   style={{
-                    labels: { fill: colors.text.primary, fontSize: 14 },
+                    labels: { fill: colors.text?.primary || '#000000', fontSize: 14 },
                   }}
                 />
                 <View style={styles.pieChartCenter}>
-                  <Text style={[styles.pieChartValue, { color: colors.text.primary }]}>
+                  <Text style={[styles.pieChartValue, { color: colors.text?.primary || '#000000' }]}>
                     {successRateData[0].y}%
                   </Text>
-                  <Text style={[styles.pieChartLabel, { color: colors.text.secondary }]}>
+                  <Text style={[styles.pieChartLabel, { color: colors.text?.secondary || '#666666' }]}>
                     Success
                   </Text>
                 </View>
@@ -291,19 +291,19 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
                   onPress={() => {}}
                 >
                   <View style={styles.automationRank}>
-                    <Text style={[styles.rankText, { color: colors.text.secondary }]}>
+                    <Text style={[styles.rankText, { color: colors.text?.secondary || '#666666' }]}>
                       #{index + 1}
                     </Text>
                   </View>
                   <View style={styles.automationInfo}>
-                    <Text style={[styles.automationName, { color: colors.text.primary }]}>
+                    <Text style={[styles.automationName, { color: colors.text?.primary || '#000000' }]}>
                       {automation.name}
                     </Text>
                     <View style={styles.automationStats}>
                       <Badge variant="info" size="small">
                         {automation.executions} runs
                       </Badge>
-                      <Text style={[styles.automationTime, { color: colors.text.secondary }]}>
+                      <Text style={[styles.automationTime, { color: colors.text?.secondary || '#666666' }]}>
                         Avg: {automation.avgTime}s
                       </Text>
                     </View>
@@ -311,7 +311,7 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
                   <MaterialCommunityIcons
                     name="chevron-right"
                     size={20}
-                    color={colors.text.tertiary}
+                    color={colors.text?.tertiary || '#999999'}
                   />
                 </TouchableOpacity>
               ))}
@@ -339,33 +339,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    marginBottom: 24,
   },
   title: {
-    ...theme.typography.displaySmall,
-    marginBottom: theme.spacing.md,
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 16,
   },
   timeRangeContainer: {
     flexDirection: 'row',
-    backgroundColor: theme.tokens.colors.gray[100],
-    borderRadius: theme.tokens.borderRadius.full,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
     padding: 4,
   },
   timeRangeButton: {
     flex: 1,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.tokens.borderRadius.full,
+    paddingVertical: 8,
+    borderRadius: 20,
     alignItems: 'center',
   },
   timeRangeText: {
-    ...theme.typography.labelMedium,
+    fontSize: 14,
     fontWeight: '600',
   },
   card: {
-    marginHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -376,11 +377,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statValue: {
-    ...theme.typography.headlineMedium,
-    marginTop: theme.spacing.xs,
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 4,
   },
   statLabel: {
-    ...theme.typography.caption,
+    fontSize: 12,
     marginTop: 4,
   },
   pieChartContainer: {
@@ -393,45 +395,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pieChartValue: {
-    ...theme.typography.displaySmall,
+    fontSize: 28,
+    fontWeight: 'bold',
   },
   pieChartLabel: {
-    ...theme.typography.bodyMedium,
+    fontSize: 14,
   },
   automationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: theme.spacing.md,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.tokens.colors.gray[100],
+    borderBottomColor: '#F5F5F5',
   },
   automationRank: {
     width: 32,
     alignItems: 'center',
   },
   rankText: {
-    ...theme.typography.labelLarge,
+    fontSize: 16,
     fontWeight: '600',
   },
   automationInfo: {
     flex: 1,
-    marginLeft: theme.spacing.sm,
+    marginLeft: 8,
   },
   automationName: {
-    ...theme.typography.bodyLarge,
+    fontSize: 16,
     fontWeight: '500',
   },
   automationStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: theme.spacing.xs,
+    marginTop: 4,
   },
   automationTime: {
-    ...theme.typography.caption,
-    marginLeft: theme.spacing.sm,
+    fontSize: 12,
+    marginLeft: 8,
   },
   exportContainer: {
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.xl,
+    paddingHorizontal: 16,
+    paddingBottom: 32,
   },
 });

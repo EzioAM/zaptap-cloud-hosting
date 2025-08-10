@@ -13,6 +13,7 @@ import {
   Dimensions,
   StatusBar,
   InteractionManager,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -50,6 +51,7 @@ import {
   RecentActivityWidgetEnhanced,
   FeaturedAutomationWidget,
   FeaturedAutomationWidgetEnhanced,
+  FeaturedAutomationWeatherWidget,
 } from '../../components/organisms/DashboardWidgets';
 
 // Enhanced components
@@ -294,8 +296,10 @@ const ModernHomeScreen: React.FC = memo(() => {
   // Enhanced widget selection based on feature flags
   const QuickStatsComponent = FEATURE_FLAGS.ENHANCED_WIDGETS ? QuickStatsWidgetSimple : QuickStatsWidget;
   const QuickActionsComponent = FEATURE_FLAGS.ENHANCED_WIDGETS ? QuickActionsWidgetEnhanced : QuickActionsWidget;
-  const RecentActivityComponent = FEATURE_FLAGS.ENHANCED_WIDGETS ? RecentActivityWidgetEnhanced : RecentActivityWidget;
-  const FeaturedAutomationComponent = FEATURE_FLAGS.ENHANCED_WIDGETS ? FeaturedAutomationWidgetEnhanced : FeaturedAutomationWidget;
+  // Temporarily use non-enhanced version to isolate error
+  const RecentActivityComponent = RecentActivityWidget; // FEATURE_FLAGS.ENHANCED_WIDGETS ? RecentActivityWidgetEnhanced : RecentActivityWidget;
+  // Use the new weather-enhanced featured widget
+  const FeaturedAutomationComponent = FeaturedAutomationWeatherWidget;
 
   // Navigation handlers with haptic feedback
   const handleNavigateToBuilder = useCallback(() => {
@@ -625,28 +629,7 @@ const ModernHomeScreen: React.FC = memo(() => {
                   });
                 }}
               >
-                <FeaturedAutomationComponent
-                  theme={theme}
-                  onViewDetails={(automation) => {
-                    triggerHaptic('light');
-                    EventLogger.userAction('view_automation_details', 'ModernHomeScreen', {
-                      automationId: automation?.id,
-                    });
-                    // Check if automation exists before navigating
-                    if (automation && automation.id) {
-                      navigation.navigate('AutomationDetails' as never, { 
-                        automationId: automation.id,
-                        automation: automation 
-                      } as never);
-                    } else {
-                      Alert.alert(
-                        'Automation Details',
-                        'This automation is not available for detailed view.',
-                        [{ text: 'OK' }]
-                      );
-                    }
-                  }}
-                />
+                <FeaturedAutomationComponent />
               </WidgetErrorBoundary>
             )}
           </Animated.View>
@@ -727,8 +710,9 @@ const ModernHomeScreen: React.FC = memo(() => {
           activeOpacity={0.8}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
+          {/* Fixed CGGradient warning - added fallback colors */}
           <LinearGradient
-            colors={[theme.colors.primary, theme.colors.primaryContainer]}
+            colors={[theme.colors?.primary || '#6366F1', theme.colors?.primaryContainer || '#8B5CF6']}
             style={styles.fabGradient}
           >
             <MaterialCommunityIcons

@@ -120,6 +120,9 @@ export interface AnalyticsStats {
   }>;
 }
 
+// Alias for backward compatibility
+export type AnalyticsData = AnalyticsStats;
+
 export class AnalyticsService {
   private static instance: AnalyticsService;
   private config: AnalyticsConfig;
@@ -746,22 +749,30 @@ export class AnalyticsService {
       // In a real implementation, you'd want a dedicated analytics endpoint
       
       const promises = batch.events.map(async (event) => {
-        const { error } = await supabase
-          .from('app_analytics')
-          .insert({
-            event_name: event.event_name,
-            properties: event.properties,
-            user_properties: event.user_properties,
-            timestamp: event.timestamp,
-            session_id: event.session_id,
-            user_id: event.user_id,
-            anonymous_id: event.anonymous_id,
+        // Map enhanced event to legacy automation_analytics table structure
+        const legacyEvent = {
+          automation_id: event.properties?.automation_id || null,
+          event_type: event.event_name.replace('automation_', ''), // Remove prefix if present
+          event_data: {
+            ...event.properties,
             context: event.context,
-            batch_id: batch.batch_id,
-          });
+            user_properties: event.user_properties,
+          },
+          user_id: event.user_id,
+          session_id: event.session_id,
+          user_agent: event.context?.device?.type || 'Mobile App',
+          created_at: event.timestamp,
+        };
 
-        if (error) {
-          throw error;
+        // Only insert if we have an automation_id (table requires it)
+        if (legacyEvent.automation_id) {
+          const { error } = await supabase
+            .from('automation_analytics')
+            .insert(legacyEvent);
+
+          if (error) {
+            throw error;
+          }
         }
       });
 
@@ -860,9 +871,10 @@ export class AnalyticsService {
   static async getPopularAutomations(limit: number = 10): Promise<any[]> {
     try {
       const { data, error } = await supabase
-        .from('automation_stats_detailed')
+        .from('automations')
         .select('*')
-        .order('view_count', { ascending: false })
+        .eq('is_public', true)
+        .order('views_count', { ascending: false })
         .limit(limit);
 
       if (error) throw error;
@@ -870,6 +882,107 @@ export class AnalyticsService {
     } catch (error) {
       EventLogger.error('Analytics', 'Failed to get popular automations:', error as Error);
       return [];
+    }
+  }
+
+  /**
+   * Get analytics data for a specific automation
+   */
+  static async getAnalytics(
+    automationId: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<AnalyticsData> {
+    try {
+      // Get analytics events from the database
+      let query = supabase
+        .from('automation_analytics')
+        .select('*')
+        .eq('automation_id', automationId);
+
+      if (startDate) {
+        query = query.gte('created_at', startDate);
+      }
+      if (endDate) {
+        query = query.lte('created_at', endDate);
+      }
+
+      const { data: events, error } = await query;
+
+      if (error) throw error;
+
+      // Calculate stats from events
+      const stats: AnalyticsStats = {
+        views: 0,
+        executions: 0,
+        shares: 0,
+        downloads: 0,
+        likes: 0,
+        comments: 0,
+        unique_users: 0,
+        last_activity: null,
+        daily_stats: [],
+        top_countries: []
+      };
+
+      if (events && events.length > 0) {
+        // Count different event types
+        events.forEach(event => {
+          switch (event.event_type) {
+            case 'view':
+              stats.views++;
+              break;
+            case 'execution':
+              stats.executions++;
+              break;
+            case 'share':
+              stats.shares++;
+              break;
+            case 'download':
+              stats.downloads++;
+              break;
+            case 'like':
+              stats.likes++;
+              break;
+            case 'comment':
+              stats.comments++;
+              break;
+          }
+        });
+
+        // Get unique users
+        const uniqueUsers = new Set(events.map(e => e.user_id).filter(Boolean));
+        stats.unique_users = uniqueUsers.size;
+
+        // Get last activity
+        const sortedEvents = events.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        stats.last_activity = sortedEvents[0]?.created_at || null;
+
+        // Generate daily stats
+        stats.daily_stats = AnalyticsService.generateDailyStats(events);
+
+        // Generate country stats
+        stats.top_countries = AnalyticsService.generateCountryStats(events);
+      }
+
+      return stats;
+    } catch (error) {
+      EventLogger.error('Analytics', 'Failed to get analytics:', error as Error);
+      // Return empty stats on error
+      return {
+        views: 0,
+        executions: 0,
+        shares: 0,
+        downloads: 0,
+        likes: 0,
+        comments: 0,
+        unique_users: 0,
+        last_activity: null,
+        daily_stats: [],
+        top_countries: []
+      };
     }
   }
 }

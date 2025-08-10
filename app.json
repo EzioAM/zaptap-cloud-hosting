@@ -13,12 +13,24 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "ZapTap uses your location to provide weather-based visual effects and location-based automations."
+        }
+      ]
+    ],
     "platforms": ["ios", "android"],
     "ios": {
-      "bundleIdentifier": "com.zaptap.app"
+      "bundleIdentifier": "com.zaptap.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ZapTap uses your location to show local weather effects on the home screen."
+      }
     },
     "android": {
-      "package": "com.zaptap.app"
+      "package": "com.zaptap.app",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     }
   }
 }

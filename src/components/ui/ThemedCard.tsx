@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   GestureResponderEvent,
 } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { useSafeTheme } from '../common/ThemeFallbackWrapper';
 
 export interface ThemedCardProps {
   children: React.ReactNode;
@@ -37,7 +37,7 @@ export const ThemedCard: React.FC<ThemedCardProps> = ({
   accessibilityHint,
   padding = 'medium',
 }) => {
-  const theme = useTheme();
+  const theme = useSafeTheme();
 
   const getPaddingStyles = () => {
     switch (padding) {

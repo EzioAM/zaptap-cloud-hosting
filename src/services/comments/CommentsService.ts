@@ -38,10 +38,7 @@ export class CommentsService {
     try {
       const { data: comments, error } = await supabase
         .from('automation_comments')
-        .select(`
-          *,
-          profiles:user_id(display_name, email, avatar_url)
-        `)
+        .select('*')
         .eq('automation_id', automationId)
         .order('created_at', { ascending: false });
 
@@ -55,7 +52,7 @@ export class CommentsService {
       comments?.forEach(comment => {
         const commentObj: AutomationComment = {
           ...comment,
-          user: comment.profiles,
+          user: null, // User data will need to be fetched separately if needed
           replies: [],
         };
         commentsMap.set(comment.id, commentObj);

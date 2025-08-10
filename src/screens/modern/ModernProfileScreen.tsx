@@ -21,16 +21,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useTheme } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { signOut } from '../../store/slices/authSlice';
-import { useGetMyAutomationsQuery, useGetPublicAutomationsQuery } from '../../store/api/automationApi';
+import { setDarkMode as setThemeDarkMode } from '../../store/slices/uiSlice';
+import { useGetMyAutomationsQuery, useGetPublicAutomationsQuery, useGetRecentExecutionsQuery, useGetUserStatsQuery } from '../../store/api/automationApi';
+import { useGetTodayStatsQuery } from '../../store/api/dashboardApi';
+import { supabase } from '../../services/supabase/client';
 import { useUserRole } from '../../hooks/useUserRole';
 import { useConnection } from '../../contexts/ConnectionContext';
 import * as Haptics from 'expo-haptics';
-import { NavigationHelper } from '../../services/navigation/NavigationHelper';
+// import { NavigationHelper } from '../../services/navigation/NavigationHelper';
+import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 
 // Components
 import { DeveloperSection } from '../../components/developer/DeveloperSection';
@@ -41,6 +44,7 @@ import { SafeAnimatedMenuSection } from '../../components/profile/SafeAnimatedMe
 import { PressableAnimated, FeedbackAnimation } from '../../components/automation/AnimationHelpers';
 import { ErrorState } from '../../components/states/ErrorState';
 import { EmptyState } from '../../components/states/EmptyState';
+import { NavigationDebugger } from '../../components/debug/NavigationDebugger';
 
 // Enhanced components
 import { GradientHeader } from '../../components/shared/GradientHeader';
@@ -94,17 +98,23 @@ interface SettingsSection {
 }
 
 const ModernProfileScreen: React.FC = memo(() => {
-  const theme = useTheme();
+  const theme = useSafeTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { darkMode: globalDarkMode } = useSelector((state: RootState) => state.ui);
   const { isOnline, isBackendConnected } = useConnection();
   const isConnected = isOnline && isBackendConnected;
   const { isDeveloper } = useUserRole();
   
   // State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(globalDarkMode);
+  const [realTimeStats, setRealTimeStats] = useState({
+    totalRuns: 0,
+    totalLikes: 0,
+    publicCount: 0,
+  });
   const [refreshing, setRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showFeedback, setShowFeedback] = useState(false);
@@ -141,12 +151,64 @@ const ModernProfileScreen: React.FC = memo(() => {
     skip: false, // Allow public endpoints to work without authentication
   });
 
+  const {
+    data: todayStats,
+    refetch: refetchTodayStats,
+  } = useGetTodayStatsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+
+  const {
+    data: recentExecutions = [],
+    refetch: refetchExecutions,
+  } = useGetRecentExecutionsQuery({ limit: 50 }, {
+    skip: !isAuthenticated,
+  });
+
   // Filter my public automations
   const myPublicAutomations = useMemo(() => {
-    return publicAutomations.filter(
-      automation => automation.author === user?.email
-    ) || [];
-  }, [publicAutomations, user?.email]);
+    return myAutomations.filter(automation => automation.is_public) || [];
+  }, [myAutomations]);
+
+  // Fetch real-time stats from database
+  useEffect(() => {
+    const fetchRealTimeStats = async () => {
+      if (!isAuthenticated || !user) return;
+
+      try {
+        // Get total runs from executions
+        const { data: executions } = await supabase
+          .from('automation_executions')
+          .select('id')
+          .eq('user_id', user.id);
+
+        // Get total likes from public automations
+        const { data: likes } = await supabase
+          .from('automation_likes')
+          .select('id')
+          .in('automation_id', myAutomations.map(a => a.id));
+
+        // Get public automation count
+        const publicCount = myPublicAutomations.length;
+
+        setRealTimeStats({
+          totalRuns: executions?.length || 0,
+          totalLikes: likes?.length || 0,
+          publicCount,
+        });
+
+      } catch (error) {
+        EventLogger.error('ModernProfile', 'Failed to fetch real-time stats:', error as Error);
+      }
+    };
+
+    fetchRealTimeStats();
+  }, [user, isAuthenticated, myAutomations, myPublicAutomations]);
+
+  // Sync dark mode with Redux state
+  useEffect(() => {
+    setDarkMode(globalDarkMode);
+  }, [globalDarkMode]);
 
   // Haptic feedback helper
   const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' = 'light') => {
@@ -328,6 +390,9 @@ const ModernProfileScreen: React.FC = memo(() => {
       triggerHaptic('light');
       setDarkMode(value);
       
+      // Dispatch Redux action to update theme
+      dispatch(setThemeDarkMode(value));
+      
       const settings = {
         notifications: notificationsEnabled,
         darkMode: value,
@@ -339,8 +404,9 @@ const ModernProfileScreen: React.FC = memo(() => {
       EventLogger.error('ModernProfile', 'Failed to save dark mode setting:', error as Error);
       showFeedbackMessage('error', 'Failed to save setting');
       setDarkMode(!value); // Revert on error
+      dispatch(setThemeDarkMode(!value)); // Revert Redux state on error
     }
-  }, [notificationsEnabled, triggerHaptic, showFeedbackMessage]);
+  }, [notificationsEnabled, triggerHaptic, showFeedbackMessage, dispatch]);
 
   const handleSignOut = useCallback(() => {
     Alert.alert(
@@ -355,7 +421,11 @@ const ModernProfileScreen: React.FC = memo(() => {
             try {
               triggerHaptic('heavy');
               await dispatch(signOut()).unwrap();
-              NavigationHelper.reset([{ name: 'MainTabs' }]);
+              // NavigationHelper.reset([{ name: 'MainTabs' }]);
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+              });
               showFeedbackMessage('success', 'Signed out successfully');
             } catch (error) {
               EventLogger.error('ModernProfile', 'Sign out error:', error as Error);
@@ -389,7 +459,7 @@ const ModernProfileScreen: React.FC = memo(() => {
     }
   }, [user, triggerHaptic, showFeedbackMessage]);
 
-  // Calculate profile stats
+  // Calculate profile stats with real-time data
   const profileStats = useMemo(() => {
     // If not authenticated, return empty stats
     if (!isAuthenticated || !user) {
@@ -403,21 +473,22 @@ const ModernProfileScreen: React.FC = memo(() => {
       };
     }
     
-    const totalRuns = myAutomations.reduce((sum, automation) => sum + (automation.totalRuns || 0), 0);
-    const totalLikes = myPublicAutomations.reduce((sum, automation) => sum + (automation.likes || 0), 0);
+    // Use real-time stats if available, otherwise fall back to calculated values
+    const totalRuns = realTimeStats.totalRuns || todayStats?.totalExecutions || 0;
+    const totalLikes = realTimeStats.totalLikes || 0;
     const avgRating = myPublicAutomations.length > 0 
       ? myPublicAutomations.reduce((sum, automation) => sum + (automation.rating || 0), 0) / myPublicAutomations.length
       : 0;
 
     return {
       automations: myAutomations.length,
-      publicAutomations: myPublicAutomations.length,
+      publicAutomations: realTimeStats.publicCount,
       totalRuns,
       totalLikes,
-      avgRating,
+      avgRating: Math.round(avgRating * 10) / 10,
       completionPercentage: Math.round((profileCompletion as any)._value * 100),
     };
-  }, [myAutomations, myPublicAutomations, profileCompletion, isAuthenticated, user]);
+  }, [myAutomations, myPublicAutomations, profileCompletion, isAuthenticated, user, todayStats, realTimeStats]);
 
   // Authentication check - disabled for demo
   // if (!isAuthenticated || !user) {
@@ -454,15 +525,15 @@ const ModernProfileScreen: React.FC = memo(() => {
         {FEATURE_FLAGS.GRADIENT_HEADERS ? (
           <GradientHeader title="Profile" />
         ) : (
-          <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
+          <View style={[styles.header, { backgroundColor: theme.colors.surface?.primary || '#FFFFFF' }]}>
+            <Text style={[styles.headerTitle, { color: theme.colors.text?.primary || '#000000' }]}>
               Profile
             </Text>
           </View>
         )}
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.onSurface }]}>
+          <ActivityIndicator size="large" color={theme.colors.brand?.primary || '#6200ee'} />
+          <Text style={[styles.loadingText, { color: theme.colors.text?.primary || '#000000' }]}>
             Loading profile...
           </Text>
         </View>
@@ -471,7 +542,7 @@ const ModernProfileScreen: React.FC = memo(() => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: darkMode ? '#121212' : '#FFFFFF' }]} edges={['top']}>
       {/* Header */}
       {FEATURE_FLAGS.GRADIENT_HEADERS ? (
         <Animated.View style={{ opacity: headerOpacity }}>
@@ -487,8 +558,8 @@ const ModernProfileScreen: React.FC = memo(() => {
           />
         </Animated.View>
       ) : (
-        <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
+        <View style={[styles.header, { backgroundColor: theme.colors.surface?.primary || '#FFFFFF' }]}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text?.primary || '#000000' }]}>
             Profile
           </Text>
           {FEATURE_FLAGS.SHARING && (
@@ -496,7 +567,7 @@ const ModernProfileScreen: React.FC = memo(() => {
               <MaterialCommunityIcons 
                 name="share" 
                 size={24} 
-                color={theme.colors.onSurface} 
+                color={theme.colors.text?.primary || '#000000'} 
               />
             </TouchableOpacity>
           )}
@@ -515,16 +586,19 @@ const ModernProfileScreen: React.FC = memo(() => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor={theme.colors.primary}
+              tintColor={theme.colors.brand?.primary || '#6200ee'}
             />
           }
         >
-          {/* Profile Header Card */}
+          {/* Profile Header Card with Modern Design */}
           <LinearGradient
-            colors={['#6366F1', '#8B5CF6']}
+            colors={darkMode ? ['#2C2C2C', '#1E1E1E'] : ['#6366F1', '#8B5CF6']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.profileCard}>
+            style={[styles.profileCard, {
+              shadowColor: darkMode ? '#6366F1' : '#000000',
+              elevation: 12,
+            }]}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
                 {user?.user_metadata?.avatar_url ? (
@@ -580,16 +654,16 @@ const ModernProfileScreen: React.FC = memo(() => {
 
           {/* Guest User Message */}
           {!isAuthenticated && (
-            <View style={[styles.guestMessage, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <View style={[styles.guestMessage, { backgroundColor: theme.colors.surface?.secondary || '#F5F5F5' }]}>
               <MaterialCommunityIcons 
                 name="account-plus" 
                 size={32} 
-                color={theme.colors.primary}
+                color={theme.colors.brand?.primary || '#6200ee'}
               />
-              <Text style={[styles.guestMessageTitle, { color: theme.colors.onSurface }]}>
+              <Text style={[styles.guestMessageTitle, { color: theme.colors.text?.primary || '#000000' }]}>
                 Sign in to unlock features
               </Text>
-              <Text style={[styles.guestMessageText, { color: theme.colors.onSurfaceVariant }]}>
+              <Text style={[styles.guestMessageText, { color: theme.colors.text?.secondary || '#666666' }]}>
                 Create automations, share with others, and track your progress
               </Text>
             </View>
@@ -599,31 +673,30 @@ const ModernProfileScreen: React.FC = memo(() => {
           {FEATURE_FLAGS.STAGGERED_ANIMATIONS ? (
             <AnimatedStatsGrid
               stats={[
-                { label: 'Automations', value: profileStats.automations, icon: 'robot' },
-                { label: 'Public', value: profileStats.publicAutomations, icon: 'earth' },
-                { label: 'Total Runs', value: profileStats.totalRuns, icon: 'play' },
-                { label: 'Likes', value: profileStats.totalLikes, icon: 'heart' },
+                { label: 'Automations', value: profileStats.automations, icon: 'robot', color: theme.colors.brand?.primary || '#6200ee' },
+                { label: 'Public', value: profileStats.publicAutomations, icon: 'earth', color: theme.colors.brand?.secondary || '#03DAC6' },
+                { label: 'Total Runs', value: profileStats.totalRuns, icon: 'play', color: theme.colors.semantic?.success || '#4CAF50' },
+                { label: 'Likes', value: profileStats.totalLikes, icon: 'heart', color: theme.colors.semantic?.error || '#F44336' },
               ]}
-              theme={theme}
             />
           ) : (
             <View style={styles.statsGrid}>
               {[
-                { label: 'Automations', value: profileStats.automations, icon: 'robot' },
-                { label: 'Public', value: profileStats.publicAutomations, icon: 'earth' },
-                { label: 'Total Runs', value: profileStats.totalRuns, icon: 'play' },
-                { label: 'Likes', value: profileStats.totalLikes, icon: 'heart' },
+                { label: 'Automations', value: profileStats.automations, icon: 'robot', color: '#6366F1' },
+                { label: 'Public', value: profileStats.publicAutomations, icon: 'earth', color: '#8B5CF6' },
+                { label: 'Total Runs', value: profileStats.totalRuns, icon: 'play', color: '#10B981' },
+                { label: 'Likes', value: profileStats.totalLikes, icon: 'heart', color: '#EF4444' },
               ].map((stat, index) => (
-                <View key={index} style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
+                <View key={index} style={[styles.statCard, { backgroundColor: theme.colors.surface?.primary || '#FFFFFF' }]}>
                   <MaterialCommunityIcons 
                     name={stat.icon as any} 
                     size={24} 
-                    color={theme.colors.primary} 
+                    color={theme.colors.brand?.primary || '#6200ee'} 
                   />
-                  <Text style={[styles.statValue, { color: theme.colors.onSurface }]}>
+                  <Text style={[styles.statValue, { color: theme.colors.text?.primary || '#000000' }]}>
                     {stat.value}
                   </Text>
-                  <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
+                  <Text style={[styles.statLabel, { color: theme.colors.text?.secondary || '#666666' }]}>
                     {stat.label}
                   </Text>
                 </View>
@@ -632,13 +705,13 @@ const ModernProfileScreen: React.FC = memo(() => {
           )}
 
           {/* Tab Navigation */}
-          <View style={[styles.tabContainer, { backgroundColor: theme.colors.surface }]}>
+          <View style={[styles.tabContainer, { backgroundColor: theme.colors.surface?.primary || '#FFFFFF' }]}>
             {(['overview', 'achievements', 'activity'] as const).map((tab) => (
               <TouchableOpacity
                 key={tab}
                 style={[
                   styles.tab,
-                  activeTab === tab && { backgroundColor: theme.colors.primary },
+                  activeTab === tab && { backgroundColor: theme.colors.brand?.primary || '#6200ee' },
                 ]}
                 onPress={() => handleTabSwitch(tab)}
               >
@@ -647,8 +720,8 @@ const ModernProfileScreen: React.FC = memo(() => {
                     styles.tabText,
                     {
                       color: activeTab === tab 
-                        ? theme.colors.onPrimary 
-                        : theme.colors.onSurfaceVariant
+                        ? '#FFFFFF' 
+                        : theme.colors.text?.secondary || '#666666'
                     },
                   ]}
                 >
@@ -681,6 +754,7 @@ const ModernProfileScreen: React.FC = memo(() => {
                         label: 'Edit Profile',
                         onPress: () => {
                           triggerHaptic('light');
+                          console.log('EditProfile button pressed');
                           navigation.navigate('EditProfile' as never);
                         },
                       },
@@ -689,7 +763,26 @@ const ModernProfileScreen: React.FC = memo(() => {
                         label: 'Settings',
                         onPress: () => {
                           triggerHaptic('light');
+                          console.log('Settings button pressed');
                           navigation.navigate('Settings' as never);
+                        },
+                      },
+                      {
+                        icon: 'chart-line',
+                        label: 'Analytics Dashboard',
+                        onPress: () => {
+                          triggerHaptic('light');
+                          console.log('AnalyticsDashboard button pressed');
+                          navigation.navigate('AnalyticsDashboard' as never);
+                        },
+                      },
+                      {
+                        icon: 'chart-box-outline',
+                        label: 'Usage Analytics',
+                        onPress: () => {
+                          triggerHaptic('light');
+                          console.log('Analytics button pressed');
+                          navigation.navigate('Analytics' as never);
                         },
                       },
                     ],
@@ -766,7 +859,7 @@ const ModernProfileScreen: React.FC = memo(() => {
                 {!isAuthenticated && (
                   <View style={styles.signOutContainer}>
                     <TouchableOpacity
-                      style={[styles.signOutButton, { backgroundColor: theme.colors.primary }]}
+                      style={[styles.signOutButton, { backgroundColor: theme.colors.brand?.primary || '#6200ee' }]}
                       onPress={() => navigation.navigate('SignIn' as never)}
                     >
                       <Text style={[styles.signOutButtonText, { color: 'white' }]}>
@@ -820,6 +913,9 @@ const ModernProfileScreen: React.FC = memo(() => {
           visible={showFeedback}
         />
       )}
+      
+      {/* Navigation Debugger - Disabled 
+      {__DEV__ && <NavigationDebugger />} */}
     </SafeAreaView>
   );
 });
@@ -864,12 +960,12 @@ const styles = StyleSheet.create({
   profileCard: {
     margin: 20,
     padding: 20,
-    borderRadius: 16,
-    elevation: 5,
+    borderRadius: 20,
+    elevation: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
   profileHeader: {
     flexDirection: 'row',

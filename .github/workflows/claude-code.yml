@@ -1,0 +1,45 @@
+name: Claude Code Assistant
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  claude-code:
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          api-key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          
+      - name: Analyze PR
+        if: github.event_name == 'pull_request'
+        run: |
+          claude-code analyze \
+            --pr-number ${{ github.event.pull_request.number }} \
+            --base-branch ${{ github.event.pull_request.base.ref }} \
+            --head-branch ${{ github.event.pull_request.head.ref }}
+            
+      - name: Respond to comment
+        if: github.event_name == 'issue_comment'
+        run: |
+          claude-code respond \
+            --comment-id ${{ github.event.comment.id }} \
+            --pr-number ${{ github.event.issue.number }}

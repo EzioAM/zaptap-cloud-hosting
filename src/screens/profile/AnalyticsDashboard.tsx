@@ -222,7 +222,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ navigati
     backgroundColor: theme.colors.surface,
     backgroundGradientFrom: theme.colors.surface,
     backgroundGradientTo: theme.colors.surface,
-    color: (opacity = 1) => theme.colors.primary + Math.round(opacity * 255).toString(16).padStart(2, '0'),
+    color: (opacity = 1) => (theme.colors.brand?.primary || '#6200ee') + Math.round(opacity * 255).toString(16).padStart(2, '0'),
     labelColor: (opacity = 1) => theme.colors.onSurface + Math.round(opacity * 255).toString(16).padStart(2, '0'),
     strokeWidth: 2,
     barPercentage: 0.5,
@@ -362,7 +362,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ navigati
               title={automation.name}
               description={`${automation.executions} executions`}
               left={(props) => (
-                <View style={[styles.rankBadge, { backgroundColor: theme.colors.primary }]}>
+                <View style={[styles.rankBadge, { backgroundColor: theme.colors.brand?.primary || '#6200ee' }]}>
                   <Text style={[styles.rankText, { color: theme.colors.onPrimary }]}>
                     {index + 1}
                   </Text>
@@ -372,7 +372,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ navigati
                 <ProgressBar 
                   progress={automation.executions / analytics.mostUsedAutomations[0].executions}
                   style={styles.automationProgress}
-                  color={theme.colors.primary}
+                  color={theme.colors.brand?.primary || '#6200ee'}
                 />
               )}
             />

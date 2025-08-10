@@ -39,15 +39,15 @@ import { EventLogger } from '../../utils/EventLogger';
   import { FullScreenModal } from '../../components/common/FullScreenModal';
   import StepConfigModal from '../../components/automation/StepConfigModal';
   import ModernStepConfigRenderer from '../../components/automation/ModernStepConfigRenderer';
-  import { VisualStepEditor } from '../../components/organisms/StepEditor';
+  import { VisualStepEditor } from '../../components/organisms/StepEditor/VisualStepEditorFixed';
   import { SafeStepEditor } from '../../components/automation/simple/SafeStepEditor';
-  import { useUnifiedTheme as useTheme } from '../../contexts/ThemeCompatibilityShim';
+  import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 
   type Props = NativeStackScreenProps<RootStackParamList, 'AutomationBuilder'>;
 
   const AutomationBuilderScreen: React.FC<Props> = ({ navigation, route }) => {
-    const { theme: currentTheme } = useTheme();
-    const colors = currentTheme.colors;
+    const theme = useSafeTheme();
+    const colors = theme.colors;
     const [steps, setSteps] = useState<AutomationStep[]>([]);
     const [automationTitle, setAutomationTitle] = useState('My Automation');
     const [isExecuting, setIsExecuting] = useState(false);

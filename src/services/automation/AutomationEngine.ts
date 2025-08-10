@@ -247,16 +247,24 @@ export class AutomationEngine {
    */
   private async createExecutionRecord(automationData: AutomationData): Promise<string> {
     try {
+      // Get the current user who is running the automation
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('[AutomationEngine] Creating execution record for user:', user?.id);
+      
+      const executionData = {
+        automation_id: automationData.id,
+        user_id: user?.id || automationData.created_by, // Use current user ID or fallback to creator
+        status: 'running',
+        total_steps: automationData.steps.filter(s => s.enabled).length,
+        steps_completed: 0,
+        created_at: new Date().toISOString(),
+      };
+      
+      console.log('[AutomationEngine] Execution data:', executionData);
+      
       const { data, error } = await supabase
         .from('automation_executions')
-        .insert({
-          automation_id: automationData.id,
-          user_id: automationData.created_by,
-          status: 'running',
-          total_steps: automationData.steps.filter(s => s.enabled).length,
-          steps_completed: 0,
-          started_at: new Date().toISOString(),
-        })
+        .insert(executionData)
         .select()
         .single();
 
@@ -314,22 +322,61 @@ export class AutomationEngine {
    * Complete execution record in database
    */
   private async completeExecution(status: 'success' | 'failed' | 'cancelled', error?: string): Promise<void> {
-    if (!this.executionId) return;
+    if (!this.executionId) {
+      console.log('[AutomationEngine] No executionId, skipping completeExecution');
+      return;
+    }
 
     try {
       const executionTime = Date.now() - this.executionStartTime;
       
-      await supabase
+      console.log('[AutomationEngine] Completing execution:', {
+        executionId: this.executionId,
+        status,
+        executionTime,
+        error
+      });
+      
+      // Try updating without changing status to avoid trigger
+      // First update the time and completion fields
+      const { error: timeUpdateError } = await supabase
         .from('automation_executions')
         .update({
-          status,
           execution_time: executionTime,
           completed_at: new Date().toISOString(),
           error_message: error,
         })
         .eq('id', this.executionId);
+      
+      if (timeUpdateError) {
+        console.error('[AutomationEngine] Failed to update execution time:', timeUpdateError);
+      } else {
+        console.log('[AutomationEngine] Execution time updated successfully');
+      }
+      
+      // Then try to update status separately (this might fail due to trigger)
+      const { error: statusUpdateError } = await supabase
+        .from('automation_executions')
+        .update({
+          status,
+        })
+        .eq('id', this.executionId);
+      
+      if (statusUpdateError) {
+        // Check if this is the known RLS issue with automation_execution_summary
+        if (statusUpdateError.code === '42501' && statusUpdateError.message?.includes('automation_execution_summary')) {
+          console.warn('[AutomationEngine] Known RLS issue with summary table trigger, status update failed but execution times were recorded');
+          // Don't throw the error - at least the execution times were recorded
+        } else {
+          console.error('[AutomationEngine] Failed to update execution status:', statusUpdateError);
+          throw statusUpdateError;
+        }
+      } else {
+        console.log('[AutomationEngine] Execution status updated successfully');
+      }
     } catch (error) {
       this.logger.error('Failed to complete execution record', { error });
+      console.error('[AutomationEngine] Failed to complete execution record:', error);
     }
   }
 

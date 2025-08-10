@@ -14,7 +14,7 @@ import {
   GestureResponderEvent,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from 'react-native-paper';
+import { useSafeTheme } from '../common/ThemeFallbackWrapper';
 
 export interface ThemedButtonProps {
   title: string;
@@ -47,7 +47,7 @@ export const ThemedButton: React.FC<ThemedButtonProps> = ({
   accessibilityLabel,
   accessibilityHint,
 }) => {
-  const theme = useTheme();
+  const theme = useSafeTheme();
 
   const getSizeStyles = () => {
     switch (size) {

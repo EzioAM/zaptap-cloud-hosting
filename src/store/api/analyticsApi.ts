@@ -97,7 +97,7 @@ export const analyticsApi = createApi({
             .from('automation_executions')
             .select(`
               *,
-              automation:automations(name, title)
+              automation:automations(id, title, description)
             `)
             .eq('user_id', user.id)
             .gte('created_at', startDate.toISOString())
@@ -135,7 +135,7 @@ export const analyticsApi = createApi({
           // Calculate top automations
           const automationCounts = new Map<string, { count: number; totalTime: number }>();
           executions?.forEach((execution: any) => {
-            const name = execution.automation?.name || execution.automation?.title || 'Unknown';
+            const name = execution.automation?.title || 'Unknown';
             const current = automationCounts.get(name) || { count: 0, totalTime: 0 };
             automationCounts.set(name, {
               count: current.count + 1,
