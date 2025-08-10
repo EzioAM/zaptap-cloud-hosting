@@ -24,6 +24,8 @@ import { PerformanceMonitor } from '../../components/developer/PerformanceMonito
 import { NetworkMonitor } from '../../components/developer/NetworkMonitor';
 import { TestRunner } from '../../components/developer/TestRunner';
 import { StorageInspector } from '../../components/developer/StorageInspector';
+import { AppHealthMonitor } from '../../components/developer/AppHealthMonitor';
+import { FeatureFlagsManager } from '../../components/developer/FeatureFlagsManager';
 import { RoleService } from '../../services/auth/RoleService';
 import { DeveloperService } from '../../services/developer/DeveloperService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -78,6 +80,14 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
 
   const developerTools = [
     {
+      id: 'health',
+      title: 'App Health Monitor',
+      description: 'Real-time app health, automation insights, and performance analysis',
+      icon: 'heart-pulse',
+      component: AppHealthMonitor,
+      color: '#e91e63',
+    },
+    {
       id: 'database',
       title: 'Database Inspector',
       description: 'Browse tables, query data, and monitor database operations',
@@ -116,6 +126,14 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
       icon: 'test-tube',
       component: TestRunner,
       color: '#00bcd4',
+    },
+    {
+      id: 'flags',
+      title: 'Feature Flags',
+      description: 'Toggle experimental features and debugging options',
+      icon: 'flag',
+      component: FeatureFlagsManager,
+      color: '#795548',
     },
     {
       id: 'research',

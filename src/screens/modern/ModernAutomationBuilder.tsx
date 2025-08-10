@@ -418,12 +418,22 @@ const ModernAutomationBuilder: React.FC = memo(() => {
       ]}
     >
       <View style={styles.stepHeader}>
-        <View style={styles.stepNumber}>
+        <LinearGradient
+          colors={['#8B5CF6', '#6D28D9', '#5B21B6']}
+          style={styles.stepNumber}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
           <Text style={styles.stepNumberText}>{index + 1}</Text>
-        </View>
-        <View style={[styles.stepIcon, { backgroundColor: item.color + '20' }]}>
-          <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
-        </View>
+        </LinearGradient>
+        <LinearGradient
+          colors={[item.color, item.color + 'DD', item.color + 'AA']}
+          style={styles.stepIcon}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <MaterialCommunityIcons name={item.icon as any} size={24} color="white" />
+        </LinearGradient>
         <View style={styles.stepInfo}>
           <Text style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
             {item.title}
@@ -437,27 +447,27 @@ const ModernAutomationBuilder: React.FC = memo(() => {
       <View style={styles.stepActions}>
         <TouchableOpacity
           onPress={() => handleUpdateStep(item.id, { enabled: !item.enabled })}
-          style={[styles.actionButton, { backgroundColor: item.enabled ? item.color + '20' : '#f0f0f0' }]}
+          style={[styles.actionButton, { backgroundColor: item.enabled ? item.color + '20' : theme.colors.surfaceVariant }]}
         >
           <MaterialCommunityIcons
             name={item.enabled ? 'toggle-switch' : 'toggle-switch-off'}
-            size={24}
-            color={item.enabled ? item.color : '#999'}
+            size={28}
+            color={item.enabled ? item.color : theme.colors.onSurfaceVariant}
           />
         </TouchableOpacity>
         
         <TouchableOpacity
           onPress={() => handleConfigureStep(item)}
-          style={[styles.actionButton, { backgroundColor: '#f0f0f0' }]}
+          style={[styles.actionButton, { backgroundColor: theme.colors.surfaceVariant }]}
         >
-          <MaterialCommunityIcons name="cog" size={20} color="#666" />
+          <MaterialCommunityIcons name="cog" size={22} color={theme.colors.onSurfaceVariant} />
         </TouchableOpacity>
         
         <TouchableOpacity
           onPress={() => handleDeleteStep(item.id)}
           style={[styles.actionButton, { backgroundColor: '#ffebee' }]}
         >
-          <MaterialCommunityIcons name="delete" size={20} color="#f44336" />
+          <MaterialCommunityIcons name="delete" size={22} color="#f44336" />
         </TouchableOpacity>
       </View>
       
@@ -533,7 +543,7 @@ const ModernAutomationBuilder: React.FC = memo(() => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       {/* Modern Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -773,18 +783,19 @@ const ModernAutomationBuilder: React.FC = memo(() => {
                   Steps
                 </Text>
                 <TouchableOpacity
-                  style={[
-                    styles.addButton, 
-                    { 
-                      backgroundColor: '#6366F1',
-                      borderWidth: 2,
-                      borderColor: '#FFFFFF',
-                    }
-                  ]}
+                  style={styles.addButtonContainer}
                   onPress={() => setIsStepPickerVisible(true)}
+                  activeOpacity={0.8}
                 >
-                  <MaterialCommunityIcons name="plus" size={20} color="white" />
-                  <Text style={styles.addButtonText}>Add Step</Text>
+                  <LinearGradient
+                    colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
+                    style={styles.addButton}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <MaterialCommunityIcons name="plus-circle" size={24} color="white" />
+                    <Text style={styles.addButtonText}>Add Step</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
 
@@ -838,20 +849,28 @@ const ModernAutomationBuilder: React.FC = memo(() => {
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.footerButton, styles.saveButton, { backgroundColor: theme.colors.primary }]}
+                style={[styles.footerButton, styles.saveButton]}
                 onPress={handleSaveAutomation}
                 disabled={isSaving}
+                activeOpacity={0.8}
               >
-                {isSaving ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <>
-                    <MaterialCommunityIcons name="content-save" size={20} color="white" />
-                    <Text style={[styles.footerButtonText, { color: 'white' }]}>
-                      Save
-                    </Text>
-                  </>
-                )}
+                <LinearGradient
+                  colors={['#10B981', '#059669', '#047857']}
+                  style={styles.saveButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="content-save" size={22} color="white" />
+                      <Text style={[styles.footerButtonText, { color: 'white' }]}>
+                        Save
+                      </Text>
+                    </>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           )}
@@ -871,8 +890,18 @@ const ModernAutomationBuilder: React.FC = memo(() => {
               <Text style={[styles.modalTitle, { color: theme.colors.onSurface }]}>
                 Add Step
               </Text>
-              <TouchableOpacity onPress={() => setIsStepPickerVisible(false)}>
-                <MaterialCommunityIcons name="close" size={24} color={theme.colors.onSurface} />
+              <TouchableOpacity 
+                onPress={() => setIsStepPickerVisible(false)}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: theme.colors.surfaceVariant,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <MaterialCommunityIcons name="close" size={28} color={theme.colors.onSurface} />
               </TouchableOpacity>
             </View>
 
@@ -948,8 +977,18 @@ const ModernAutomationBuilder: React.FC = memo(() => {
                   {selectedStep?.title || 'Configure'}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setIsConfigModalVisible(false)}>
-                <MaterialCommunityIcons name="close" size={24} color={theme.colors.onSurface} />
+              <TouchableOpacity 
+                onPress={() => setIsConfigModalVisible(false)}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: theme.colors.surfaceVariant,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <MaterialCommunityIcons name="close" size={28} color={theme.colors.onSurface} />
               </TouchableOpacity>
             </View>
 
@@ -991,17 +1030,32 @@ const ModernAutomationBuilder: React.FC = memo(() => {
                   <Text style={[styles.modalTitle, { color: theme.colors.onSurface }]}>
                     {selectedTemplate.title}
                   </Text>
-                  <TouchableOpacity onPress={() => setIsTemplateModalVisible(false)}>
-                    <MaterialCommunityIcons name="close" size={24} color={theme.colors.onSurface} />
+                  <TouchableOpacity 
+                    onPress={() => setIsTemplateModalVisible(false)}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: theme.colors.surfaceVariant,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <MaterialCommunityIcons name="close" size={28} color={theme.colors.onSurface} />
                   </TouchableOpacity>
                 </View>
                 
                 <ScrollView style={styles.templatePreview}>
-                  <Text style={[styles.templatePreviewDescription, { color: theme.colors.onSurfaceVariant }]}>
+                  <Text style={[styles.templatePreviewDescription, { color: theme.colors.onSurface }]}>
                     {selectedTemplate.description}
                   </Text>
                   
-                  <View style={styles.templatePreviewMeta}>
+                  <LinearGradient
+                    colors={['rgba(139, 92, 246, 0.1)', 'rgba(124, 58, 237, 0.05)']}
+                    style={styles.templatePreviewMeta}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
                     <View style={styles.templatePreviewMetaItem}>
                       <MaterialCommunityIcons name="layers" size={20} color={theme.colors.primary} />
                       <Text style={[styles.templatePreviewMetaText, { color: theme.colors.onSurface }]}>
@@ -1020,16 +1074,21 @@ const ModernAutomationBuilder: React.FC = memo(() => {
                         {selectedTemplate.difficulty}
                       </Text>
                     </View>
-                  </View>
+                  </LinearGradient>
                   
                   <Text style={[styles.templatePreviewStepsTitle, { color: theme.colors.onSurface }]}>
                     Steps:
                   </Text>
                   {selectedTemplate.steps.map((step, index) => (
                     <View key={step.id} style={styles.templatePreviewStep}>
-                      <View style={styles.templatePreviewStepNumber}>
+                      <LinearGradient
+                        colors={['#8B5CF6', '#6D28D9']}
+                        style={styles.templatePreviewStepNumber}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
                         <Text style={styles.templatePreviewStepNumberText}>{index + 1}</Text>
-                      </View>
+                      </LinearGradient>
                       <Text style={[styles.templatePreviewStepText, { color: theme.colors.onSurface }]}>
                         {step.title}
                       </Text>
@@ -1064,46 +1123,53 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 64,
   },
   backButton: {
-    padding: 4,
+    padding: 8,
+    marginRight: 8,
   },
   headerCenter: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: 8,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
   },
   headerSubtitle: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 14,
+    marginTop: 4,
   },
   viewToggle: {
-    padding: 4,
+    padding: 8,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tabContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 2,
     borderColor: 'transparent',
+    minHeight: 50,
   },
   activeTab: {
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -1113,10 +1179,10 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 12,
   },
   searchInput: {
@@ -1231,8 +1297,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   section: {
-    marginHorizontal: 20,
-    marginBottom: 24,
+    marginHorizontal: 16,
+    marginBottom: 20,
     padding: 16,
     borderRadius: 16,
   },
@@ -1240,22 +1306,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   input: {
-    marginBottom: 12,
+    marginBottom: 16,
+    fontSize: 16,
   },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+  addButtonContainer: {
+    borderRadius: 28,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -1265,17 +1328,25 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 28,
+    minHeight: 56,
+  },
   addButtonText: {
     color: '#FFFFFF',
-    marginLeft: 8,
+    marginLeft: 10,
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 18,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   stepCard: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginBottom: 12,
     padding: 16,
     borderRadius: 16,
@@ -1284,53 +1355,60 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
+    minHeight: 90,
   },
   stepHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   stepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#8B5CF6',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   stepNumberText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   stepIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   stepInfo: {
     flex: 1,
+    marginRight: 12,
   },
   stepTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
+    marginBottom: 4,
   },
   stepSubtitle: {
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 2,
   },
   stepActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 8,
+    alignItems: 'center',
+    gap: 12,
   },
   actionButton: {
-    padding: 8,
+    padding: 10,
     borderRadius: 8,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   stepConnector: {
     position: 'absolute',
@@ -1343,10 +1421,10 @@ const styles = StyleSheet.create({
     height: 12,
   },
   emptySteps: {
-    padding: 40,
+    padding: 32,
     borderRadius: 16,
     alignItems: 'center',
-    marginHorizontal: 20,
+    marginHorizontal: 16,
   },
   emptyStepsText: {
     fontSize: 14,
@@ -1365,9 +1443,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -1380,24 +1458,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
+    minHeight: 56,
   },
   testButton: {
     borderWidth: 2,
     backgroundColor: 'transparent',
   },
   saveButton: {
-    // backgroundColor set dynamically
+    padding: 0,
+    overflow: 'hidden',
+  },
+  saveButtonGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
   },
   footerButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
   modalContent: {
@@ -1405,6 +1493,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingTop: 24,
     maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1412,10 +1505,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+    paddingBottom: 16,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
+    flex: 1,
+    marginRight: 16,
   },
   modalSearch: {
     flexDirection: 'row',
@@ -1517,14 +1615,20 @@ const styles = StyleSheet.create({
     maxHeight: '70%',
   },
   templatePreviewDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 20,
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   templatePreviewMeta: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 24,
+    padding: 16,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: 12,
   },
   templatePreviewMetaItem: {
     flexDirection: 'row',
@@ -1532,35 +1636,39 @@ const styles = StyleSheet.create({
   },
   templatePreviewMetaText: {
     marginLeft: 8,
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '500',
   },
   templatePreviewStepsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
   },
   templatePreviewStep: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 10,
   },
   templatePreviewStepNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#8B5CF6',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   templatePreviewStepNumberText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   templatePreviewStepText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 

@@ -3,6 +3,12 @@ import { supabase } from '../supabase/client';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { EventLogger } from '../../utils/EventLogger';
+import { CrashReporter } from '../monitoring/CrashReporter';
+import { PerformanceMonitor } from '../monitoring/PerformanceMonitor';
+import { AutomationEngine } from '../automation/AutomationEngine';
+import { store } from '../../store';
+import { RootState } from '../../store/types';
+import { AutomationData } from '../../types';
 
 interface PerformanceMetrics {
   jsHeapUsed: number;
@@ -13,6 +19,12 @@ interface PerformanceMetrics {
   warningCount: number;
   startTime: number;
   currentTime: number;
+  // Real app metrics
+  reduxStoreSize?: number;
+  activeScreens?: string[];
+  automationExecutions?: number;
+  networkFailureRate?: number;
+  averageApiResponseTime?: number;
 }
 
 interface NetworkLog {
@@ -39,9 +51,15 @@ interface DatabaseStats {
     name: string;
     count: number;
     size?: string;
+    lastModified?: Date;
+    userAccess?: boolean;
   }[];
   totalRecords: number;
   lastSync?: Date;
+  userAutomations?: number;
+  totalExecutions?: number;
+  avgExecutionTime?: number;
+  errorRate?: number;
 }
 
 interface TestCase {
@@ -70,6 +88,11 @@ class DeveloperServiceClass {
       warningCount: 0,
       startTime: Date.now(),
       currentTime: Date.now(),
+      reduxStoreSize: 0,
+      activeScreens: [],
+      automationExecutions: 0,
+      networkFailureRate: 0,
+      averageApiResponseTime: 0,
     };
 
     // Store original fetch for network monitoring
@@ -82,6 +105,9 @@ class DeveloperServiceClass {
   }
 
   private initializeMonitoring() {
+    // Load persisted feature flags
+    this.loadFeatureFlags();
+    
     // Monitor network requests
     this.setupNetworkMonitoring();
     
@@ -90,6 +116,12 @@ class DeveloperServiceClass {
     
     // Setup performance monitoring
     this.setupPerformanceMonitoring();
+    
+    // Integration with crash reporter
+    this.integrateCrashReporting();
+    
+    // Setup Redux store monitoring
+    this.setupStoreMonitoring();
   }
 
   private setupNetworkMonitoring() {
@@ -165,17 +197,109 @@ class DeveloperServiceClass {
     }, 1000);
   }
 
+  private integrateCrashReporting() {
+    try {
+      // Enhanced error reporting with developer context
+      const originalReportError = console.error;
+      console.error = (...args: any[]) => {
+        this.performanceMetrics.errorCount++;
+        
+        // Add developer context to crash reports
+        if (CrashReporter && typeof CrashReporter.addContext === 'function') {
+          CrashReporter.addContext('developer_metrics', this.getPerformanceMetrics());
+          CrashReporter.addContext('feature_flags', this.getFeatureFlags());
+        }
+        
+        originalReportError.apply(console, args);
+      };
+    } catch (error) {
+      // CrashReporter not available
+    }
+  }
+
+  private setupStoreMonitoring() {
+    try {
+      // Monitor Redux state changes
+      let lastStateSize = 0;
+      const monitorStore = () => {
+        try {
+          const state = store.getState();
+          const stateSize = JSON.stringify(state).length;
+          
+          if (stateSize !== lastStateSize) {
+            this.performanceMetrics.reduxStoreSize = stateSize;
+            lastStateSize = stateSize;
+            
+            // Track active automations
+            if (state.automation?.currentAutomation) {
+              this.addBreadcrumb({
+                category: 'automation',
+                message: `Automation loaded: ${state.automation.currentAutomation.title}`,
+                level: 'info',
+                data: { 
+                  id: state.automation.currentAutomation.id,
+                  steps: state.automation.currentAutomation.steps?.length || 0 
+                }
+              });
+            }
+          }
+        } catch (e) {
+          // Store monitoring failed
+        }
+      };
+
+      // Monitor periodically
+      setInterval(monitorStore, 2000);
+    } catch (error) {
+      // Store monitoring setup failed
+    }
+  }
+
+  private addBreadcrumb(breadcrumb: { category: string; message: string; level: string; data?: any }) {
+    // Add to internal breadcrumbs if needed
+    try {
+      if (CrashReporter && typeof CrashReporter.addBreadcrumb === 'function') {
+        CrashReporter.addBreadcrumb(breadcrumb);
+      }
+    } catch (error) {
+      // Breadcrumb failed
+    }
+  }
+
   private updatePerformanceMetrics() {
     this.performanceMetrics.currentTime = Date.now();
     
     try {
+      // Memory metrics
       if ((performance as any).memory) {
         const memory = (performance as any).memory;
         this.performanceMetrics.jsHeapUsed = memory.usedJSHeapSize;
         this.performanceMetrics.jsHeapLimit = memory.jsHeapSizeLimit;
       }
+
+      // Redux store size
+      try {
+        const state = store.getState();
+        this.performanceMetrics.reduxStoreSize = JSON.stringify(state).length;
+        this.performanceMetrics.automationExecutions = state.automation?.execution?.executionId ? 1 : 0;
+      } catch (e) {
+        // Store not available
+      }
+
+      // Calculate average API response times
+      const allResponseTimes = Object.values(this.performanceMetrics.apiResponseTimes).flat();
+      if (allResponseTimes.length > 0) {
+        this.performanceMetrics.averageApiResponseTime = 
+          allResponseTimes.reduce((a, b) => a + b, 0) / allResponseTimes.length;
+      }
+
+      // Network failure rate
+      const totalRequests = this.networkLogs.length;
+      const failedRequests = this.networkLogs.filter(log => log.error || (log.status && log.status >= 400)).length;
+      this.performanceMetrics.networkFailureRate = totalRequests > 0 ? (failedRequests / totalRequests) * 100 : 0;
+      
     } catch (e) {
-      // Memory API not available
+      // Metrics collection failed
     }
   }
 
@@ -269,12 +393,14 @@ class DeveloperServiceClass {
 
       const tables = [
         'automations',
-        'deployments',
+        'deployments', 
         'automation_executions',
         'reviews',
         'profiles',
         'automation_comments',
         'comment_likes',
+        'automation_steps',
+        'execution_summary',
       ];
 
       const stats: DatabaseStats = {
@@ -289,9 +415,32 @@ class DeveloperServiceClass {
             .select('*', { count: 'exact', head: true });
 
           if (!error && count !== null) {
+            // Get last modified date for user-accessible tables
+            let lastModified: Date | undefined;
+            let userAccess = true;
+            
+            if (['automations', 'deployments', 'reviews'].includes(table)) {
+              try {
+                const { data: recentData } = await supabase
+                  .from(table)
+                  .select('created_at')
+                  .order('created_at', { ascending: false })
+                  .limit(1)
+                  .single();
+                
+                if (recentData?.created_at) {
+                  lastModified = new Date(recentData.created_at);
+                }
+              } catch (e) {
+                // Could not get last modified date
+              }
+            }
+
             stats.tables.push({
               name: table,
               count: count,
+              lastModified,
+              userAccess,
             });
             stats.totalRecords += count;
           }
@@ -300,8 +449,37 @@ class DeveloperServiceClass {
           stats.tables.push({
             name: table,
             count: 0,
+            userAccess: false,
           });
         }
+      }
+
+      // Add specific user metrics
+      try {
+        const { data: userAutomations, error: automationError } = await supabase
+          .from('automations')
+          .select('id', { count: 'exact', head: true })
+          .eq('created_by', user.id);
+        
+        if (!automationError) {
+          stats.userAutomations = userAutomations || 0;
+        }
+
+        const { data: executions, error: executionError } = await supabase
+          .from('automation_executions')
+          .select('id, duration, status')
+          .eq('user_id', user.id)
+          .limit(100);
+        
+        if (!executionError && executions) {
+          stats.totalExecutions = executions.length;
+          const successfulExecutions = executions.filter(e => e.status === 'completed');
+          const avgDuration = successfulExecutions.reduce((acc, e) => acc + (e.duration || 0), 0) / successfulExecutions.length;
+          stats.avgExecutionTime = avgDuration || 0;
+          stats.errorRate = ((executions.length - successfulExecutions.length) / executions.length) * 100 || 0;
+        }
+      } catch (e) {
+        // User-specific stats failed
       }
 
       return stats;
@@ -451,6 +629,9 @@ class DeveloperServiceClass {
     advancedAnalytics: false,
     betaFeatures: __DEV__,
     debugMode: __DEV__,
+    weatherEffects: true,
+    iotIntegration: false,
+    premiumFeatures: false,
   };
 
   getFeatureFlags() {
@@ -459,6 +640,158 @@ class DeveloperServiceClass {
 
   setFeatureFlag(key: string, value: boolean) {
     this.featureFlags[key] = value;
+    // Persist feature flags to storage
+    this.persistFeatureFlags();
+  }
+
+  private async persistFeatureFlags() {
+    try {
+      await AsyncStorage.setItem('developer_feature_flags', JSON.stringify(this.featureFlags));
+    } catch (error) {
+      EventLogger.error('Developer', 'Failed to persist feature flags:', error as Error);
+    }
+  }
+
+  private async loadFeatureFlags() {
+    try {
+      const stored = await AsyncStorage.getItem('developer_feature_flags');
+      if (stored) {
+        const flags = JSON.parse(stored);
+        this.featureFlags = { ...this.featureFlags, ...flags };
+      }
+    } catch (error) {
+      EventLogger.error('Developer', 'Failed to load feature flags:', error as Error);
+    }
+  }
+
+  // Real-time app monitoring
+  async getAppHealth(): Promise<{
+    status: 'healthy' | 'warning' | 'critical';
+    issues: string[];
+    suggestions: string[];
+    metrics: any;
+  }> {
+    const issues: string[] = [];
+    const suggestions: string[] = [];
+    let status: 'healthy' | 'warning' | 'critical' = 'healthy';
+
+    const metrics = this.getPerformanceMetrics();
+
+    // Memory analysis
+    if (metrics.jsHeapUsed > metrics.jsHeapLimit * 0.8) {
+      issues.push('High memory usage detected');
+      suggestions.push('Consider clearing cache or restarting the app');
+      status = 'warning';
+    }
+
+    // Network analysis
+    if (metrics.networkFailureRate && metrics.networkFailureRate > 20) {
+      issues.push('High network failure rate');
+      suggestions.push('Check internet connection');
+      status = status === 'healthy' ? 'warning' : 'critical';
+    }
+
+    // API response time analysis
+    if (metrics.averageApiResponseTime && metrics.averageApiResponseTime > 5000) {
+      issues.push('Slow API response times');
+      suggestions.push('Check server status or network conditions');
+      status = status === 'healthy' ? 'warning' : 'critical';
+    }
+
+    // Redux store size analysis
+    if (metrics.reduxStoreSize && metrics.reduxStoreSize > 1000000) { // 1MB
+      issues.push('Large Redux store detected');
+      suggestions.push('Consider optimizing state management');
+      status = status === 'healthy' ? 'warning' : status;
+    }
+
+    // Error count analysis
+    if (metrics.errorCount > 10) {
+      issues.push('High error count');
+      suggestions.push('Check console logs for repeated errors');
+      status = status === 'healthy' ? 'warning' : 'critical';
+    }
+
+    return {
+      status,
+      issues,
+      suggestions,
+      metrics,
+    };
+  }
+
+  // Real automation data integration
+  async getAutomationInsights(): Promise<{
+    totalAutomations: number;
+    userAutomations: number;
+    popularStepTypes: { type: string; count: number }[];
+    executionSuccess: number;
+    averageSteps: number;
+    recentExecutions: any[];
+  }> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Get user's automations
+      const { data: userAutomations, error: userError } = await supabase
+        .from('automations')
+        .select('id, title, steps, execution_count')
+        .eq('created_by', user.id);
+
+      if (userError) throw userError;
+
+      // Get recent executions
+      const { data: recentExecutions, error: executionError } = await supabase
+        .from('automation_executions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (executionError) throw executionError;
+
+      // Analyze step types
+      const stepCounts: { [key: string]: number } = {};
+      let totalSteps = 0;
+      
+      userAutomations?.forEach(automation => {
+        if (automation.steps) {
+          totalSteps += automation.steps.length;
+          automation.steps.forEach((step: any) => {
+            stepCounts[step.type] = (stepCounts[step.type] || 0) + 1;
+          });
+        }
+      });
+
+      const popularStepTypes = Object.entries(stepCounts)
+        .map(([type, count]) => ({ type, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      // Calculate success rate
+      const successfulExecutions = recentExecutions?.filter(e => e.status === 'completed').length || 0;
+      const executionSuccess = recentExecutions?.length ? (successfulExecutions / recentExecutions.length) * 100 : 0;
+
+      return {
+        totalAutomations: userAutomations?.length || 0,
+        userAutomations: userAutomations?.length || 0,
+        popularStepTypes,
+        executionSuccess,
+        averageSteps: userAutomations?.length ? totalSteps / userAutomations.length : 0,
+        recentExecutions: recentExecutions || [],
+      };
+    } catch (error) {
+      EventLogger.error('Developer', 'Failed to get automation insights:', error as Error);
+      return {
+        totalAutomations: 0,
+        userAutomations: 0,
+        popularStepTypes: [],
+        executionSuccess: 0,
+        averageSteps: 0,
+        recentExecutions: [],
+      };
+    }
   }
 
   // Debug utilities
@@ -473,9 +806,48 @@ class DeveloperServiceClass {
       networkLogs: this.getNetworkLogs().slice(0, 20),
       featureFlags: this.getFeatureFlags(),
       testResults: this.testCases,
+      appHealth: await this.getAppHealth(),
+      automationInsights: await this.getAutomationInsights(),
+      // Real Redux state snapshot (anonymized)
+      reduxState: this.getAnonymizedReduxState(),
     };
 
     return JSON.stringify(bundle, null, 2);
+  }
+
+  private getAnonymizedReduxState(): any {
+    try {
+      const state = store.getState();
+      
+      // Create anonymized version without sensitive data
+      return {
+        automation: {
+          automationsCount: state.automation?.automations?.length || 0,
+          isExecuting: state.automation?.execution?.isExecuting || false,
+          currentStepIndex: state.automation?.execution?.currentStepIndex,
+          filtersActive: Object.keys(state.automation?.filters || {}).length,
+          formIsDirty: state.automation?.form?.isDirty || false,
+        },
+        auth: {
+          isAuthenticated: !!state.auth?.user,
+          userRole: state.auth?.user?.role || 'anonymous',
+        },
+        ui: {
+          theme: state.ui?.theme || 'light',
+          activeScreen: state.ui?.activeScreen || 'unknown',
+        },
+        deployment: {
+          deploymentsCount: state.deployment?.deployments?.length || 0,
+          isScanning: state.deployment?.isScanning || false,
+        },
+        offline: {
+          isOnline: state.offline?.isOnline || true,
+          queueLength: state.offline?.queue?.length || 0,
+        },
+      };
+    } catch (error) {
+      return { error: 'Failed to get Redux state' };
+    }
   }
 
   // Automation testing

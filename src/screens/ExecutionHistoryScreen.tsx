@@ -54,18 +54,18 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({ execution, onPress, index
                     size={14}
                     color={currentTheme.currentTheme.colors.text?.secondary || '#666666'}
                   />
-                  <Text style={[styles.timestamp, { color: currentTheme.colors.text.secondary }]}>
+                  <Text style={[styles.timestamp, { color: currentTheme.currentTheme.colors.text?.secondary || '#666666' }]}>
                     {formatDistanceToNow(new Date(execution.created_at), { addSuffix: true })}
                   </Text>
                   {execution.execution_time && (
                     <>
-                      <Text style={[styles.separator, { color: currentTheme.colors.text.tertiary }]}>•</Text>
+                      <Text style={[styles.separator, { color: currentTheme.currentTheme.colors.text?.tertiary || '#999999' }]}>•</Text>
                       <MaterialCommunityIcons
                         name="timer-outline"
                         size={14}
                         color={currentTheme.currentTheme.colors.text?.secondary || '#666666'}
                       />
-                      <Text style={[styles.duration, { color: currentTheme.colors.text.secondary }]}>
+                      <Text style={[styles.duration, { color: currentTheme.currentTheme.colors.text?.secondary || '#666666' }]}>
                         {execution.execution_time.toFixed(1)}s
                       </Text>
                     </>
@@ -78,13 +78,13 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({ execution, onPress, index
             </View>
             
             {execution.error_message && (
-              <View style={[styles.errorContainer, { backgroundColor: `${currentTheme.colors.semantic.error}10` }]}>
+              <View style={[styles.errorContainer, { backgroundColor: `${currentTheme.currentTheme.colors.semantic?.error || '#F44336'}10` }]}>
                 <MaterialCommunityIcons
                   name="alert-circle"
                   size={16}
-                  color={currentTheme.colors.semantic.error}
+                  color={currentTheme.currentTheme.colors.semantic?.error || '#F44336'}
                 />
-                <Text style={[styles.errorText, { color: currentTheme.colors.semantic.error }]} numberOfLines={2}>
+                <Text style={[styles.errorText, { color: currentTheme.currentTheme.colors.semantic?.error || '#F44336' }]} numberOfLines={2}>
                   {execution.error_message}
                 </Text>
               </View>
@@ -92,7 +92,7 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({ execution, onPress, index
             
             {execution.steps_completed !== undefined && (
               <View style={styles.progressContainer}>
-                <View style={[styles.progressBar, { backgroundColor: currentTheme.colors.surface.tertiary }]}>
+                <View style={[styles.progressBar, { backgroundColor: currentTheme.currentTheme.colors.surface?.tertiary || '#E0E0E0' }]}>
                   <View
                     style={[
                       styles.progressFill,
@@ -103,7 +103,7 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({ execution, onPress, index
                     ]}
                   />
                 </View>
-                <Text style={[styles.progressText, { color: currentTheme.colors.text.secondary }]}>
+                <Text style={[styles.progressText, { color: currentTheme.currentTheme.colors.text?.secondary || '#666666' }]}>
                   {execution.steps_completed} / {execution.total_steps} steps
                 </Text>
               </View>
@@ -156,13 +156,13 @@ export const ExecutionHistoryScreen: React.FC<{ navigation?: any }> = ({ navigat
   
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={[styles.title, { color: currentTheme.colors.text.primary }]}>Execution History</Text>
+      <Text style={[styles.title, { color: currentTheme.currentTheme.colors.text?.primary || '#000000' }]}>Execution History</Text>
       <View style={styles.headerActions}>
         <TouchableOpacity onPress={handleExport} style={styles.headerButton}>
-          <MaterialCommunityIcons name="download" size={24} color={currentTheme.colors.text.secondary} />
+          <MaterialCommunityIcons name="download" size={24} color={currentTheme.currentTheme.colors.text?.secondary || '#666666'} />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleClearHistory} style={styles.headerButton}>
-          <MaterialCommunityIcons name="delete-outline" size={24} color={currentTheme.colors.text.secondary} />
+          <MaterialCommunityIcons name="delete-outline" size={24} color={currentTheme.currentTheme.colors.text?.secondary || '#666666'} />
         </TouchableOpacity>
       </View>
     </View>
@@ -178,10 +178,10 @@ export const ExecutionHistoryScreen: React.FC<{ navigation?: any }> = ({ navigat
   
   if (isLoading && !refreshing) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: currentTheme.colors.background.primary }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: currentTheme.currentTheme.colors.background?.primary || '#FFFFFF' }]}>
         {renderHeader()}
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={currentTheme.colors.brand.primary} />
+          <ActivityIndicator size="large" color={currentTheme.currentTheme.colors.brand?.primary || '#6200EE'} />
         </View>
       </SafeAreaView>
     );
@@ -211,8 +211,8 @@ export const ExecutionHistoryScreen: React.FC<{ navigation?: any }> = ({ navigat
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={currentTheme.colors.brand.primary}
-            colors={[currentTheme.colors.brand.primary]}
+            tintColor={currentTheme.currentTheme.colors.brand?.primary || '#6200EE'}
+            colors={[currentTheme.currentTheme.colors.brand?.primary || '#6200EE']}
           />
         }
         ListEmptyComponent={renderEmpty}
