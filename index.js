@@ -27,9 +27,17 @@ if (typeof global.ErrorUtils === 'undefined') {
 // Load additional polyfill for comprehensive coverage
 // require('./ErrorUtils.polyfill.js'); // Disabled - using inline polyfill above
 
-// Import Reanimated directly before gesture handler
+// Initialize Reanimated with explicit configuration
+import { LogBox } from 'react-native';
+
+// Import and configure Reanimated FIRST
 import 'react-native-reanimated';
+
+// Then import gesture handler
 import 'react-native-gesture-handler';
+
+// Suppress Reanimated warnings during initialization
+LogBox.ignoreLogs(['Reanimated']);
 
 // Temporarily disable expo-dev-client to avoid ErrorUtils issues
 // import 'expo-dev-client';

@@ -17,8 +17,15 @@ module.exports = function(api) {
       ],
       // Remove console logs in production
       process.env.NODE_ENV === 'production' && 'transform-remove-console',
-      // Reanimated plugin must be last
-      'react-native-reanimated/plugin'
+      // Reanimated plugin must be last - with proper configuration
+      [
+        'react-native-reanimated/plugin',
+        {
+          processNestedWorklets: true,
+          relativeSourceLocation: true,
+          globals: ['__scanCodes'],
+        }
+      ]
     ].filter(Boolean),
     env: {
       production: {

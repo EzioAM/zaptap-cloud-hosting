@@ -21,6 +21,18 @@ import { EventLogger } from './src/utils/EventLogger';
 import { SafeAppWrapper } from './src/utils/SafeAppWrapper';
 import { TextInputOptimizer } from './src/utils/textInputFixes';
 
+// Verify Reanimated is properly configured
+try {
+  const Reanimated = require('react-native-reanimated');
+  if (!Reanimated.useSharedValue) {
+    console.error('[App] Reanimated not properly initialized - missing useSharedValue');
+  } else {
+    console.log('[App] Reanimated configured correctly');
+  }
+} catch (error) {
+  console.error('[App] Failed to load Reanimated:', error);
+}
+
 // Initialize services
 let servicesInitialized = false;
 let storePromise: Promise<any> | null = null;

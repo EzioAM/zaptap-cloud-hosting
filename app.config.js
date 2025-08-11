@@ -42,6 +42,19 @@ export default {
           defaultChannel: "default",
           mode: "production"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          ios: {
+            deploymentTarget: "13.4"
+          },
+          android: {
+            compileSdkVersion: 34,
+            targetSdkVersion: 34,
+            kotlinVersion: "1.9.0"
+          }
+        }
       ]
     ],
     ios: {

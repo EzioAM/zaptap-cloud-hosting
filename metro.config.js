@@ -16,6 +16,8 @@ config.resolver = {
   unstable_enablePackageExports: false, // Changed from true - this is the key fix!
   unstable_conditionNames: ['browser', 'require', 'react-native'],
   sourceExts: [...(config.resolver?.sourceExts || []), 'cjs'],
+  // Add Reanimated support
+  assetExts: [...(config.resolver?.assetExts || []), 'db'],
   // Ensure proper resolution order for global polyfills
   platforms: ['ios', 'android', 'native', 'web'],
 };
