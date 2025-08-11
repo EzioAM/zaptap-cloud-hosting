@@ -50,18 +50,26 @@ export function WelcomeScreen() {
   }, []);
 
   useEffect(() => {
-    // Entrance animations
-    fadeAnim.value = withTiming(1, { duration: 800 });
-    scaleAnim.value = withSpring(1, { 
-      damping: 15, 
-      stiffness: 150,
-      duration: 1000 
-    });
-    slideAnim.value = withSpring(0, {
-      damping: 20,
-      stiffness: 100,
-      duration: 800
-    });
+    // Entrance animations with error handling
+    try {
+      fadeAnim.value = withTiming(1, { duration: 800 });
+      scaleAnim.value = withSpring(1, { 
+        damping: 15, 
+        stiffness: 150,
+        duration: 1000 
+      });
+      slideAnim.value = withSpring(0, {
+        damping: 20,
+        stiffness: 100,
+        duration: 800
+      });
+    } catch (error) {
+      console.error('[WelcomeScreen] Animation error:', error);
+      // Continue without animations - just set final values
+      fadeAnim.value = 1;
+      scaleAnim.value = 1;
+      slideAnim.value = 0;
+    }
   }, []);
 
   const handleGetStarted = async () => {

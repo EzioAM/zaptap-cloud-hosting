@@ -18,7 +18,6 @@ import { navigationStateTracker } from '../services/navigation/NavigationStateTr
 // Error Boundaries and Recovery
 import { BaseErrorBoundary, NavigationErrorBoundary } from '../components/ErrorBoundaries';
 import { ErrorFallback, LoadingFallback } from '../components/Fallbacks';
-import { SafeAnimatedWrapper } from '../components/SafeAnimatedWrapper';
 
 // Track initialization
 let appNavigatorInitCount = 0;
@@ -39,27 +38,15 @@ const EmergencyScreen = React.memo(() => (
 // Create Native Stack Navigator for Onboarding - fixes touch issues
 const OnboardingStack = createNativeStackNavigator();
 
-// Onboarding Navigator Component wrapped with error boundary
+// Onboarding Navigator Component - simplified without wrapper
 const OnboardingNavigator = React.memo(() => {
   console.log('📱 OnboardingNavigator rendering');
   
   return (
-    <SafeAnimatedWrapper
-      fallbackComponent={
-        <View style={styles.emergency}>
-          <Text style={styles.emergencyText}>Loading Onboarding...</Text>
-        </View>
-      }
-      onError={(error) => {
-        console.error('OnboardingNavigator error:', error);
-        EventLogger.error('Navigation', 'OnboardingNavigator error:', error);
-      }}
-    >
-      <OnboardingStack.Navigator screenOptions={{ headerShown: false }}>
-        <OnboardingStack.Screen name="Welcome" component={WelcomeScreen} />
-        <OnboardingStack.Screen name="OnboardingFlow" component={OnboardingFlow} />
-      </OnboardingStack.Navigator>
-    </SafeAnimatedWrapper>
+    <OnboardingStack.Navigator screenOptions={{ headerShown: false }}>
+      <OnboardingStack.Screen name="Welcome" component={WelcomeScreen} />
+      <OnboardingStack.Screen name="OnboardingFlow" component={OnboardingFlow} />
+    </OnboardingStack.Navigator>
   );
 });
 

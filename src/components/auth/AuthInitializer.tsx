@@ -30,6 +30,16 @@ export const AuthInitializer: React.FC<AuthInitializerProps> = ({ children }) =>
     }
     initAttempted.current = true;
 
+    // Set timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      if (isInitializing) {
+        console.error('[Auth] Initialization timeout after 10s');
+        setIsInitializing(false);
+        setInitError(null);
+        dispatch(signOutSuccess()); // Ensure clean state
+      }
+    }, 10000); // 10 second timeout
+
     const initializeAuth = async () => {
       try {
         EventLogger.debug('AuthInitializer', 'Starting auth initialization...');
@@ -139,6 +149,7 @@ export const AuthInitializer: React.FC<AuthInitializerProps> = ({ children }) =>
 
     // Cleanup on unmount
     return () => {
+      clearTimeout(timeoutId);
       if (authListenerRef.current) {
         authListenerRef.current.subscription?.unsubscribe();
       }

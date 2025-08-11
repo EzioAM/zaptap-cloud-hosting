@@ -17,11 +17,8 @@ module.exports = function(api) {
       ],
       // Remove console logs in production
       process.env.NODE_ENV === 'production' && 'transform-remove-console',
-      // Reanimated plugin must be last - CRITICAL for makeMutable support
-      ['react-native-reanimated/plugin', {
-        relativeSourceLocation: true,
-        disableInlineStylesWarning: true,
-      }]
+      // Reanimated plugin must be last
+      'react-native-reanimated/plugin'
     ].filter(Boolean),
     env: {
       production: {

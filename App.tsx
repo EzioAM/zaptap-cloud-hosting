@@ -82,8 +82,18 @@ const LoadingScreen = () => (
   </View>
 );
 
+// Emergency fallback component
+const EmergencyFallback = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' }}>
+    <Text style={{ fontSize: 18, color: '#333' }}>App is loading...</Text>
+    <Text style={{ fontSize: 14, color: '#666', marginTop: 10 }}>If this persists, please restart the app</Text>
+  </View>
+);
+
 // Full app component with all providers
 const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
+  console.log('[App] FullApp rendering, store:', !!store);
+  
   // Create Material Design 3 theme
   const paperTheme = {
     ...MD3LightTheme,
@@ -97,6 +107,7 @@ const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
     },
   };
 
+  console.log('[App] Rendering providers');
   console.log('🚀 App initialized with full navigation');
 
   return (
@@ -131,8 +142,11 @@ const FullApp: React.FC<{ store: any }> = React.memo(({ store }) => {
 });
 
 export default function App() {
+  console.log('[App] Starting App component');
+  
   const [store, setStore] = useState<any>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [initError, setInitError] = useState<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
@@ -177,6 +191,7 @@ export default function App() {
         if (!mounted) return;
         
         // Still allow the app to render with basic functionality
+        setInitError(true);
         setIsInitializing(false);
       }
     };
@@ -208,10 +223,11 @@ export default function App() {
     );
   }
 
-  // Fallback if store failed to load
+  // Fallback if store failed to load or error occurred
+  console.log('[App] Rendering fallback, store:', !!store, 'error:', initError);
   return (
     <AppErrorBoundary>
-      <LoadingScreen />
+      <EmergencyFallback />
     </AppErrorBoundary>
   );
 }
