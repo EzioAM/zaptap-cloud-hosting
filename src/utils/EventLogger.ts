@@ -393,34 +393,47 @@ class EventLoggerService {
   /**
    * Sanitize data to remove sensitive information
    */
-  private sanitizeData(data: any): any {
+  private sanitizeData(data: any, visited = new WeakSet()): any {
     if (!data) return data;
     
+    // Handle primitive types
     if (typeof data === 'string') {
       // Basic sanitization for common sensitive patterns
       return data.replace(/\b\d{16}\b/g, '**** **** **** ****') // Credit card numbers
                  .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '***@***.***'); // Email addresses
     }
     
+    if (typeof data !== 'object') {
+      return data;
+    }
+    
+    // Check for circular references
+    if (visited.has(data)) {
+      return '[Circular Reference]';
+    }
+    
+    // Mark this object as visited
+    visited.add(data);
+    
+    // Handle arrays
     if (Array.isArray(data)) {
-      return data.map(item => this.sanitizeData(item));
+      return data.map(item => this.sanitizeData(item, visited));
     }
     
-    if (typeof data === 'object') {
-      const sanitized: any = {};
-      for (const [key, value] of Object.entries(data)) {
-        // Skip sensitive keys
-        const sensitiveKeys = ['password', 'token', 'secret', 'key', 'auth', 'credential'];
-        if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive))) {
-          sanitized[key] = '[REDACTED]';
-        } else {
-          sanitized[key] = this.sanitizeData(value);
-        }
+    // Handle objects
+    const sanitized: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      // Skip sensitive keys
+      const sensitiveKeys = ['password', 'token', 'secret', 'key', 'auth', 'credential'];
+      if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive))) {
+        sanitized[key] = '[REDACTED]';
+      } else {
+        // Recursively sanitize with the same visited set
+        sanitized[key] = this.sanitizeData(value, visited);
       }
-      return sanitized;
     }
     
-    return data;
+    return sanitized;
   }
 }
 

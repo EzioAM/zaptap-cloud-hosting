@@ -312,7 +312,7 @@ class FeaturedAutomationRotator {
     return {
       id: automation.id,
       title: automation.title,
-      description: automation.description || "Automate your daily tasks with this powerful workflow",
+      description: automation.description || "",
       category: automation.category || "Productivity",
       tags: automation.tags || [],
       likesCount: automation.likes_count || 0,
@@ -320,13 +320,13 @@ class FeaturedAutomationRotator {
       createdBy: automation.created_by,
       rating: automation.rating || 4.5,
       uses: automation.downloads_count || automation.execution_count || 0,
-      author: automation.users?.[0]?.name || automation.author || "Community",
-      authorAvatar: automation.users?.[0]?.avatar_url || automation.authorAvatar || DEFAULT_AVATAR,
+      author: automation.users?.name || automation.author || "Community",
+      authorAvatar: automation.users?.avatar_url || automation.authorAvatar || DEFAULT_AVATAR,
       imageUrl: automation.image_url || `https://picsum.photos/400/300?random=${automation.id}`,
       categories: automation.categories || [automation.category || "Productivity"],
       user: {
-        name: automation.users?.[0]?.name || "Community",
-        avatarUrl: automation.users?.[0]?.avatar_url || DEFAULT_AVATAR
+        name: automation.users?.name || "Community",
+        avatarUrl: automation.users?.avatar_url || DEFAULT_AVATAR
       },
       engagementScore: automation.engagementScore || 0,
       lastFeatured: new Date().toISOString().split('T')[0],
@@ -397,21 +397,25 @@ const dashboardApi = createApi({
       queryFn: async () => {
         try {
           const { data: { user } } = await supabase.auth.getUser();
-          console.log('[DashboardAPI] Getting today stats for user:', user?.id);
+          console.log('[DashboardAPI] Getting stats for user:', user?.id, 'email:', user?.email);
           if (!user) {
+            console.log('[DashboardAPI] No authenticated user found');
             return { data: { totalExecutions: 0, successRate: 0, averageTime: 0, timeSaved: 0 } };
           }
 
-          const today = new Date().toISOString().split('T')[0];
-          console.log('[DashboardAPI] Fetching executions for date:', today);
+          // Get recent executions (last 7 days) instead of just today
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
           
-          // Let's also check for executions that may have been updated but status is still 'running'
+          console.log('[DashboardAPI] Fetching executions from last 7 days:', sevenDaysAgoStr);
+          
           const { data: executions, error } = await supabase
             .from('automation_executions')
             .select('id, status, execution_time, completed_at, created_at')
             .eq('user_id', user.id)
-            .gte('created_at', `${today}T00:00:00`)
-            .lte('created_at', `${today}T23:59:59`);
+            .gte('created_at', `${sevenDaysAgoStr}T00:00:00`)
+            .order('created_at', { ascending: false });
 
           if (error) {
             console.error('[DashboardAPI] Error fetching executions:', error);
@@ -429,66 +433,70 @@ const dashboardApi = createApi({
 
           console.log('[DashboardAPI] Executions found:', executions?.length || 0);
 
-          if (!executions || executions.length === 0) {
-            console.log('[DashboardAPI] No executions found for today');
-            // Return actual zeros when no data
-            return { 
-              data: { 
-                totalExecutions: 0, 
-                successRate: 0, 
-                averageTime: 0, 
-                timeSaved: 0 
-              } 
-            };
-          }
+          // Always return data, even if no executions
+          // This ensures the counters show 0 rather than being empty
+          const hasExecutions = executions && executions.length > 0;
 
-          console.log('[DashboardAPI] Raw executions data:', executions);
+          let stats: TodayStats;
           
-          // Log more details about each execution
-          executions?.forEach(exec => {
-            console.log('[DashboardAPI] Execution details:', {
-              id: exec.id,
-              status: exec.status,
-              execution_time: exec.execution_time,
-              completed_at: exec.completed_at,
-              created_at: exec.created_at
+          if (hasExecutions) {
+            console.log('[DashboardAPI] Raw executions data:', executions);
+            
+            // Log more details about each execution
+            executions?.forEach(exec => {
+              console.log('[DashboardAPI] Execution details:', {
+                id: exec.id,
+                status: exec.status,
+                execution_time: exec.execution_time,
+                completed_at: exec.completed_at,
+                created_at: exec.created_at
+              });
             });
-          });
-          
-          // Count only actual successful executions (ignore timeout failures)
-          const successful = executions.filter(e => e.status === 'success');
-          
-          // Count timeout failures separately (those marked as failed with exactly 30000ms execution time)
-          const timeoutFailures = executions.filter(e => 
-            e.status === 'failed' && e.execution_time === 30000
-          );
-          
-          // Real failures are those that failed for reasons other than timeout
-          const realFailures = executions.filter(e => 
-            e.status === 'failed' && e.execution_time !== 30000
-          );
-          
-          console.log('[DashboardAPI] Execution breakdown:', {
-            successful: successful.length,
-            timeoutFailures: timeoutFailures.length,
-            realFailures: realFailures.length,
-            total: executions.length
-          });
-          
-          // Calculate stats based only on real executions (exclude timeout failures)
-          const realExecutions = [...successful, ...realFailures];
-          const totalTime = successful.reduce((acc, e) => acc + (e.execution_time || 0), 0);
-          
-          console.log('[DashboardAPI] Total execution time:', totalTime);
-          
-          const stats = {
-            totalExecutions: realExecutions.length, // Don't count timeout failures
-            successRate: realExecutions.length > 0 ? Math.round((successful.length / realExecutions.length) * 100) : 0,
-            averageTime: successful.length > 0 && totalTime > 0 ? Math.round(totalTime / successful.length) : 0,
-            timeSaved: totalTime > 0 ? Math.round(totalTime / 1000 * 5) : 0 // Estimate 5x time saved
-          };
-          
-          console.log('[DashboardAPI] Calculated stats:', stats);
+            
+            // Count only actual successful executions (ignore timeout failures)
+            const successful = executions.filter(e => e.status === 'success');
+            
+            // Count timeout failures separately (those marked as failed with exactly 30000ms execution time)
+            const timeoutFailures = executions.filter(e => 
+              e.status === 'failed' && e.execution_time === 30000
+            );
+            
+            // Real failures are those that failed for reasons other than timeout
+            const realFailures = executions.filter(e => 
+              e.status === 'failed' && e.execution_time !== 30000
+            );
+            
+            console.log('[DashboardAPI] Execution breakdown:', {
+              successful: successful.length,
+              timeoutFailures: timeoutFailures.length,
+              realFailures: realFailures.length,
+              total: executions.length
+            });
+            
+            // Calculate stats based only on real executions (exclude timeout failures)
+            const realExecutions = [...successful, ...realFailures];
+            const totalTime = successful.reduce((acc, e) => acc + (e.execution_time || 0), 0);
+            
+            console.log('[DashboardAPI] Total execution time:', totalTime);
+            
+            stats = {
+              totalExecutions: realExecutions.length, // Don't count timeout failures
+              successRate: realExecutions.length > 0 ? Math.round((successful.length / realExecutions.length) * 100) : 0,
+              averageTime: successful.length > 0 && totalTime > 0 ? Math.round(totalTime / successful.length) : 0,
+              timeSaved: totalTime > 0 ? Math.round(totalTime / 1000 * 5) : 0 // Estimate 5x time saved
+            };
+            
+            console.log('[DashboardAPI] Calculated stats:', stats);
+          } else {
+            console.log('[DashboardAPI] No executions for today, returning zeros');
+            stats = {
+              totalExecutions: 0,
+              successRate: 0,
+              averageTime: 0,
+              timeSaved: 0
+            };
+            console.log('[DashboardAPI] Calculated stats:', stats);
+          }
           
           return {
             data: stats
@@ -637,8 +645,7 @@ const dashboardApi = createApi({
               created_at,
               rating,
               execution_count,
-              image_url,
-              users!created_by(name, avatar_url)
+              image_url
             `)
             .eq('is_public', true)
             .order('likes_count', { ascending: false })
@@ -670,16 +677,45 @@ const dashboardApi = createApi({
             if (!userError && userAutos) {
               userAutomations = userAutos.map(auto => ({
                 ...auto,
-                users: [{ name: user.user_metadata?.full_name || 'You', avatar_url: user.user_metadata?.avatar_url }]
+                // Create a clean user object without circular references
+                users: {
+                  name: user.user_metadata?.full_name || 'You', 
+                  avatar_url: user.user_metadata?.avatar_url || DEFAULT_AVATAR
+                }
               }));
             }
           }
 
-          // Combine public and user automations
-          const allAutomations = [...(publicAutomations || []), ...userAutomations];
+          // Fetch user data separately for public automations to avoid circular references
+          let enhancedPublicAutomations: any[] = [];
+          if (publicAutomations && publicAutomations.length > 0) {
+            const creatorIds = [...new Set(publicAutomations.map(a => a.created_by))];
+            const { data: users, error: usersError } = await supabase
+              .from('users')
+              .select('id, name, avatar_url')
+              .in('id', creatorIds);
+            
+            if (!usersError && users) {
+              const userMap = new Map(users.map(u => [u.id, u]));
+              enhancedPublicAutomations = publicAutomations.map(automation => ({
+                ...automation,
+                // Create a clean user object without circular references
+                users: userMap.get(automation.created_by) || null
+              }));
+            } else {
+              // Fallback without user data
+              enhancedPublicAutomations = publicAutomations.map(automation => ({
+                ...automation,
+                users: null
+              }));
+            }
+          }
+
+          // Combine enhanced public and user automations
+          const allAutomations = [...enhancedPublicAutomations, ...userAutomations];
           
           console.log('[DashboardAPI] Found automations:', {
-            public: publicAutomations?.length || 0,
+            public: enhancedPublicAutomations.length,
             user: userAutomations.length,
             total: allAutomations.length
           });
@@ -727,14 +763,29 @@ const dashboardApi = createApi({
               created_at,
               rating,
               execution_count,
-              image_url,
-              users!created_by(name, avatar_url)
+              image_url
             `)
             .eq('is_public', true)
             .order('likes_count', { ascending: false })
             .limit(50);
 
-          const featured = FeaturedAutomationRotator.selectFeaturedAutomation(publicAutomations || []);
+          // Fetch user data separately to avoid circular references
+          let enhancedAutomations: any[] = [];
+          if (publicAutomations && publicAutomations.length > 0) {
+            const creatorIds = [...new Set(publicAutomations.map(a => a.created_by))];
+            const { data: users } = await supabase
+              .from('users')
+              .select('id, name, avatar_url')
+              .in('id', creatorIds);
+            
+            const userMap = new Map(users?.map(u => [u.id, u]) || []);
+            enhancedAutomations = publicAutomations.map(automation => ({
+              ...automation,
+              users: userMap.get(automation.created_by) || null
+            }));
+          }
+
+          const featured = FeaturedAutomationRotator.selectFeaturedAutomation(enhancedAutomations);
           return { data: featured };
         } catch (error) {
           const fallback = FeaturedAutomationRotator.selectFromSamples();
