@@ -119,11 +119,18 @@ export const AuthInitializer: React.FC<AuthInitializerProps> = ({ children }) =>
         // Handle specific error types
         if (error?.message?.includes('Network')) {
           setInitError('Network connection unavailable. Some features may be limited.');
+        } else if (error?.message?.includes('makeMutable')) {
+          // Reanimated error - skip auth init and continue
+          EventLogger.warn('AuthInitializer', 'Reanimated error detected, continuing without auth:', error);
+          setInitError(null); // Don't show error to user
         } else {
-          setInitError('Failed to initialize authentication. Please try again.');
+          // For other errors, log but don't block app
+          EventLogger.warn('AuthInitializer', 'Auth init error, continuing in offline mode:', error);
+          setInitError(null); // Don't show error to user
         }
         
-        // Still allow app to load in offline/error mode
+        // Always allow app to load, even with errors
+        dispatch(signOutSuccess()); // Ensure clean state
         setIsInitializing(false);
       }
     };
