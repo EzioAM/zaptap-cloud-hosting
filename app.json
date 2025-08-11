@@ -37,6 +37,15 @@
       "bundleIdentifier": "com.zaptap.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "ZapTap uses your location to show local weather effects on the home screen."
+      },
+      "entitlements": {
+        "com.apple.developer.associated-domains": [
+          "applinks:zaptap.cloud",
+          "applinks:www.zaptap.cloud",
+          "applinks:shortcutslike.app"
+        ],
+        "com.apple.developer.nfc.readersession.formats": ["NDEF", "TAG"],
+        "aps-environment": "production"
       }
     },
     "android": {
