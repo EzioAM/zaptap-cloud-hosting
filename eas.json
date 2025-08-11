@@ -34,7 +34,8 @@
       },
       "ios": {
         "simulator": false,
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "credentialsSource": "remote"
       },
       "android": {
         "buildType": "apk",

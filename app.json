@@ -35,8 +35,10 @@
     "platforms": ["ios", "android"],
     "ios": {
       "bundleIdentifier": "com.zaptap.app",
+      "buildNumber": "5",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "ZapTap uses your location to show local weather effects on the home screen."
+        "NSLocationWhenInUseUsageDescription": "ZapTap uses your location to show local weather effects on the home screen.",
+        "UIRequiredDeviceCapabilities": ["armv7", "nfc"]
       },
       "entitlements": {
         "com.apple.developer.associated-domains": [
