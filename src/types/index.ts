@@ -68,12 +68,27 @@
     execution_count: number;
     average_rating: number;
     rating_count: number;
+    // Like functionality fields
+    hasLiked?: boolean;
+    likes?: number;
   }
+
+  // Alias for compatibility with test runner
+  export type Automation = AutomationData & {
+    userId?: string;
+    name?: string;  // Alias for title
+    isActive?: boolean;
+    isPublic?: boolean;  // Alias for is_public
+    createdAt?: string;  // Alias for created_at
+    updatedAt?: string;  // Alias for updated_at
+  };
 
   export type StepType =
     | 'notification'
     | 'sms'
     | 'email'
+    | 'facetime'
+    | 'call'
     | 'webhook'
     | 'delay'
     | 'condition'
@@ -88,7 +103,11 @@
     | 'photo'
     | 'app'
     | 'get_variable'
-    | 'prompt_input';
+    | 'prompt_input'
+    | 'http_request'
+    | 'json_parser'
+    | 'text_to_speech'
+    | 'menu_selection';
 
   // Step Configuration Types
   export interface NotificationStepConfig {
@@ -188,12 +207,66 @@
     url?: string;
   }
 
+  export interface FaceTimeStepConfig {
+    contact: string;
+    callType: 'video' | 'audio';
+    displayName?: string;
+    showConfirmation?: boolean;
+    confirmationMessage?: string;
+  }
+
+  export interface CallStepConfig {
+    phoneNumber: string;
+    displayName?: string;
+    showConfirmation?: boolean;
+    confirmationMessage?: string;
+  }
+
+  export interface HttpRequestStepConfig {
+    url: string;
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+    headers?: Record<string, string>;
+    body?: string;
+    responseVariable?: string;
+    timeout?: number;
+  }
+
+  export interface JsonParserStepConfig {
+    jsonData: string;
+    path?: string;
+    outputVariable: string;
+    defaultValue?: any;
+  }
+
+  export interface TextToSpeechStepConfig {
+    text: string;
+    voice?: string;
+    rate?: number;
+    pitch?: number;
+    language?: string;
+  }
+
+  export interface MenuSelectionStepConfig {
+    title: string;
+    message?: string;
+    options: Array<{
+      title: string;
+      value: string;
+      icon?: string;
+    }>;
+    outputVariable: string;
+    allowCancel?: boolean;
+  }
+
   // Union type for all step configurations
   export type StepConfig = 
     | NotificationStepConfig
     | SMSStepConfig
     | EmailStepConfig
+    | FaceTimeStepConfig
+    | CallStepConfig
     | WebhookStepConfig
+    | HttpRequestStepConfig
     | DelayStepConfig
     | VariableStepConfig
     | GetVariableStepConfig
@@ -205,7 +278,10 @@
     | MathStepConfig
     | PhotoStepConfig
     | ClipboardStepConfig
-    | AppStepConfig;
+    | AppStepConfig
+    | JsonParserStepConfig
+    | TextToSpeechStepConfig
+    | MenuSelectionStepConfig;
 
   export interface ExecutionResult {
     success: boolean;
