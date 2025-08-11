@@ -467,15 +467,35 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   };
 
-  const renderStatCard = (icon: string, title: string, value: string | number, color: string) => (
-    <View style={[styles.statCard, { backgroundColor: theme.colors.surface.elevated }]}>
-      <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
-        <Icon name={icon} size={20} color={color} />
+  const renderStatCard = (icon: string, title: string, value: string | number, color: string, onPress?: () => void) => {
+    const content = (
+      <>
+        <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
+          <Icon name={icon} size={20} color={color} />
+        </View>
+        <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{value}</Text>
+        <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>{title}</Text>
+      </>
+    );
+
+    if (onPress) {
+      return (
+        <TouchableOpacity 
+          style={[styles.statCard, { backgroundColor: theme.colors.surface.elevated }]}
+          onPress={onPress}
+          activeOpacity={0.8}
+        >
+          {content}
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <View style={[styles.statCard, { backgroundColor: theme.colors.surface.elevated }]}>
+        {content}
       </View>
-      <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>{title}</Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
@@ -604,8 +624,20 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={styles.statsContainer}>
             {renderStatCard('layers', 'Steps', automation.steps?.length || 0, '#2196F3')}
             {renderStatCard('play-circle', 'Runs', automation.execution_count || 0, '#4CAF50')}
-            {renderStatCard('star', 'Rating', automation.average_rating?.toFixed(1) || '0', '#FF9800')}
-            {renderStatCard('account-multiple', 'Reviews', automation.rating_count || 0, '#9C27B0')}
+            {renderStatCard('star', 'Rating', automation.average_rating?.toFixed(1) || '0', '#FF9800', () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.navigate('Reviews', { 
+                automation: automation,
+                automationId: automation.id 
+              });
+            })}
+            {renderStatCard('account-multiple', 'Reviews', automation.rating_count || 0, '#9C27B0', () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.navigate('Reviews', { 
+                automation: automation,
+                automationId: automation.id 
+              });
+            })}
           </View>
 
           {/* Automation Steps */}
@@ -678,6 +710,22 @@ const AutomationDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
                   <Icon name="nfc" size={24} color="white" />
                 </LinearGradient>
                 <Text style={[styles.quickActionLabel, { color: theme.colors.text.primary }]}>NFC Tag</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.quickActionCard, { backgroundColor: theme.colors.surface.elevated }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation.navigate('Reviews', { 
+                    automation: automation,
+                    automationId: automation.id 
+                  });
+                }}
+              >
+                <LinearGradient colors={['#FF5722', '#FF9800']} style={styles.quickActionGradient}>
+                  <Icon name="star-box-multiple" size={24} color="white" />
+                </LinearGradient>
+                <Text style={[styles.quickActionLabel, { color: theme.colors.text.primary }]}>Reviews</Text>
               </TouchableOpacity>
             </View>
           </View>

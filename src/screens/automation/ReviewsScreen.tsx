@@ -16,8 +16,9 @@ import {
   Text,
   Snackbar,
   IconButton,
+  Appbar,
 } from 'react-native-paper';
-import LinearGradient from 'expo-linear-gradient';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationData, AutomationReview, RatingStats } from '../../types';
@@ -39,57 +40,7 @@ const ReviewsScreen: React.FC<Props> = ({ navigation, route }) => {
   const theme = useSafeTheme();
   const [automation, setAutomation] = useState<AutomationData | null>(null);
   
-  // Handle both automation object and automationId
-  useEffect(() => {
-    const loadAutomation = async () => {
-      if (!route.params) {
-        EventLogger.warn('ReviewsScreen', 'No params provided');
-        navigation.goBack();
-        return;
-      }
-      
-      if (route.params.automation) {
-        setAutomation(route.params.automation);
-      } else if (route.params.automationId) {
-        // Load automation by ID if needed
-        try {
-          // For now, just use a mock automation
-          // In production, you'd fetch from the database
-          const mockAutomation: AutomationData = {
-            id: route.params.automationId,
-            name: 'Loading...',
-            description: '',
-            userId: '',
-            steps: [],
-            isActive: true,
-            isPublic: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          setAutomation(mockAutomation);
-        } catch (error) {
-          EventLogger.error('ReviewsScreen', 'Failed to load automation', error);
-          navigation.goBack();
-        }
-      } else {
-        EventLogger.warn('ReviewsScreen', 'No automation or automationId provided');
-        navigation.goBack();
-      }
-    };
-    
-    loadAutomation();
-  }, [route.params, navigation]);
-  
-  // Show loading while automation is being loaded
-  if (!automation) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={{ marginTop: 16, color: theme.colors.text }}>Loading automation...</Text>
-      </View>
-    );
-  }
-  
+  // All hooks must be declared before any conditional returns
   const [reviews, setReviews] = useState<AutomationReview[]>([]);
   const [ratingStats, setRatingStats] = useState<RatingStats>({
     average_rating: 0,
@@ -110,38 +61,10 @@ const ReviewsScreen: React.FC<Props> = ({ navigation, route }) => {
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const progressAnimations = useRef<{ [key: number]: Animated.Value }>({}).current;
 
-  useEffect(() => {
-    loadReviews();
-    if (user) {
-      loadUserReview();
-    }
-  }, [automation.id, user]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      // Animate content in
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [isLoading]);
-
+  // Define all functions before useEffects
   const loadReviews = async () => {
+    if (!automation) return;
+    
     try {
       const [reviewsResult, statsResult] = await Promise.all([
         reviewService.getAutomationReviews(automation.id, 50, 0),
@@ -170,7 +93,7 @@ const ReviewsScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const loadUserReview = async () => {
-    if (!user) return;
+    if (!user || !automation) return;
     
     try {
       const review = await reviewService.getUserReview(automation.id, user.id);
@@ -196,6 +119,11 @@ const ReviewsScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleSubmitReview = async (rating: number, reviewText?: string) => {
     if (!user) {
       navigation.navigate('SignIn');
+      return;
+    }
+
+    if (!automation) {
+      showMessage('No automation selected');
       return;
     }
 
@@ -304,6 +232,110 @@ const ReviewsScreen: React.FC<Props> = ({ navigation, route }) => {
       showMessage('Failed to mark as helpful');
     }
   };
+
+  // All useEffect hooks must be called unconditionally
+  // Handle both automation object and automationId
+  useEffect(() => {
+    const loadAutomation = async () => {
+      if (!route.params) {
+        // No params - show all reviews mode
+        setIsLoading(false);
+        return;
+      }
+      
+      if (route.params.automation) {
+        setAutomation(route.params.automation);
+      } else if (route.params.automationId) {
+        // Load automation by ID if needed
+        try {
+          // For now, just use a mock automation
+          // In production, you'd fetch from the database
+          const mockAutomation: AutomationData = {
+            id: route.params.automationId,
+            name: 'Loading...',
+            description: '',
+            userId: '',
+            steps: [],
+            isActive: true,
+            isPublic: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          setAutomation(mockAutomation);
+        } catch (error) {
+          EventLogger.error('ReviewsScreen', 'Failed to load automation', error);
+        }
+      }
+    };
+    
+    loadAutomation();
+  }, [route.params]);
+
+  useEffect(() => {
+    if (automation) {
+      loadReviews();
+      if (user) {
+        loadUserReview();
+      }
+    }
+  }, [automation?.id, user]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      // Animate content in
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isLoading]);
+  
+  // Show loading state
+  if (isLoading && route.params) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={{ marginTop: 16, color: theme.colors.text }}>Loading automation...</Text>
+      </View>
+    );
+  }
+
+  // If no automation provided, show all reviews view
+  if (!automation) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Appbar.Header>
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+          <Appbar.Content title="All Reviews" />
+        </Appbar.Header>
+        <ScrollView style={styles.content}>
+          <View style={styles.emptyContainer}>
+            <Icon name="star-box-multiple-outline" size={64} color={theme.colors.onSurfaceVariant} />
+            <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>
+              Select an Automation
+            </Text>
+            <Text style={[styles.emptyDescription, { color: theme.colors.onSurfaceVariant }]}>
+              Navigate here from an automation's detail page to see its reviews
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
 
   const renderStars = (rating: number, size: number = 16, animated: boolean = false) => {
     const stars = [];
@@ -981,6 +1013,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    marginTop: 100,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyDescription: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
+    lineHeight: 22,
   },
 });
 

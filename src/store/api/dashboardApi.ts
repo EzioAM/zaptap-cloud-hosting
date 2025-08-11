@@ -279,7 +279,6 @@ class FeaturedAutomationRotator {
     if (shouldRotate) {
       this.lastRotationTime = now;
       this.currentIndex = (this.currentIndex + 1) % SAMPLE_AUTOMATIONS.length;
-      console.log('[FeaturedRotator] Rotating to sample index:', this.currentIndex, 'Title:', SAMPLE_AUTOMATIONS[this.currentIndex].title);
     }
     
     const selected = SAMPLE_AUTOMATIONS[this.currentIndex];
@@ -290,14 +289,6 @@ class FeaturedAutomationRotator {
     const sampleUuid = `550e8400-e29b-41d4-a716-446655440${paddedIndex}`;
     
     const today = new Date().toISOString().split('T')[0];
-    
-    console.log('[FeaturedRotator] Returning sample automation:', {
-      index: this.currentIndex,
-      id: sampleUuid,
-      title: selected.title,
-      likes: selected.likesCount,
-      downloads: selected.downloadsCount
-    });
     
     return {
       ...selected,
@@ -339,10 +330,12 @@ const dashboardApi = createApi({
   reducerPath: 'dashboardApi',
   baseQuery: async ({ url, method = 'GET', body, params }) => {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return { error: { status: 401, data: 'Not authenticated' } };
+      // Get current user - silently handle auth errors
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        // Return empty data for dashboard queries when not authenticated
+        // This prevents error spam in the console
+        return { data: null };
       }
 
       // Handle RPC calls
@@ -396,10 +389,10 @@ const dashboardApi = createApi({
     getTodayStats: builder.query<TodayStats, void>({
       queryFn: async () => {
         try {
-          const { data: { user } } = await supabase.auth.getUser();
-          console.log('[DashboardAPI] Getting stats for user:', user?.id, 'email:', user?.email);
-          if (!user) {
-            console.log('[DashboardAPI] No authenticated user found');
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          
+          // Silently return default stats when not authenticated
+          if (authError || !user) {
             return { data: { totalExecutions: 0, successRate: 0, averageTime: 0, timeSaved: 0 } };
           }
 
@@ -407,8 +400,6 @@ const dashboardApi = createApi({
           const sevenDaysAgo = new Date();
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
           const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
-          
-          console.log('[DashboardAPI] Fetching executions from last 7 days:', sevenDaysAgoStr);
           
           const { data: executions, error } = await supabase
             .from('automation_executions')
@@ -431,8 +422,6 @@ const dashboardApi = createApi({
             };
           }
 
-          console.log('[DashboardAPI] Executions found:', executions?.length || 0);
-
           // Always return data, even if no executions
           // This ensures the counters show 0 rather than being empty
           const hasExecutions = executions && executions.length > 0;
@@ -440,18 +429,6 @@ const dashboardApi = createApi({
           let stats: TodayStats;
           
           if (hasExecutions) {
-            console.log('[DashboardAPI] Raw executions data:', executions);
-            
-            // Log more details about each execution
-            executions?.forEach(exec => {
-              console.log('[DashboardAPI] Execution details:', {
-                id: exec.id,
-                status: exec.status,
-                execution_time: exec.execution_time,
-                completed_at: exec.completed_at,
-                created_at: exec.created_at
-              });
-            });
             
             // Count only actual successful executions (ignore timeout failures)
             const successful = executions.filter(e => e.status === 'success');
@@ -466,18 +443,9 @@ const dashboardApi = createApi({
               e.status === 'failed' && e.execution_time !== 30000
             );
             
-            console.log('[DashboardAPI] Execution breakdown:', {
-              successful: successful.length,
-              timeoutFailures: timeoutFailures.length,
-              realFailures: realFailures.length,
-              total: executions.length
-            });
-            
             // Calculate stats based only on real executions (exclude timeout failures)
             const realExecutions = [...successful, ...realFailures];
             const totalTime = successful.reduce((acc, e) => acc + (e.execution_time || 0), 0);
-            
-            console.log('[DashboardAPI] Total execution time:', totalTime);
             
             stats = {
               totalExecutions: realExecutions.length, // Don't count timeout failures
@@ -485,17 +453,13 @@ const dashboardApi = createApi({
               averageTime: successful.length > 0 && totalTime > 0 ? Math.round(totalTime / successful.length) : 0,
               timeSaved: totalTime > 0 ? Math.round(totalTime / 1000 * 5) : 0 // Estimate 5x time saved
             };
-            
-            console.log('[DashboardAPI] Calculated stats:', stats);
           } else {
-            console.log('[DashboardAPI] No executions for today, returning zeros');
             stats = {
               totalExecutions: 0,
               successRate: 0,
               averageTime: 0,
               timeSaved: 0
             };
-            console.log('[DashboardAPI] Calculated stats:', stats);
           }
           
           return {
@@ -520,8 +484,10 @@ const dashboardApi = createApi({
     getRecentActivity: builder.query<RecentActivity[], void>({
       queryFn: async () => {
         try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          
+          // Silently return empty array when not authenticated
+          if (authError || !user) {
             return { data: [] };
           }
 
@@ -625,10 +591,8 @@ const dashboardApi = createApi({
     getFeaturedAutomation: builder.query<FeaturedAutomation | null, void>({
       queryFn: async () => {
         try {
-          console.log('[DashboardAPI] Fetching featured automation...');
-          
           // First, try to get user's own automations for personalization
-          const { data: { user } } = await supabase.auth.getUser();
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
           
           // Get public automations with engagement metrics
           const { data: publicAutomations, error: publicError } = await supabase
@@ -676,7 +640,18 @@ const dashboardApi = createApi({
 
             if (!userError && userAutos) {
               userAutomations = userAutos.map(auto => ({
-                ...auto,
+                id: auto.id,
+                title: auto.title,
+                description: auto.description,
+                category: auto.category,
+                tags: auto.tags,
+                likes_count: auto.likes_count,
+                downloads_count: auto.downloads_count,
+                created_by: auto.created_by,
+                created_at: auto.created_at,
+                rating: auto.rating,
+                execution_count: auto.execution_count,
+                image_url: auto.image_url,
                 // Create a clean user object without circular references
                 users: {
                   name: user.user_metadata?.full_name || 'You', 
@@ -698,14 +673,36 @@ const dashboardApi = createApi({
             if (!usersError && users) {
               const userMap = new Map(users.map(u => [u.id, u]));
               enhancedPublicAutomations = publicAutomations.map(automation => ({
-                ...automation,
+                id: automation.id,
+                title: automation.title,
+                description: automation.description,
+                category: automation.category,
+                tags: automation.tags,
+                likes_count: automation.likes_count,
+                downloads_count: automation.downloads_count,
+                created_by: automation.created_by,
+                created_at: automation.created_at,
+                rating: automation.rating,
+                execution_count: automation.execution_count,
+                image_url: automation.image_url,
                 // Create a clean user object without circular references
                 users: userMap.get(automation.created_by) || null
               }));
             } else {
               // Fallback without user data
               enhancedPublicAutomations = publicAutomations.map(automation => ({
-                ...automation,
+                id: automation.id,
+                title: automation.title,
+                description: automation.description,
+                category: automation.category,
+                tags: automation.tags,
+                likes_count: automation.likes_count,
+                downloads_count: automation.downloads_count,
+                created_by: automation.created_by,
+                created_at: automation.created_at,
+                rating: automation.rating,
+                execution_count: automation.execution_count,
+                image_url: automation.image_url,
                 users: null
               }));
             }
@@ -713,21 +710,9 @@ const dashboardApi = createApi({
 
           // Combine enhanced public and user automations
           const allAutomations = [...enhancedPublicAutomations, ...userAutomations];
-          
-          console.log('[DashboardAPI] Found automations:', {
-            public: enhancedPublicAutomations.length,
-            user: userAutomations.length,
-            total: allAutomations.length
-          });
 
           // Use smart rotation to select featured automation
           const featured = FeaturedAutomationRotator.selectFeaturedAutomation(allAutomations);
-          
-          console.log('[DashboardAPI] Selected featured automation:', {
-            id: featured?.id,
-            title: featured?.title,
-            isRealUUID: featured?.id && featured.id.length === 36
-          });
 
           return { data: featured };
 

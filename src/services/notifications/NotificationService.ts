@@ -81,7 +81,7 @@ class NotificationService {
   public async requestPermissions(): Promise<NotificationPermissions> {
     try {
       if (!Device.isDevice) {
-        EventLogger.warn('Notification', '[NotificationService] Notifications not supported on simulator');
+        // Silently handle simulator - this is expected during development
         return { status: 'denied' };
       }
 
@@ -123,7 +123,10 @@ class NotificationService {
         ios: iosPermissions,
       };
 
-      EventLogger.debug('Notification', '[NotificationService] Permission status:', result);
+      // Only log in development if not on simulator
+      if (__DEV__ && Device.isDevice) {
+        EventLogger.debug('Notification', '[NotificationService] Permission status:', result);
+      }
       return result;
 
     } catch (error) {
@@ -138,13 +141,13 @@ class NotificationService {
   public async getPushToken(): Promise<string | null> {
     try {
       if (!Device.isDevice) {
-        EventLogger.warn('Notification', '[NotificationService] Push tokens not available on simulator');
+        // Silently handle simulator - this is expected during development
         return null;
       }
 
       const permissions = await this.requestPermissions();
       if (permissions.status !== 'granted') {
-        EventLogger.warn('Notification', '[NotificationService] Push notifications permission not granted');
+        // Silently handle denied permissions - user choice
         return null;
       }
 
@@ -157,7 +160,10 @@ class NotificationService {
       // Store token locally
       await AsyncStorage.setItem(NotificationService.STORAGE_KEYS.PUSH_TOKEN, token);
       
-      EventLogger.debug('Notification', '[NotificationService] Push token obtained:', token.substring(0, 20) + '...');
+      // Only log in development if not on simulator
+      if (__DEV__ && Device.isDevice) {
+        EventLogger.debug('Notification', '[NotificationService] Push token obtained:', token.substring(0, 20) + '...');
+      }
       return token;
 
     } catch (error) {

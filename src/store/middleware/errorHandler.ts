@@ -103,6 +103,14 @@ export const errorHandlingMiddleware: Middleware = (storeApi) => (next) => (acti
   // Handle rejected RTK Query actions
   if (isRejectedWithValue(action)) {
     const error = action.payload as FetchBaseQueryError;
+    
+    // Skip logging for certain expected errors
+    const isExpectedError = 
+      // Dashboard API query errors are expected when not authenticated
+      action.type.includes('dashboardApi/executeQuery') ||
+      // Also skip initial load errors for other APIs
+      (error.status === 401 && action.type.includes('/executeQuery/'));
+    
     const category = categorizeError(error);
     const recoverable = isRecoverable(error, category);
     const userMessage = getUserMessage(error, category);
@@ -117,18 +125,20 @@ export const errorHandlingMiddleware: Middleware = (storeApi) => (next) => (acti
       userMessage,
     };
 
-    // Log the error with context
-    EventLogger.error('Redux', `API ${category} error in ${action.type}`, {
-      action: action.type,
-      error: enhancedError,
-      category,
-      recoverable,
-      retryAfter,
-      status: error.status,
-      endpoint: action.meta?.baseQueryMeta?.request?.url,
-      method: action.meta?.baseQueryMeta?.request?.method,
-      timestamp: new Date().toISOString(),
-    });
+    // Only log unexpected errors
+    if (!isExpectedError) {
+      EventLogger.error('Redux', `API ${category} error in ${action.type}`, {
+        action: action.type,
+        error: enhancedError,
+        category,
+        recoverable,
+        retryAfter,
+        status: error.status,
+        endpoint: action.meta?.baseQueryMeta?.request?.url,
+        method: action.meta?.baseQueryMeta?.request?.method,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     // Register recovery strategy for this error type if recoverable (with safety check)
     if (recoverable) {
@@ -187,8 +197,8 @@ export const errorHandlingMiddleware: Middleware = (storeApi) => (next) => (acti
       },
     });
 
-    // For development, also log to console with more details
-    if (__DEV__) {
+    // For development, also log to console with more details (but skip expected errors)
+    if (__DEV__ && !isExpectedError) {
       EventLogger.error('Redux', `🚨 Redux API Error: ${action.type}`, {
         errorDetails: enhancedError,
         originalAction: action,

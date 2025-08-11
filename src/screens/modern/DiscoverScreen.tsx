@@ -242,8 +242,14 @@ const DiscoverScreen: React.FC = memo(() => {
   }, [user, likeAutomation, unlikeAutomation, triggerHaptic]);
 
   const handleAutomationPress = useCallback((automation: Automation) => {
-    triggerHaptic('light');
-    navigation.navigate('AutomationDetails' as never, { automation } as never);
+    try {
+      triggerHaptic('light');
+      // Navigate to AutomationDetails screen with the automation data
+      navigation.navigate('AutomationDetails' as never, { automation } as never);
+    } catch (error) {
+      EventLogger.error('DiscoverScreen', 'Failed to navigate to automation details', error as Error);
+      Alert.alert('Error', 'Failed to open automation details');
+    }
   }, [navigation, triggerHaptic]);
 
   // Filter automations based on search and category
@@ -284,7 +290,9 @@ const DiscoverScreen: React.FC = memo(() => {
       style={[styles.automationCard, { backgroundColor: theme.colors.surface }]}
       onPress={() => handleAutomationPress(item)}
       activeOpacity={0.7}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+      accessibilityLabel={`Automation: ${item.title}`}
+      accessibilityRole="button"
     >
       <View style={styles.automationHeader}>
         <View style={[styles.automationIcon, { backgroundColor: theme.colors.primary + '20' }]}>
@@ -304,8 +312,10 @@ const DiscoverScreen: React.FC = memo(() => {
         </View>
         <TouchableOpacity
           onPress={() => handleLike(item.id, item.hasLiked)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
           style={styles.likeButton}
+          accessibilityLabel={item.hasLiked ? `Unlike ${item.title}` : `Like ${item.title}`}
+          accessibilityRole="button"
         >
           <MaterialCommunityIcons 
             name={item.hasLiked ? 'heart' : 'heart-outline'} 
