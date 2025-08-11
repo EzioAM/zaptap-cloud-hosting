@@ -1270,6 +1270,388 @@ const ModernStepConfigRenderer: React.FC<ModernStepConfigRendererProps> = ({
         </FormSection>
       );
 
+    case 'facetime':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="video"
+            title="FaceTime Call"
+            description="Make a FaceTime video or audio call to a contact."
+            color="#34C759"
+          />
+          <ModernTextInput
+            label="Phone Number or Email"
+            value={config.recipient || ''}
+            onChangeText={(text) => updateConfig({ recipient: text })}
+            placeholder="+1234567890 or email@example.com"
+            icon="phone"
+            helper="Enter phone number or email address for FaceTime"
+          />
+          <ModernSegmentedButtons
+            value={config.callType || 'video'}
+            onValueChange={(value) => updateConfig({ callType: value })}
+            buttons={[
+              { value: 'video', label: 'Video Call', icon: 'video' },
+              { value: 'audio', label: 'Audio Call', icon: 'phone' },
+            ]}
+          />
+        </FormSection>
+      );
+
+    case 'call':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="phone"
+            title="Phone Call"
+            description="Make a phone call to a contact."
+            color="#007AFF"
+          />
+          <ModernTextInput
+            label="Phone Number"
+            value={config.phoneNumber || ''}
+            onChangeText={(text) => updateConfig({ phoneNumber: text })}
+            placeholder="+1 (555) 123-4567"
+            keyboardType="phone-pad"
+            icon="phone"
+            helper="Include country code for international numbers"
+          />
+          <ModernTextInput
+            label="Caller ID Name (Optional)"
+            value={config.callerName || ''}
+            onChangeText={(text) => updateConfig({ callerName: text })}
+            placeholder="Contact Name"
+            icon="account"
+            helper="Optional display name for the call"
+          />
+        </FormSection>
+      );
+
+    case 'http_request':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="api"
+            title="HTTP Request"
+            description="Make HTTP/HTTPS requests to APIs and web services."
+            color="#6A1B9A"
+          />
+          <ModernTextInput
+            label="URL"
+            value={config.url || ''}
+            onChangeText={(text) => updateConfig({ url: text })}
+            placeholder="https://api.example.com/endpoint"
+            icon="web"
+            helper="Enter the full URL including protocol"
+          />
+          <ModernSegmentedButtons
+            value={config.method || 'GET'}
+            onValueChange={(value) => updateConfig({ method: value })}
+            buttons={[
+              { value: 'GET', label: 'GET' },
+              { value: 'POST', label: 'POST' },
+              { value: 'PUT', label: 'PUT' },
+              { value: 'DELETE', label: 'DELETE' },
+            ]}
+          />
+          {(config.method === 'POST' || config.method === 'PUT') && (
+            <ModernTextInput
+              label="Request Body (JSON)"
+              value={config.body || ''}
+              onChangeText={(text) => updateConfig({ body: text })}
+              placeholder='{"key": "value"}'
+              multiline
+              numberOfLines={4}
+              icon="code-json"
+              helper="Enter valid JSON for the request body"
+            />
+          )}
+          <ModernTextInput
+            label="Headers (JSON)"
+            value={config.headers || ''}
+            onChangeText={(text) => updateConfig({ headers: text })}
+            placeholder='{"Authorization": "Bearer token"}'
+            multiline
+            numberOfLines={3}
+            icon="format-header-pound"
+            helper="Optional: Add custom headers as JSON"
+          />
+          <ModernTextInput
+            label="Result Variable"
+            value={config.variableName || ''}
+            onChangeText={(text) => updateConfig({ variableName: text })}
+            placeholder="apiResponse"
+            icon="variable"
+            helper="Store the response in this variable"
+          />
+        </FormSection>
+      );
+
+    case 'share_text':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="share-variant"
+            title="Share Text"
+            description="Share text content via the system share sheet."
+            color="#00BCD4"
+          />
+          <ModernTextInput
+            label="Text to Share"
+            value={config.text || ''}
+            onChangeText={(text) => updateConfig({ text: text })}
+            placeholder="Content to share..."
+            multiline
+            numberOfLines={3}
+            icon="text"
+            helper="Text content or use {{variables}}"
+          />
+          <ModernTextInput
+            label="Share Title (Optional)"
+            value={config.title || ''}
+            onChangeText={(text) => updateConfig({ title: text })}
+            placeholder="Share Title"
+            icon="format-title"
+            helper="Optional title for the share dialog"
+          />
+          <ModernTextInput
+            label="Share Message (Optional)"
+            value={config.message || ''}
+            onChangeText={(text) => updateConfig({ message: text })}
+            placeholder="Check this out!"
+            icon="message"
+            helper="Optional message for the share dialog"
+          />
+        </FormSection>
+      );
+
+    case 'json_parser':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="code-braces"
+            title="JSON Parser"
+            description="Parse and extract data from JSON strings."
+            color="#FF5722"
+          />
+          <ModernTextInput
+            label="JSON Input"
+            value={config.jsonInput || ''}
+            onChangeText={(text) => updateConfig({ jsonInput: text })}
+            placeholder='{"key": "value", "array": [1, 2, 3]}'
+            multiline
+            numberOfLines={4}
+            icon="code-json"
+            helper="Enter or use a variable containing JSON data"
+          />
+          <ModernTextInput
+            label="Extract Path"
+            value={config.extractPath || ''}
+            onChangeText={(text) => updateConfig({ extractPath: text })}
+            placeholder="data.items[0].name"
+            icon="magnify"
+            helper="Use dot notation to extract specific values"
+          />
+          <ModernTextInput
+            label="Output Variable"
+            value={config.outputVariable || ''}
+            onChangeText={(text) => updateConfig({ outputVariable: text })}
+            placeholder="extractedData"
+            icon="variable"
+            helper="Store the extracted value in this variable"
+          />
+        </FormSection>
+      );
+
+    case 'text_to_speech':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="volume-high"
+            title="Text to Speech"
+            description="Convert text to speech and play it."
+            color="#8BC34A"
+          />
+          <ModernTextInput
+            label="Text to Speak"
+            value={config.text || ''}
+            onChangeText={(text) => updateConfig({ text: text })}
+            placeholder="Text to convert to speech..."
+            multiline
+            numberOfLines={3}
+            icon="text"
+            helper="Enter text or use {{variables}}"
+          />
+          <ModernTextInput
+            label="Language Code"
+            value={config.language || 'en-US'}
+            onChangeText={(text) => updateConfig({ language: text })}
+            placeholder="en-US"
+            icon="translate"
+            helper="Language code (e.g., en-US, es-ES, fr-FR)"
+          />
+          <ModernTextInput
+            label="Speech Rate"
+            value={config.rate?.toString() || '1.0'}
+            onChangeText={(text) => updateConfig({ rate: parseFloat(text) || 1.0 })}
+            placeholder="1.0"
+            keyboardType="numeric"
+            icon="speedometer"
+            helper="Speech rate (0.5 = slower, 2.0 = faster)"
+          />
+          <ModernTextInput
+            label="Pitch"
+            value={config.pitch?.toString() || '1.0'}
+            onChangeText={(text) => updateConfig({ pitch: parseFloat(text) || 1.0 })}
+            placeholder="1.0"
+            keyboardType="numeric"
+            icon="music-note"
+            helper="Voice pitch (0.5 = lower, 2.0 = higher)"
+          />
+        </FormSection>
+      );
+
+    case 'menu_selection':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="format-list-bulleted"
+            title="Menu Selection"
+            description="Show an interactive menu for user selection."
+            color="#4CAF50"
+          />
+          <ModernTextInput
+            label="Menu Title"
+            value={config.title || ''}
+            onChangeText={(text) => updateConfig({ title: text })}
+            placeholder="Choose an option"
+            icon="format-title"
+            helper="Title shown at the top of the menu"
+          />
+          <ModernTextInput
+            label="Menu Options (comma separated)"
+            value={config.options || ''}
+            onChangeText={(text) => updateConfig({ options: text })}
+            placeholder="Option 1, Option 2, Option 3"
+            multiline
+            numberOfLines={2}
+            icon="format-list-bulleted"
+            helper="Comma-separated list of menu options"
+          />
+          <ModernTextInput
+            label="Result Variable"
+            value={config.variableName || ''}
+            onChangeText={(text) => updateConfig({ variableName: text })}
+            placeholder="selectedOption"
+            icon="variable"
+            helper="Store the selected option in this variable"
+          />
+          <ModernSegmentedButtons
+            value={config.allowMultiple ? 'multiple' : 'single'}
+            onValueChange={(value) => updateConfig({ allowMultiple: value === 'multiple' })}
+            buttons={[
+              { value: 'single', label: 'Single Selection' },
+              { value: 'multiple', label: 'Multiple Selection' },
+            ]}
+          />
+        </FormSection>
+      );
+
+    case 'get_variable':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="variable-box"
+            title="Get Variable"
+            description="Retrieve a stored variable value."
+            color="#9C27B0"
+          />
+          <ModernTextInput
+            label="Variable Name"
+            value={config.variableName || ''}
+            onChangeText={(text) => updateConfig({ variableName: text })}
+            placeholder="myVariable"
+            icon="variable"
+            helper="Name of the variable to retrieve"
+          />
+          <ModernTextInput
+            label="Default Value (Optional)"
+            value={config.defaultValue || ''}
+            onChangeText={(text) => updateConfig({ defaultValue: text })}
+            placeholder="Default if not found"
+            icon="text"
+            helper="Value to use if variable doesn't exist"
+          />
+        </FormSection>
+      );
+
+    case 'open_url':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="open-in-new"
+            title="Open URL"
+            description="Open a web link in the default browser."
+            color="#2196F3"
+          />
+          <ModernTextInput
+            label="URL"
+            value={config.url || ''}
+            onChangeText={(text) => updateConfig({ url: text })}
+            placeholder="https://example.com"
+            keyboardType="url"
+            icon="link"
+            helper="Web URL to open"
+          />
+          <ModernSegmentedButtons
+            value={config.openIn || 'browser'}
+            onValueChange={(value) => updateConfig({ openIn: value })}
+            buttons={[
+              { value: 'browser', label: 'Browser' },
+              { value: 'in-app', label: 'In-App' },
+              { value: 'external', label: 'External App' },
+            ]}
+          />
+        </FormSection>
+      );
+
+    case 'app':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="application"
+            title="Open App"
+            description="Launch another application on your device."
+            color="#3F51B5"
+          />
+          <ModernTextInput
+            label="App Name or Bundle ID"
+            value={config.appId || ''}
+            onChangeText={(text) => updateConfig({ appId: text })}
+            placeholder="com.example.app"
+            icon="application"
+            helper="Enter the app name or bundle identifier"
+          />
+          <ModernTextInput
+            label="Deep Link URL (Optional)"
+            value={config.deepLink || ''}
+            onChangeText={(text) => updateConfig({ deepLink: text })}
+            placeholder="app://path/to/content"
+            icon="link"
+            helper="Optional: Open specific content within the app"
+          />
+          <ModernTextInput
+            label="Launch Parameters (Optional)"
+            value={config.params || ''}
+            onChangeText={(text) => updateConfig({ params: text })}
+            placeholder='{"key": "value"}'
+            multiline
+            icon="code-json"
+            helper="Optional: Pass parameters to the app as JSON"
+          />
+        </FormSection>
+      );
+
     default:
       return (
         <InfoCard

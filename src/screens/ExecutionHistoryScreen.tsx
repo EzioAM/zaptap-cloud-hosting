@@ -199,7 +199,10 @@ export const ExecutionHistoryScreen: React.FC<{ navigation?: any }> = ({ navigat
             index={index}
             onPress={() => {
               // Navigate to execution details
-              navigation?.navigate('ExecutionDetails', { executionId: item.id });
+              navigation?.navigate('ExecutionDetails', { 
+                executionId: item.id,
+                execution: item 
+              });
             }}
           />
         )}

@@ -64,27 +64,49 @@ const stepTypes = [
   { type: 'sms', title: 'Send SMS', icon: 'message-text', color: '#2196F3', category: 'Communication' },
   { type: 'email', title: 'Send Email', icon: 'email', color: '#4CAF50', category: 'Communication' },
   { type: 'notification', title: 'Show Notification', icon: 'bell', color: '#FF9800', category: 'Communication' },
+  { type: 'facetime', title: 'FaceTime Call', icon: 'video', color: '#34C759', category: 'Communication' },
+  { type: 'call', title: 'Phone Call', icon: 'phone', color: '#007AFF', category: 'Communication' },
+  { type: 'share_text', title: 'Share Text', icon: 'share-variant', color: '#00BCD4', category: 'Communication' },
   
   // Web & Data
   { type: 'webhook', title: 'Call Webhook', icon: 'webhook', color: '#9C27B0', category: 'Web & Data' },
-  { type: 'http', title: 'HTTP Request', icon: 'api', color: '#3F51B5', category: 'Web & Data' },
-  { type: 'json', title: 'Parse JSON', icon: 'code-json', color: '#00BCD4', category: 'Web & Data' },
+  { type: 'http_request', title: 'HTTP Request', icon: 'api', color: '#3F51B5', category: 'Web & Data' },
+  { type: 'json_parser', title: 'Parse JSON', icon: 'code-json', color: '#00BCD4', category: 'Web & Data' },
+  { type: 'variable', title: 'Set Variable', icon: 'variable', color: '#673AB7', category: 'Web & Data' },
+  { type: 'get_variable', title: 'Get Variable', icon: 'variable-box', color: '#9C27B0', category: 'Web & Data' },
   
   // Device & System
   { type: 'location', title: 'Get Location', icon: 'map-marker', color: '#F44336', category: 'Device & System' },
+  { type: 'photo', title: 'Camera/Photo', icon: 'camera', color: '#FF9800', category: 'Device & System' },
+  { type: 'clipboard', title: 'Clipboard', icon: 'content-copy', color: '#9E9E9E', category: 'Device & System' },
+  { type: 'qr_code', title: 'QR Code', icon: 'qrcode', color: '#212121', category: 'Device & System' },
   { type: 'wifi', title: 'Control WiFi', icon: 'wifi', color: '#795548', category: 'Device & System' },
   { type: 'bluetooth', title: 'Control Bluetooth', icon: 'bluetooth', color: '#607D8B', category: 'Device & System' },
   { type: 'brightness', title: 'Set Brightness', icon: 'brightness-6', color: '#FFC107', category: 'Device & System' },
   { type: 'volume', title: 'Set Volume', icon: 'volume-high', color: '#E91E63', category: 'Device & System' },
   
+  // Text & Media
+  { type: 'text', title: 'Text Operations', icon: 'format-text', color: '#009688', category: 'Text & Media' },
+  { type: 'math', title: 'Math Operations', icon: 'calculator', color: '#FFC107', category: 'Text & Media' },
+  { type: 'text_to_speech', title: 'Text to Speech', icon: 'volume-high', color: '#8BC34A', category: 'Text & Media' },
+  { type: 'prompt_input', title: 'Prompt Input', icon: 'form-textbox', color: '#00BCD4', category: 'Text & Media' },
+  { type: 'menu_selection', title: 'Menu Selection', icon: 'format-list-bulleted', color: '#4CAF50', category: 'Text & Media' },
+  
+  // Files & Storage
+  { type: 'file', title: 'File Operations', icon: 'file', color: '#4CAF50', category: 'Files & Storage' },
+  { type: 'cloud_storage', title: 'Cloud Storage', icon: 'cloud-upload', color: '#2196F3', category: 'Files & Storage' },
+  
   // Apps & Services
-  { type: 'open-app', title: 'Open App', icon: 'application', color: '#009688', category: 'Apps & Services' },
-  { type: 'shortcut', title: 'Run Shortcut', icon: 'play-circle', color: '#FF5722', category: 'Apps & Services' },
+  { type: 'app', title: 'Open App', icon: 'application', color: '#3F51B5', category: 'Apps & Services' },
+  { type: 'open_url', title: 'Open URL', icon: 'open-in-new', color: '#2196F3', category: 'Apps & Services' },
+  { type: 'external_automation', title: 'Run Automation', icon: 'play-circle', color: '#E91E63', category: 'Apps & Services' },
   
   // Control Flow
-  { type: 'wait', title: 'Wait', icon: 'clock', color: '#9E9E9E', category: 'Control Flow' },
+  { type: 'delay', title: 'Delay', icon: 'timer-sand', color: '#607D8B', category: 'Control Flow' },
   { type: 'condition', title: 'If/Then', icon: 'source-branch', color: '#673AB7', category: 'Control Flow' },
   { type: 'loop', title: 'Repeat', icon: 'repeat', color: '#CDDC39', category: 'Control Flow' },
+  { type: 'group', title: 'Group Actions', icon: 'group', color: '#3F51B5', category: 'Control Flow' },
+  { type: 'random', title: 'Random', icon: 'dice-multiple', color: '#FF6B6B', category: 'Control Flow' },
 ];
 
 // Enhanced template definitions with gradient mappings
@@ -131,7 +153,7 @@ const templates = [
     description: 'Get pumped up with energy-boosting settings',
     steps: [
       { type: 'volume', title: 'Max Volume', icon: 'volume-high', color: '#E91E63', config: { level: 100 } },
-      { type: 'open-app', title: 'Open Music', icon: 'application', color: '#009688', config: { app: 'music' } },
+      { type: 'app', title: 'Open Music', icon: 'application', color: '#009688', config: { appId: 'com.apple.Music' } },
     ],
   },
 ];
@@ -141,6 +163,8 @@ const categoryGradients = {
   'Communication': 'ocean',
   'Web & Data': 'aurora',
   'Device & System': 'forest',
+  'Text & Media': 'warm',
+  'Files & Storage': 'cool',
   'Apps & Services': 'sunset',
   'Control Flow': 'cosmic',
 } as const;
@@ -407,7 +431,11 @@ export default function BuildScreenEnhanced() {
           ]}
         >
           <LinearGradient
-            colors={isActive ? ['rgba(99, 102, 241, 0.1)', 'rgba(139, 92, 246, 0.1)'] : ['transparent', 'transparent']}
+            colors={
+              isActive 
+                ? (theme.dark ? ['rgba(99, 102, 241, 0.3)', 'rgba(139, 92, 246, 0.3)'] : ['rgba(99, 102, 241, 0.15)', 'rgba(139, 92, 246, 0.15)'])
+                : (theme.dark ? ['rgba(40, 40, 40, 0.9)', 'rgba(30, 30, 30, 0.9)'] : ['rgba(255, 255, 255, 0.95)', 'rgba(245, 245, 245, 0.95)'])
+            }
             style={styles.stepItemGradient}
           >
             <TouchableOpacity
@@ -422,7 +450,7 @@ export default function BuildScreenEnhanced() {
               disabled={isActive}
               style={[
                 styles.stepItem,
-                { backgroundColor: theme.colors?.surface || '#fff' },
+                { backgroundColor: theme.colors?.surface || 'rgba(255, 255, 255, 0.1)' },
                 isActive && styles.stepItemActiveStyle,
               ]}
             >
@@ -438,13 +466,13 @@ export default function BuildScreenEnhanced() {
                   />
                 </LinearGradient>
                 <View style={styles.stepInfo}>
-                  <Text style={[styles.stepTitle, { color: theme.colors?.text || '#000' }]}>
+                  <Text style={[styles.stepTitle, { color: theme.colors?.onSurface || '#FFFFFF' }]}>
                     {item.title}
                   </Text>
                   {item.config && Object.keys(item.config).length > 0 && (
                     <View style={styles.configBadge}>
-                      <MaterialCommunityIcons name="cog" size={12} color="#666" />
-                      <Text style={[styles.stepConfigPreview, { color: theme.colors?.textSecondary || '#666' }]}>
+                      <MaterialCommunityIcons name="cog" size={12} color={theme.colors?.onSurfaceVariant || '#B0B0B0'} />
+                      <Text style={[styles.stepConfigPreview, { color: theme.colors?.onSurfaceVariant || '#B0B0B0' }]}>
                         Configured
                       </Text>
                     </View>
@@ -517,7 +545,7 @@ export default function BuildScreenEnhanced() {
           </LinearGradient>
         ) : (
           <View style={[styles.categoryChip, styles.categoryChipInactive]}>
-            <Text style={[styles.categoryChipText, { color: theme.colors?.text || '#000' }]}>
+            <Text style={[styles.categoryChipText, { color: theme.colors?.onSurface || '#FFFFFF' }]}>
               {category}
             </Text>
           </View>
@@ -527,7 +555,7 @@ export default function BuildScreenEnhanced() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors?.background || '#f8fafc' }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors?.background || '#1A1A1A' }]}>
       <GradientHeader
         title="Build Automation"
         subtitle="Create powerful automations with simple steps"
@@ -560,7 +588,7 @@ export default function BuildScreenEnhanced() {
               },
             ]}
           >
-            <Text style={[styles.templatesTitle, { color: theme.colors?.text || '#000' }]}>
+            <Text style={[styles.templatesTitle, { color: theme.colors?.onSurface || '#FFFFFF' }]}>
               Quick Start Templates
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.templatesScroll}>
@@ -592,7 +620,7 @@ export default function BuildScreenEnhanced() {
 
           {/* Name & Description */}
           <Animated.View style={[styles.inputSection, { opacity: fadeAnim }]}>
-            <View style={[styles.glassCard, getGlassStyle('light')]}>
+            <View style={[styles.glassCard, getGlassStyle(theme.dark ? 'dark' : 'light')]}>
               <View style={styles.inputContainer}>
                 <Animated.View
                   style={[
@@ -610,9 +638,9 @@ export default function BuildScreenEnhanced() {
                   ]}
                 >
                   <TextInput
-                    style={[styles.input, { color: theme.colors?.text || '#000' }]}
+                    style={[styles.input, { color: theme.colors?.onSurface || '#FFFFFF' }]}
                     placeholder="Automation Name"
-                    placeholderTextColor={theme.colors?.textSecondary || '#999'}
+                    placeholderTextColor={theme.colors?.onSurfaceVariant || '#B0B0B0'}
                     value={automationName}
                     onChangeText={setAutomationName}
                     onFocus={() => handleInputFocus('name')}
@@ -657,9 +685,9 @@ export default function BuildScreenEnhanced() {
                   ]}
                 >
                   <TextInput
-                    style={[styles.input, styles.textArea, { color: theme.colors?.text || '#000' }]}
+                    style={[styles.input, styles.textArea, { color: theme.colors?.onSurface || '#FFFFFF' }]}
                     placeholder="Description (optional)"
-                    placeholderTextColor={theme.colors?.textSecondary || '#999'}
+                    placeholderTextColor={theme.colors?.onSurfaceVariant || '#B0B0B0'}
                     value={automationDescription}
                     onChangeText={setAutomationDescription}
                     multiline
@@ -694,10 +722,10 @@ export default function BuildScreenEnhanced() {
 
           {/* Steps Section */}
           <Animated.View style={[styles.stepsSection, { opacity: fadeAnim }]}>
-            <View style={[styles.glassCard, getGlassStyle('light')]}>
+            <View style={[styles.glassCard, getGlassStyle(theme.dark ? 'dark' : 'light')]}>
               <View style={styles.cardHeader}>
                 <View style={styles.headerLeft}>
-                  <Text style={[styles.cardTitle, { color: theme.colors?.text || '#000' }]}>
+                  <Text style={[styles.cardTitle, { color: theme.colors?.onSurface || '#FFFFFF' }]}>
                     Steps
                   </Text>
                   {steps.length > 0 && (
@@ -788,7 +816,7 @@ export default function BuildScreenEnhanced() {
                   colors={['rgba(99, 102, 241, 0.1)', 'rgba(139, 92, 246, 0.1)']}
                   style={styles.statsBarGradient}
                 >
-                  <Text style={[styles.statsText, { color: theme.colors?.textSecondary || '#666' }]}>
+                  <Text style={[styles.statsText, { color: theme.colors?.onSurfaceVariant || '#B0B0B0' }]}>
                     {steps.length} step{steps.length !== 1 ? 's' : ''} • 
                     ~{steps.length * 2}s execution time
                   </Text>
@@ -808,9 +836,9 @@ export default function BuildScreenEnhanced() {
       >
         <View style={styles.modalOverlay}>
           <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <View style={[styles.modalContent, getGlassStyle('frosted')]}>
+          <View style={[styles.modalContent, { backgroundColor: theme.dark ? 'rgba(20, 20, 20, 0.98)' : 'rgba(255, 255, 255, 0.98)' }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors?.text || '#000' }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors?.onSurface || '#FFFFFF' }]}>
                 Choose Step Type
               </Text>
               <TouchableOpacity
@@ -821,10 +849,10 @@ export default function BuildScreenEnhanced() {
                 style={styles.modalClose}
               >
                 <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
+                  colors={theme.dark ? ['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0.2)'] : ['rgba(0, 0, 0, 0.2)', 'rgba(0, 0, 0, 0.1)']}
                   style={styles.closeButton}
                 >
-                  <MaterialCommunityIcons name="close" size={20} color={theme.colors?.text || '#000'} />
+                  <MaterialCommunityIcons name="close" size={20} color={theme.dark ? 'white' : 'black'} />
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -851,7 +879,7 @@ export default function BuildScreenEnhanced() {
                   style={styles.stepTypeItem}
                 >
                   <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.6)']}
+                    colors={theme.dark ? ['rgba(40, 40, 40, 0.9)', 'rgba(30, 30, 30, 0.9)'] : ['rgba(255, 255, 255, 0.9)', 'rgba(245, 245, 245, 0.9)']}
                     style={styles.stepTypeItemGradient}
                   >
                     <LinearGradient
@@ -864,13 +892,13 @@ export default function BuildScreenEnhanced() {
                         color="white" 
                       />
                     </LinearGradient>
-                    <Text style={[styles.stepTypeTitle, { color: theme.colors?.text || '#000' }]}>
+                    <Text style={[styles.stepTypeTitle, { color: theme.dark ? '#FFFFFF' : '#1A1A1A' }]}>
                       {item.title}
                     </Text>
                     <MaterialCommunityIcons 
                       name="chevron-right" 
                       size={20} 
-                      color={theme.colors?.textSecondary || '#666'} 
+                      color={theme.dark ? '#B0B0B0' : '#666666'} 
                     />
                   </LinearGradient>
                 </TouchableOpacity>
@@ -891,9 +919,9 @@ export default function BuildScreenEnhanced() {
       >
         <View style={styles.modalOverlay}>
           <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <View style={[styles.modalContent, getGlassStyle('frosted')]}>
+          <View style={[styles.modalContent, { backgroundColor: theme.dark ? 'rgba(20, 20, 20, 0.98)' : 'rgba(255, 255, 255, 0.98)' }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors?.text || '#000' }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors?.onSurface || '#FFFFFF' }]}>
                 Configure {selectedStep?.title}
               </Text>
               <TouchableOpacity
@@ -904,10 +932,10 @@ export default function BuildScreenEnhanced() {
                 style={styles.modalClose}
               >
                 <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)']}
+                  colors={theme.dark ? ['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0.2)'] : ['rgba(0, 0, 0, 0.2)', 'rgba(0, 0, 0, 0.1)']}
                   style={styles.closeButton}
                 >
-                  <MaterialCommunityIcons name="close" size={20} color={theme.colors?.text || '#000'} />
+                  <MaterialCommunityIcons name="close" size={20} color={theme.dark ? 'white' : 'black'} />
                 </LinearGradient>
               </TouchableOpacity>
             </View>

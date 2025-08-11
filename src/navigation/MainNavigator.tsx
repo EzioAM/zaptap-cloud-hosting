@@ -8,6 +8,7 @@ import AutomationBuilderScreen from '../screens/automation/AutomationBuilderScre
 import ModernAutomationBuilder from '../screens/modern/ModernAutomationBuilder';
 import AutomationDetailsScreen from '../screens/automation/AutomationDetailsScreen';
 import { ExecutionHistoryScreen } from '../screens/ExecutionHistoryScreen';
+import { ExecutionDetailsScreen } from '../screens/ExecutionDetailsScreen';
 import TemplatesScreen from '../screens/automation/TemplatesScreen';
 import LocationTriggersScreen from '../screens/automation/LocationTriggersScreen';
 import ReviewsScreen from '../screens/automation/ReviewsScreen';
@@ -305,6 +306,11 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         name="ExecutionHistory"
         component={ExecutionHistoryScreen}
         options={{ title: 'Execution History' }}
+      />
+      <Stack.Screen
+        name="ExecutionDetails"
+        component={ExecutionDetailsScreen}
+        options={{ title: 'Execution Details' }}
       />
       <Stack.Screen
         name="Reviews"
