@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card, CardBody } from '../components/atoms/Card';
 import { Badge } from '../components/atoms/Badge';
-import { Button } from '../components/atoms/Button';
 import { EmptyState } from '../components/molecules/EmptyState';
 import { useSafeTheme } from '../components/common/ThemeFallbackWrapper';
 import { theme } from '../theme';
@@ -31,41 +30,41 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({ execution, onPress, index
   const currentTheme = useSafeTheme();
   
   const statusConfig = {
-    success: { color: currentTheme.currentTheme.colors.semantic?.success || '#4CAF50', icon: 'check-circle', label: 'Success' },
-    failed: { color: currentTheme.currentTheme.colors.semantic?.error || '#F44336', icon: 'close-circle', label: 'Failed' },
-    running: { color: currentTheme.currentTheme.colors.semantic?.info || '#2196F3', icon: 'loading', label: 'Running' },
+    success: { color: currentTheme.colors?.semantic?.success || '#4CAF50', icon: 'check-circle', label: 'Success' },
+    failed: { color: currentTheme.colors?.semantic?.error || '#F44336', icon: 'close-circle', label: 'Failed' },
+    running: { color: currentTheme.colors?.semantic?.info || '#2196F3', icon: 'loading', label: 'Running' },
   };
   
   const config = statusConfig[execution.status as keyof typeof statusConfig];
   
   return (
-    <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+    <Animated.View entering={FadeInDown.delay(index * 50)}>
       <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
         <Card variant="outlined" style={styles.executionCard}>
           <CardBody>
             <View style={styles.executionHeader}>
               <View style={styles.executionInfo}>
-                <Text style={[styles.automationName, { color: currentTheme.currentTheme.colors.text?.primary || '#000000' }]} numberOfLines={1}>
+                <Text style={[styles.automationName, { color: currentTheme.colors.text?.primary || '#000000' }]} numberOfLines={1}>
                   {execution.automation?.name || 'Unknown Automation'}
                 </Text>
                 <View style={styles.executionMeta}>
                   <MaterialCommunityIcons
                     name="clock-outline"
                     size={14}
-                    color={currentTheme.currentTheme.colors.text?.secondary || '#666666'}
+                    color={currentTheme.colors.text?.secondary || '#666666'}
                   />
-                  <Text style={[styles.timestamp, { color: currentTheme.currentTheme.colors.text?.secondary || '#666666' }]}>
+                  <Text style={[styles.timestamp, { color: currentTheme.colors.text?.secondary || '#666666' }]}>
                     {formatDistanceToNow(new Date(execution.created_at), { addSuffix: true })}
                   </Text>
                   {execution.execution_time && (
                     <>
-                      <Text style={[styles.separator, { color: currentTheme.currentTheme.colors.text?.tertiary || '#999999' }]}>•</Text>
+                      <Text style={[styles.separator, { color: currentTheme.colors.text?.tertiary || '#999999' }]}>•</Text>
                       <MaterialCommunityIcons
                         name="timer-outline"
                         size={14}
-                        color={currentTheme.currentTheme.colors.text?.secondary || '#666666'}
+                        color={currentTheme.colors.text?.secondary || '#666666'}
                       />
-                      <Text style={[styles.duration, { color: currentTheme.currentTheme.colors.text?.secondary || '#666666' }]}>
+                      <Text style={[styles.duration, { color: currentTheme.colors.text?.secondary || '#666666' }]}>
                         {execution.execution_time.toFixed(1)}s
                       </Text>
                     </>
@@ -78,13 +77,13 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({ execution, onPress, index
             </View>
             
             {execution.error_message && (
-              <View style={[styles.errorContainer, { backgroundColor: `${currentTheme.currentTheme.colors.semantic?.error || '#F44336'}10` }]}>
+              <View style={[styles.errorContainer, { backgroundColor: `${currentTheme.colors.semantic?.error || '#F44336'}10` }]}>
                 <MaterialCommunityIcons
                   name="alert-circle"
                   size={16}
-                  color={currentTheme.currentTheme.colors.semantic?.error || '#F44336'}
+                  color={currentTheme.colors.semantic?.error || '#F44336'}
                 />
-                <Text style={[styles.errorText, { color: currentTheme.currentTheme.colors.semantic?.error || '#F44336' }]} numberOfLines={2}>
+                <Text style={[styles.errorText, { color: currentTheme.colors.semantic?.error || '#F44336' }]} numberOfLines={2}>
                   {execution.error_message}
                 </Text>
               </View>
@@ -92,7 +91,7 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({ execution, onPress, index
             
             {execution.steps_completed !== undefined && (
               <View style={styles.progressContainer}>
-                <View style={[styles.progressBar, { backgroundColor: currentTheme.currentTheme.colors.surface?.tertiary || '#E0E0E0' }]}>
+                <View style={[styles.progressBar, { backgroundColor: currentTheme.colors.surface?.tertiary || '#E0E0E0' }]}>
                   <View
                     style={[
                       styles.progressFill,
@@ -103,7 +102,7 @@ const ExecutionItem: React.FC<ExecutionItemProps> = ({ execution, onPress, index
                     ]}
                   />
                 </View>
-                <Text style={[styles.progressText, { color: currentTheme.currentTheme.colors.text?.secondary || '#666666' }]}>
+                <Text style={[styles.progressText, { color: currentTheme.colors.text?.secondary || '#666666' }]}>
                   {execution.steps_completed} / {execution.total_steps} steps
                 </Text>
               </View>
@@ -137,13 +136,15 @@ export const ExecutionHistoryScreen: React.FC<{ navigation?: any }> = ({ navigat
         {
           text: 'Clear',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await clearHistory().unwrap();
-              Alert.alert('Success', 'Execution history cleared');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to clear history');
-            }
+          onPress: () => {
+            clearHistory()
+              .unwrap()
+              .then(() => {
+                Alert.alert('Success', 'Execution history cleared');
+              })
+              .catch(() => {
+                Alert.alert('Error', 'Failed to clear history');
+              });
           },
         },
       ],
@@ -156,13 +157,13 @@ export const ExecutionHistoryScreen: React.FC<{ navigation?: any }> = ({ navigat
   
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={[styles.title, { color: currentTheme.currentTheme.colors.text?.primary || '#000000' }]}>Execution History</Text>
+      <Text style={[styles.title, { color: currentTheme.colors.text?.primary || '#000000' }]}>Execution History</Text>
       <View style={styles.headerActions}>
         <TouchableOpacity onPress={handleExport} style={styles.headerButton}>
-          <MaterialCommunityIcons name="download" size={24} color={currentTheme.currentTheme.colors.text?.secondary || '#666666'} />
+          <MaterialCommunityIcons name="download" size={24} color={currentTheme.colors.text?.secondary || '#666666'} />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleClearHistory} style={styles.headerButton}>
-          <MaterialCommunityIcons name="delete-outline" size={24} color={currentTheme.currentTheme.colors.text?.secondary || '#666666'} />
+          <MaterialCommunityIcons name="delete-outline" size={24} color={currentTheme.colors.text?.secondary || '#666666'} />
         </TouchableOpacity>
       </View>
     </View>
@@ -178,17 +179,17 @@ export const ExecutionHistoryScreen: React.FC<{ navigation?: any }> = ({ navigat
   
   if (isLoading && !refreshing) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: currentTheme.currentTheme.colors.background?.primary || '#FFFFFF' }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: currentTheme.colors.background?.primary || '#FFFFFF' }]}>
         {renderHeader()}
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={currentTheme.currentTheme.colors.brand?.primary || '#6200EE'} />
+          <ActivityIndicator size="large" color={currentTheme.colors.brand?.primary || '#6200EE'} />
         </View>
       </SafeAreaView>
     );
   }
   
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: currentTheme.colors.background.primary }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: currentTheme.colors.background?.primary || '#FFFFFF' }]}>
       {renderHeader()}
       <FlatList
         data={executions || []}
@@ -211,8 +212,8 @@ export const ExecutionHistoryScreen: React.FC<{ navigation?: any }> = ({ navigat
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={currentTheme.currentTheme.colors.brand?.primary || '#6200EE'}
-            colors={[currentTheme.currentTheme.colors.brand?.primary || '#6200EE']}
+            tintColor={currentTheme.colors.brand?.primary || '#6200EE'}
+            colors={[currentTheme.colors.brand?.primary || '#6200EE']}
           />
         }
         ListEmptyComponent={renderEmpty}

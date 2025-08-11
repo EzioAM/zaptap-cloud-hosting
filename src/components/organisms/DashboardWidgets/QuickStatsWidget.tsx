@@ -335,7 +335,7 @@ export const QuickStatsWidget: React.FC = memo(() => {
         <View style={[styles.container, { backgroundColor: 'transparent' }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.colors?.text || '#000' }]}>
-              Today's Activity
+              Recent Activity
             </Text>
             <MaterialCommunityIcons 
               name="chart-line" 
@@ -388,7 +388,7 @@ export const QuickStatsWidget: React.FC = memo(() => {
             DASHBOARD
           </Text>
           <Text style={[styles.title, { color: theme.colors?.text || '#000' }]}>
-            Today's Activity
+            Recent Activity
           </Text>
         </View>
         <View style={styles.headerIcon}>
@@ -456,7 +456,7 @@ export const QuickStatsWidget: React.FC = memo(() => {
       <View style={styles.footer}>
         <View style={styles.footerDot} />
         <Text style={[styles.footerText, { color: theme.colors?.textSecondary || '#666' }]}>
-          Live data • Updates every minute
+          Last 7 days • Live data
         </Text>
       </View>
     </View>

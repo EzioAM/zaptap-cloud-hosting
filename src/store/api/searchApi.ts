@@ -89,11 +89,12 @@ export interface FeaturedAutomation {
   rating: number;
   reviewCount: number;
   executionCount: number;
-  createdBy: {
+  createdBy?: {
     id: string;
     username: string;
     avatar?: string;
   };
+  author?: string; // Fallback for author string
   publicId: string;
   thumbnail?: string;
   featured: boolean;

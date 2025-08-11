@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Modal, TouchableOpacity, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Modal, Pressable } from 'react-native';
 import { Text, Button, IconButton, MD3Theme } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -67,7 +67,7 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
 
   if (!visible) return null;
 
-  const styles = makeStyles(theme, insets);
+  const styles = makeStyles(theme);
 
   // Defensive error handling for renderConfigForm
   let formNode: React.ReactNode = null;
@@ -77,9 +77,10 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
       EventLogger.debug('Automation', 'Form node generated:', { formNode, stepType, stepTitle });
     }
   } catch (e) {
-    formNode = <Text style={{ color: theme.colors.error }}>Error loading form: {e.message}</Text>;
+    const error = e as Error;
+    formNode = <Text style={{ color: theme.colors.error }}>Error loading form: {error.message}</Text>;
     if (__DEV__) {
-      EventLogger.error('Automation', 'renderConfigForm error:', e as Error);
+      EventLogger.error('Automation', 'renderConfigForm error:', error);
     }
   }
 
@@ -104,8 +105,7 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
           <View 
             style={styles.modalContent} 
             testID="StepConfigModalContent" 
-            accessibilityViewIsModal 
-            accessibilityRole="dialog"
+            accessibilityViewIsModal
           >
             {/* Header */}
             <View style={styles.header} accessibilityRole="header">
@@ -184,7 +184,7 @@ const StepConfigModal: React.FC<StepConfigModalProps> = ({
   );
 };
 
-const makeStyles = (theme: MD3Theme, insets: { top: number; bottom: number }) =>
+const makeStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     flex: { flex: 1 },
     modalOverlay: {

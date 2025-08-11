@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,11 @@ import {
   Switch,
   Alert,
   RefreshControl,
-  Platform,
   Dimensions,
   Animated,
   InteractionManager,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -29,17 +27,15 @@ import { DeveloperSection } from '../../components/developer/DeveloperSection';
 import * as Haptics from 'expo-haptics';
 
 // Shared Components
-import { GradientHeader } from '../../components/shared/GradientHeader';
 import { GradientCard } from '../../components/shared/GradientCard';
 import { GradientButton } from '../../components/shared/GradientButton';
 import { EmptyStateIllustration } from '../../components/shared/EmptyStateIllustration';
 
 // Theme imports
-import { gradients, glassEffects, getGlassStyle } from '../../theme/gradients';
+import { gradients, getGlassStyle } from '../../theme/gradients';
 import { typography, fontWeights, textShadows } from '../../theme/typography';
 import { ANIMATION_CONFIG } from '../../constants/animations';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface Achievement {
   id: string;
@@ -111,7 +107,6 @@ const ModernProfileScreenEnhanced = () => {
   // Data queries
   const {
     data: myAutomations,
-    isLoading: isLoadingMyAutomations,
     refetch: refetchMyAutomations
   } = useGetMyAutomationsQuery(undefined, {
     skip: !isAuthenticated,
@@ -124,9 +119,6 @@ const ModernProfileScreenEnhanced = () => {
     skip: !isAuthenticated,
   });
 
-  const myPublicAutomations = publicAutomations?.filter(
-    automation => automation.author === user?.email
-  ) || [];
 
   // Sample data
   const userProfile: UserProfile = {
@@ -349,7 +341,7 @@ const ModernProfileScreenEnhanced = () => {
         useNativeDriver: true,
       }),
     ]).start();
-    // TODO: Open image picker
+    // Open image picker implementation needed
   };
 
   const handleSignOut = () => {
@@ -411,27 +403,27 @@ const ModernProfileScreenEnhanced = () => {
         },
       ]}
     >
-      <GradientCard gradientKey={stat.gradientKey || 'primary'} style={styles.statCardInner}>
+      <GradientCard colors={gradients[stat.gradientKey || 'primary']?.colors || gradients.primary.colors} style={styles.statCardInner}>
         <MaterialCommunityIcons name={stat.icon} size={24} color="#FFFFFF" />
         <Text style={styles.statValue}>{stat.value}</Text>
         <Text style={styles.statLabel}>{stat.label}</Text>
         {stat.progress && (
           <View style={styles.progressRing}>
-            {/* TODO: Add circular progress component */}
+            {/* Circular progress component implementation needed */}
           </View>
         )}
       </GradientCard>
     </Animated.View>
   );
 
-  const renderAchievement = (achievement: Achievement, index: number) => (
+  const renderAchievement = (achievement: Achievement) => (
     <TouchableOpacity
       key={achievement.id}
       style={styles.achievementCard}
       onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
     >
       <GradientCard
-        gradientKey={achievement.gradientKey}
+        colors={gradients[achievement.gradientKey]?.colors || gradients.primary.colors}
         style={[
           styles.achievementCardInner,
           !achievement.unlocked && styles.achievementLocked,
@@ -445,7 +437,7 @@ const ModernProfileScreenEnhanced = () => {
           <View style={styles.progressContainer}>
             <View style={styles.progressTrack}>
               <LinearGradient
-                colors={gradients[achievement.gradientKey].colors}
+                colors={gradients[achievement.gradientKey].colors as [string, string, ...string[]]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={[
@@ -468,7 +460,7 @@ const ModernProfileScreenEnhanced = () => {
     </TouchableOpacity>
   );
 
-  const renderActivityItem = (item: ActivityItem, index: number) => (
+  const renderActivityItem = (item: ActivityItem) => (
     <Animated.View
       key={item.id}
       style={[
@@ -488,7 +480,7 @@ const ModernProfileScreenEnhanced = () => {
     >
       <View style={styles.activityIcon}>
         <LinearGradient
-          colors={gradients.primary.colors}
+          colors={gradients.primary.colors as [string, string, ...string[]]}
           style={styles.activityIconGradient}
         >
           <MaterialCommunityIcons name={item.icon as any} size={16} color="#FFFFFF" />
@@ -507,10 +499,10 @@ const ModernProfileScreenEnhanced = () => {
   const renderSettingsSection = (section: SettingsSection) => (
     <View key={section.id} style={styles.settingsSection}>
       <Text style={styles.settingsSectionTitle}>{section.title}</Text>
-      <GradientCard gradientKey={section.gradientKey} style={styles.settingsCard}>
+      <GradientCard colors={gradients[section.gradientKey]?.colors || gradients.primary.colors} style={styles.settingsCard}>
         {section.items.map((item, index) => (
           <TouchableOpacity
-            key={index}
+            key={`${section.id}-${item}`}
             style={[
               styles.settingsItem,
               index < section.items.length - 1 && styles.settingsItemBorder,
@@ -532,7 +524,7 @@ const ModernProfileScreenEnhanced = () => {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={gradients.primary.colors}
+          colors={gradients.primary.colors as [string, string, ...string[]]}
           style={StyleSheet.absoluteFillObject}
         />
         <View style={styles.authPrompt}>
@@ -615,7 +607,7 @@ const ModernProfileScreenEnhanced = () => {
               ]}
             >
               <LinearGradient
-                colors={gradients.aurora.colors}
+                colors={gradients.aurora.colors as [string, string, ...string[]]}
                 style={styles.avatarGradient}
               >
                 <View style={styles.avatar}>
@@ -640,7 +632,6 @@ const ModernProfileScreenEnhanced = () => {
             title="Edit Profile"
             onPress={() => navigation.navigate('EditProfile' as never)}
             style={styles.editButton}
-            size="small"
           />
         </Animated.View>
 
@@ -653,7 +644,7 @@ const ModernProfileScreenEnhanced = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Achievements</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.achievementsScroll}>
-            {achievements.map((achievement, index) => renderAchievement(achievement, index))}
+            {achievements.map((achievement) => renderAchievement(achievement))}
           </ScrollView>
         </View>
 
@@ -661,7 +652,7 @@ const ModernProfileScreenEnhanced = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
           <View style={styles.activityTimeline}>
-            {recentActivity.map((item, index) => renderActivityItem(item, index))}
+            {recentActivity.map((item) => renderActivityItem(item))}
           </View>
         </View>
 
@@ -671,7 +662,7 @@ const ModernProfileScreenEnhanced = () => {
           {settingsItems.map(renderSettingsSection)}
           
           {/* Quick Toggles */}
-          <GradientCard gradientKey="dark" style={styles.togglesCard}>
+          <GradientCard colors={gradients.dark?.colors || gradients.primary.colors} style={styles.togglesCard}>
             <View style={styles.toggleItem}>
               <MaterialCommunityIcons name="bell" size={20} color="#FFFFFF" />
               <Text style={styles.toggleLabel}>Notifications</Text>

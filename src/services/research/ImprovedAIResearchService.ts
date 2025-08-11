@@ -1,5 +1,6 @@
 import { LocalResearchService, ResearchTopic } from './LocalResearchService';
 import Constants from 'expo-constants';
+import { EventLogger } from '../../utils/EventLogger';
 
 interface ResearchQuery {
   topic: string;

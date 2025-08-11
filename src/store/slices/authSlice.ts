@@ -60,21 +60,44 @@ import { EventLogger } from '../../utils/EventLogger';
 
       if (error) throw error;
 
+      // Build the name using the best available data
+      let userName = 'User';
+      const metadata = data.user.user_metadata || {};
+      
+      // Try full_name first
+      if (metadata.full_name) {
+        userName = metadata.full_name;
+      }
+      // Try first and last name combination
+      else if (metadata.first_name || metadata.last_name) {
+        const firstName = metadata.first_name || '';
+        const lastName = metadata.last_name || '';
+        userName = `${firstName} ${lastName}`.trim() || 'User';
+      }
+      // Try name field
+      else if (metadata.name) {
+        userName = metadata.name;
+      }
+      // Fall back to email prefix only as last resort
+      else if (data.user.email) {
+        userName = data.user.email.split('@')[0];
+      }
+
       return {
         user: {
           id: data.user.id,
           email: data.user.email!,
-          name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || 'User',
-          first_name: data.user.user_metadata?.first_name,
-          last_name: data.user.user_metadata?.last_name,
-          avatar_url: data.user.user_metadata?.avatar_url || DEFAULT_AVATAR,
-          role: data.user.user_metadata?.role,
-          company: data.user.user_metadata?.company,
-          phone: data.user.user_metadata?.phone,
-          bio: data.user.user_metadata?.bio,
-          location: data.user.user_metadata?.location,
-          website: data.user.user_metadata?.website,
-          user_metadata: data.user.user_metadata,
+          name: userName,
+          first_name: metadata.first_name,
+          last_name: metadata.last_name,
+          avatar_url: metadata.avatar_url || DEFAULT_AVATAR,
+          role: metadata.role,
+          company: metadata.company,
+          phone: metadata.phone,
+          bio: metadata.bio,
+          location: metadata.location,
+          website: metadata.website,
+          user_metadata: metadata,
         },
         accessToken: data.session.access_token,
         refreshToken: data.session.refresh_token,
@@ -220,7 +243,7 @@ import { EventLogger } from '../../utils/EventLogger';
           return {
             id: session.user.id,
             email: session.user.email!,
-            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+            name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
             avatar_url: session.user.user_metadata?.avatar_url || DEFAULT_AVATAR,
             role: session.user.user_metadata?.role || 'user',
             created_at: session.user.created_at
@@ -230,7 +253,7 @@ import { EventLogger } from '../../utils/EventLogger';
         return profile || {
           id: session.user.id,
           email: session.user.email!,
-          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
           avatar_url: session.user.user_metadata?.avatar_url || DEFAULT_AVATAR,
           role: session.user.user_metadata?.role || 'user',
           created_at: session.user.created_at
@@ -311,6 +334,21 @@ import { EventLogger } from '../../utils/EventLogger';
       updateProfile: (state, action: PayloadAction<Partial<User>>) => {
         if (state.user) {
           state.user = { ...state.user, ...action.payload };
+          // Also update user_metadata with the new profile data
+          state.user.user_metadata = {
+            ...state.user.user_metadata,
+            ...action.payload.user_metadata,
+          };
+          // Ensure first_name and last_name are also in user_metadata for consistency
+          if (action.payload.first_name !== undefined) {
+            state.user.user_metadata.first_name = action.payload.first_name;
+          }
+          if (action.payload.last_name !== undefined) {
+            state.user.user_metadata.last_name = action.payload.last_name;
+          }
+          if (action.payload.avatar_url !== undefined) {
+            state.user.user_metadata.avatar_url = action.payload.avatar_url;
+          }
           EventLogger.debug('Authentication', '👤 Profile updated:', action.payload);
         }
       },

@@ -21,16 +21,14 @@ import React, { useState, useEffect } from 'react';
     TextInput,
     SegmentedButtons,
   } from 'react-native-paper';
-  import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-  import { AutomationStep, StepType, AutomationData } from '../../types';
+  import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+  import { AutomationStep, StepType, AutomationData, StepConfig } from '../../types';
   import { AutomationEngine } from '../../services/automation/AutomationEngine';
   import { useCreateAutomationMutation } from '../../store/api/automationApi';
-  import { supabase } from '../../services/supabase/client';
   import QRGenerator from '../../components/qr/QRGenerator';
   import QRScanner from '../../components/qr/QRScanner';
   import NFCScanner from '../../components/nfc/NFCScanner';
   import NFCWriter from '../../components/nfc/NFCWriter';
-  import DraggableStepItem from '../../components/automation/DraggableStepItem';
   import { ShareAutomationModal } from '../../components/sharing/ShareAutomationModal';
 
   interface AutomationBuilderScreenProps {
@@ -42,6 +40,10 @@ import React, { useState, useEffect } from 'react';
       };
     };
   }
+
+  const StepIcon: React.FC<{ icon: string }> = ({ icon }) => (
+    <Icon name={icon as any} size={24} color="#6200ee" />
+  );
 
   const AutomationBuilderScreen: React.FC<AutomationBuilderScreenProps> = ({ navigation, route }) => {
     const [steps, setSteps] = useState<AutomationStep[]>([]);
@@ -58,7 +60,6 @@ import React, { useState, useEffect } from 'react';
     const [showStepConfig, setShowStepConfig] = useState(false);
     const [configStepIndex, setConfigStepIndex] = useState<number | null>(null);
     const [stepConfig, setStepConfig] = useState<Record<string, any>>({});
-    const [isDragMode, setIsDragMode] = useState(false);
 
     const [createAutomation] = useCreateAutomationMutation();
 
@@ -104,7 +105,7 @@ import React, { useState, useEffect } from 'react';
         type: stepType,
         title: stepInfo?.label || 'New Step',
         enabled: true,
-        config: getDefaultConfig(stepType),
+        config: getDefaultConfig(stepType) as StepConfig,
       };
 
       const newSteps = [...steps, newStep];
@@ -115,7 +116,7 @@ import React, { useState, useEffect } from 'react';
       openStepConfig(newSteps.length - 1);
     };
 
-    const getDefaultConfig = (stepType: StepType): Record<string, any> => {
+    const getDefaultConfig = (stepType: StepType): Partial<StepConfig> => {
       switch (stepType) {
         case 'notification':
           return { message: 'Hello from automation!' };
@@ -164,14 +165,6 @@ import React, { useState, useEffect } from 'react';
       setSteps(updatedSteps);
     };
 
-    const reorderSteps = (fromIndex: number, toIndex: number) => {
-      if (fromIndex === toIndex) return;
-      
-      const updatedSteps = [...steps];
-      const [movedStep] = updatedSteps.splice(fromIndex, 1);
-      updatedSteps.splice(toIndex, 0, movedStep);
-      setSteps(updatedSteps);
-    };
 
     const openStepConfig = (index: number) => {
       if (index >= 0 && index < steps.length && steps[index]) {
@@ -184,7 +177,7 @@ import React, { useState, useEffect } from 'react';
     const saveStepConfig = () => {
       if (configStepIndex !== null) {
         const updatedSteps = [...steps];
-        updatedSteps[configStepIndex].config = { ...stepConfig };
+        updatedSteps[configStepIndex].config = { ...stepConfig } as StepConfig;
         setSteps(updatedSteps);
       }
       setShowStepConfig(false);
@@ -252,7 +245,7 @@ import React, { useState, useEffect } from 'react';
       }
     };
 
-    const handleQRScan = async (automationId: string, metadata: any) => {
+    const handleQRScan = async (metadata: any) => {
       try {
         Alert.alert(
           'QR Scan Complete! 🎉',
@@ -260,6 +253,7 @@ import React, { useState, useEffect } from 'react';
         );
         setShowQRScanner(false);
       } catch (error) {
+        console.error('QR scan error:', error);
         Alert.alert('Error', 'Failed to load scanned automation');
       }
     };
@@ -284,7 +278,7 @@ import React, { useState, useEffect } from 'react';
                   key={stepType.type}
                   title={stepType.label}
                   description={stepType.description}
-                  left={() => <Icon name={stepType.icon} size={24} color="#6200ee" />}
+                  left={(props) => <StepIcon icon={stepType.icon} {...props} />}
                   onPress={() => addStep(stepType.type)}
                   style={styles.stepListItem}
                 />
@@ -886,7 +880,7 @@ import React, { useState, useEffect } from 'react';
                   <View style={styles.stepHeader}>
                     <View style={styles.stepInfo}>
                       <Icon
-                        name={getStepIcon(step.type)}
+                        name={getStepIcon(step.type) as any}
                         size={24}
                         color={step.enabled ? '#6200ee' : '#999'}
                       />

@@ -17,6 +17,16 @@ import { signOut } from '../store/slices/authSlice';
 import { APP_VERSION } from '../constants/version';
 import { EventLogger } from '../utils/EventLogger';
 
+// Extracted icon components to prevent recreation on each render
+const CogIcon = (props: any) => <List.Icon {...props} icon="cog" />;
+const ChevronRightIcon = (props: any) => <List.Icon {...props} icon="chevron-right" />;
+const NFCIcon = (props: any) => <List.Icon {...props} icon="nfc" />;
+const ChartIcon = (props: any) => <List.Icon {...props} icon="chart-line" />;
+const HelpIcon = (props: any) => <List.Icon {...props} icon="help-circle" />;
+const InfoIcon = (props: any) => <List.Icon {...props} icon="information" />;
+const ShieldIcon = (props: any) => <List.Icon {...props} icon="shield-lock" />;
+const DocumentIcon = (props: any) => <List.Icon {...props} icon="file-document" />;
+
 export default function ProfileScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
@@ -32,16 +42,17 @@ export default function ProfileScreen() {
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: async () => {
+          onPress: () => {
             setLoading(true);
-            try {
-              await dispatch(signOut()).unwrap();
-            } catch (error) {
-              EventLogger.error('Profile', 'Sign out error:', error as Error);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
-            } finally {
-              setLoading(false);
-            }
+            dispatch(signOut())
+              .unwrap()
+              .catch((error) => {
+                EventLogger.error('Profile', 'Sign out error:', error as Error);
+                Alert.alert('Error', 'Failed to sign out. Please try again.');
+              })
+              .finally(() => {
+                setLoading(false);
+              });
           },
         },
       ]
@@ -98,32 +109,32 @@ export default function ProfileScreen() {
             <List.Item
               title="Settings"
               description="App preferences and configuration"
-              left={props => <List.Icon {...props} icon="cog" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
+              left={CogIcon}
+              right={ChevronRightIcon}
               onPress={() => navigation.navigate('Settings' as never)}
             />
             <Divider />
             <List.Item
               title="My NFC Tags"
               description="Manage your NFC automations"
-              left={props => <List.Icon {...props} icon="nfc" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
+              left={NFCIcon}
+              right={ChevronRightIcon}
               onPress={() => Alert.alert('Coming Soon', 'NFC tag management will be available soon!')}
             />
             <Divider />
             <List.Item
               title="Analytics"
               description="View your automation statistics"
-              left={props => <List.Icon {...props} icon="chart-line" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
+              left={ChartIcon}
+              right={ChevronRightIcon}
               onPress={() => Alert.alert('Coming Soon', 'Analytics dashboard will be available soon!')}
             />
             <Divider />
             <List.Item
               title="Help & Support"
               description="Get help and contact support"
-              left={props => <List.Icon {...props} icon="help-circle" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
+              left={HelpIcon}
+              right={ChevronRightIcon}
               onPress={() => Alert.alert('Help', 'Visit zaptap.cloud/help for support')}
             />
           </Card>
@@ -133,21 +144,21 @@ export default function ProfileScreen() {
             <List.Item
               title="About Zaptap"
               description={`Version ${APP_VERSION}`}
-              left={props => <List.Icon {...props} icon="information" />}
+              left={InfoIcon}
               onPress={() => Alert.alert('Zaptap', `Version ${APP_VERSION}\n\nAutomate Your World`)}
             />
             <Divider />
             <List.Item
               title="Privacy Policy"
-              left={props => <List.Icon {...props} icon="shield-lock" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
+              left={ShieldIcon}
+              right={ChevronRightIcon}
               onPress={() => Alert.alert('Privacy', 'Visit zaptap.cloud/privacy')}
             />
             <Divider />
             <List.Item
               title="Terms of Service"
-              left={props => <List.Icon {...props} icon="file-document" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
+              left={DocumentIcon}
+              right={ChevronRightIcon}
               onPress={() => Alert.alert('Terms', 'Visit zaptap.cloud/terms')}
             />
           </Card>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo, memo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,9 @@ import {
   TextInput,
   FlatList,
   ActivityIndicator,
-  Animated,
-  Dimensions,
   RefreshControl,
-  Platform,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -33,8 +31,6 @@ import * as Haptics from 'expo-haptics';
 import { ErrorState } from '../../components/states/ErrorState';
 import { EmptyState } from '../../components/states/EmptyState';
 import { EventLogger } from '../../utils/EventLogger';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 interface Automation {
   id: string;
@@ -59,24 +55,22 @@ interface Automation {
 }
 
 const categories = [
-  { id: 'all', name: 'All', icon: 'view-grid', gradient: ['#667eea', '#764ba2'] },
-  { id: 'popular', name: 'Popular', icon: 'trending-up', gradient: ['#ff9a9e', '#fecfef'] },
-  { id: 'new', name: 'New', icon: 'star', gradient: ['#a8edea', '#fed6e3'] },
-  { id: 'productivity', name: 'Productivity', icon: 'briefcase', gradient: ['#f093fb', '#f5576c'] },
-  { id: 'smart-home', name: 'Smart Home', icon: 'home-automation', gradient: ['#4facfe', '#00f2fe'] },
-  { id: 'health', name: 'Health', icon: 'heart', gradient: ['#43e97b', '#38f9d7'] },
-  { id: 'finance', name: 'Finance', icon: 'cash', gradient: ['#fa709a', '#fee140'] },
-  { id: 'social', name: 'Social', icon: 'account-group', gradient: ['#a8edea', '#fed6e3'] },
-  { id: 'entertainment', name: 'Entertainment', icon: 'gamepad', gradient: ['#ff9a9e', '#fecfef'] },
-  { id: 'travel', name: 'Travel', icon: 'airplane', gradient: ['#ffecd2', '#fcb69f'] },
+  { id: 'all', name: 'All', icon: 'view-grid', color: '#667eea' },
+  { id: 'popular', name: 'Popular', icon: 'trending-up', color: '#ff9a9e' },
+  { id: 'new', name: 'New', icon: 'star', color: '#a8edea' },
+  { id: 'productivity', name: 'Productivity', icon: 'briefcase', color: '#f093fb' },
+  { id: 'smart-home', name: 'Smart Home', icon: 'home-automation', color: '#4facfe' },
+  { id: 'health', name: 'Health', icon: 'heart', color: '#43e97b' },
+  { id: 'finance', name: 'Finance', icon: 'cash', color: '#fa709a' },
+  { id: 'social', name: 'Social', icon: 'account-group', color: '#a8edea' },
 ];
 
-// Sample featured automations for fallback
+// Sample automations for fallback
 const sampleAutomations: Automation[] = [
   {
     id: '1',
     title: 'Smart Morning Routine',
-    description: 'Start your day perfectly with automated lights, music, and weather',
+    description: 'Start your day perfectly with automated lights, music, and weather updates',
     author: 'Alex Chen',
     authorAvatar: '👨‍💻',
     likes: 245,
@@ -89,11 +83,12 @@ const sampleAutomations: Automation[] = [
     installs: '1.2k',
     featured: true,
     isPopular: true,
+    hasLiked: false, // Add hasLiked field for like button functionality
   },
   {
     id: '2',
     title: 'Focus Mode Ultra',
-    description: 'Block distractions and boost productivity',
+    description: 'Block distractions, set focus music, and track your productivity goals',
     author: 'Sarah Kim',
     authorAvatar: '👩‍💼',
     likes: 189,
@@ -104,10 +99,28 @@ const sampleAutomations: Automation[] = [
     tags: ['focus', 'productivity'],
     rating: 4.9,
     installs: '890',
-    featured: true,
+    featured: false,
     isPopular: true,
+    hasLiked: false, // Add hasLiked field for like button functionality
   },
-  // Add more sample automations as needed
+  {
+    id: '3',
+    title: 'Home Security Alert',
+    description: 'Get instant notifications when someone approaches your home',
+    author: 'Mike Johnson',
+    authorAvatar: '👨‍🔧',
+    likes: 156,
+    uses: 750,
+    category: 'smart-home',
+    icon: 'shield-home',
+    color: '#4CAF50',
+    tags: ['security', 'home', 'alerts'],
+    rating: 4.7,
+    installs: '750',
+    featured: false,
+    isPopular: false,
+    hasLiked: false, // Add hasLiked field for like button functionality
+  },
 ];
 
 const DiscoverScreen: React.FC = memo(() => {
@@ -121,7 +134,8 @@ const DiscoverScreen: React.FC = memo(() => {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   
-  // API queries
+  // API queries - Allow queries to run even with uncertain connection status
+  // since the database is working according to the performance logs
   const { 
     data: publicAutomations = [], 
     isLoading: isLoadingPublic,
@@ -131,8 +145,6 @@ const DiscoverScreen: React.FC = memo(() => {
     limit: 50,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     search: searchQuery || undefined
-  }, {
-    skip: !isConnected,
   });
   
   const { 
@@ -140,9 +152,7 @@ const DiscoverScreen: React.FC = memo(() => {
     isLoading: isLoadingTrending,
     error: trendingError,
     refetch: refetchTrending
-  } = useGetTrendingAutomationsQuery({ limit: 10 }, {
-    skip: !isConnected,
-  });
+  } = useGetTrendingAutomationsQuery({ limit: 5 });
 
   const [likeAutomation] = useLikeAutomationMutation();
   const [unlikeAutomation] = useUnlikeAutomationMutation();
@@ -204,28 +214,32 @@ const DiscoverScreen: React.FC = memo(() => {
   }, [selectedCategory, triggerHaptic]);
 
   const handleLike = useCallback(async (automationId: string, isLiked: boolean) => {
+    console.log('[DiscoverScreen] Like button pressed:', { automationId, isLiked, userExists: !!user });
+    
     if (!user) {
       Alert.alert('Sign In Required', 'Please sign in to like automations');
       return;
     }
 
-    if (!isConnected) {
-      Alert.alert('No Internet', 'Please check your connection');
-      return;
-    }
-
     try {
       triggerHaptic('medium');
+      console.log('[DiscoverScreen] Attempting to', isLiked ? 'unlike' : 'like', 'automation:', automationId);
       
       if (isLiked) {
-        await unlikeAutomation(automationId).unwrap();
+        const result = await unlikeAutomation(automationId).unwrap();
+        console.log('[DiscoverScreen] Unlike result:', result);
       } else {
-        await likeAutomation(automationId).unwrap();
+        const result = await likeAutomation(automationId).unwrap();
+        console.log('[DiscoverScreen] Like result:', result);
       }
+      
+      console.log('[DiscoverScreen] Like action completed successfully');
     } catch (error) {
+      console.error('[DiscoverScreen] Like action failed:', error);
       EventLogger.error('DiscoverScreen', 'Like toggle failed', error as Error);
+      Alert.alert('Error', 'Failed to update like status. Please try again.');
     }
-  }, [user, isConnected, likeAutomation, unlikeAutomation, triggerHaptic]);
+  }, [user, likeAutomation, unlikeAutomation, triggerHaptic]);
 
   const handleAutomationPress = useCallback((automation: Automation) => {
     triggerHaptic('light');
@@ -235,6 +249,15 @@ const DiscoverScreen: React.FC = memo(() => {
   // Filter automations based on search and category
   const filteredAutomations = useMemo(() => {
     const automationsToFilter = publicAutomations.length > 0 ? publicAutomations : sampleAutomations;
+    console.log('[DiscoverScreen] Filtering automations:', {
+      usingRealData: publicAutomations.length > 0,
+      totalAutomations: automationsToFilter.length,
+      sampleFirstItem: automationsToFilter[0] ? {
+        id: automationsToFilter[0].id,
+        hasLiked: automationsToFilter[0].hasLiked,
+        likes: automationsToFilter[0].likes
+      } : null
+    });
     
     return automationsToFilter.filter((automation: any) => {
       const matchesSearch = !searchQuery || 
@@ -252,344 +275,66 @@ const DiscoverScreen: React.FC = memo(() => {
     });
   }, [publicAutomations, searchQuery, selectedCategory]);
 
-  // Prepare sections for FlatList
-  const sections = useMemo(() => {
-    const items: any[] = [];
-    
-    // Header section
-    items.push({ 
-      type: 'header', 
-      key: 'header',
-      data: { searchQuery, categories, selectedCategory }
-    });
-    
-    // Quick Actions (only on 'all' category and no search)
-    if (selectedCategory === 'all' && !searchQuery) {
-      items.push({ 
-        type: 'quickActions', 
-        key: 'quickActions',
-        data: {}
-      });
-    }
-    
-    // Featured (only on 'all' category and no search)
-    if (selectedCategory === 'all' && !searchQuery && filteredAutomations.length > 0) {
-      const featured = filteredAutomations.find(a => a.featured);
-      if (featured) {
-        items.push({ 
-          type: 'featured', 
-          key: 'featured',
-          data: featured
-        });
-      }
-    }
-    
-    // Trending (only on 'all' category and no search)
-    if (selectedCategory === 'all' && !searchQuery) {
-      const trending = trendingAutomations.length > 0 ? trendingAutomations : 
-                      filteredAutomations.filter(a => a.isPopular).slice(0, 5);
-      if (trending.length > 0) {
-        items.push({ 
-          type: 'trending', 
-          key: 'trending',
-          data: trending
-        });
-      }
-    }
-    
-    // All Automations section title
-    items.push({ 
-      type: 'sectionTitle', 
-      key: 'sectionTitle',
-      data: {
-        title: searchQuery ? `Search Results for "${searchQuery}"` :
-               selectedCategory === 'all' ? 'All Automations' : 
-               categories.find(c => c.id === selectedCategory)?.name || 'Automations',
-        count: filteredAutomations.length
-      }
-    });
-    
-    // Automation items
-    filteredAutomations.forEach((automation, index) => {
-      items.push({
-        type: 'automation',
-        key: `automation-${automation.id}`,
-        data: automation,
-        index
-      });
-    });
-    
-    // Empty state if no automations
-    if (filteredAutomations.length === 0) {
-      items.push({
-        type: 'empty',
-        key: 'empty',
-        data: { searchQuery, selectedCategory }
-      });
-    }
-    
-    return items;
-  }, [filteredAutomations, trendingAutomations, searchQuery, selectedCategory, categories]);
+  const featuredAutomation = useMemo(() => {
+    return filteredAutomations.find(a => a.featured) || filteredAutomations[0];
+  }, [filteredAutomations]);
 
-  const renderItem = useCallback(({ item }: { item: any }) => {
-    switch (item.type) {
-      case 'header':
-        return (
-          <View style={styles.headerSection}>
-            {/* Search Bar - Navigate to dedicated Search screen */}
-            <TouchableOpacity 
-              style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}
-              onPress={() => navigation.navigate('Search' as never, { query: searchQuery } as never)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="magnify" size={20} color={theme.colors.onSurfaceVariant} />
-              <TextInput
-                style={[styles.searchInput, { color: theme.colors.onSurface }]}
-                placeholder="Search automations..."
-                placeholderTextColor={theme.colors.onSurfaceVariant}
-                value={searchQuery}
-                onChangeText={handleSearch}
-                onFocus={() => navigation.navigate('Search' as never, { query: searchQuery } as never)}
-                editable={false} // Make it non-editable as it navigates to Search screen
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <MaterialCommunityIcons name="close-circle" size={18} color={theme.colors.onSurfaceVariant} />
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-            
-            {/* Categories */}
-            <View style={styles.categoriesSection}>
-              <Text style={[styles.categoryTitle, { color: theme.colors.onSurface }]}>
-                Categories
-              </Text>
-              <FlatList
-                horizontal
-                data={item.data.categories}
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(cat) => cat.id}
-                renderItem={({ item: category }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryChip,
-                      item.data.selectedCategory === category.id && styles.categoryChipSelected,
-                    ]}
-                    onPress={() => handleCategorySelect(category.id)}
-                  >
-                    <LinearGradient
-                      colors={item.data.selectedCategory === category.id && category.gradient && category.gradient.length >= 2 ? category.gradient : ['transparent', 'transparent']}
-                      style={[
-                        styles.categoryChipGradient,
-                        item.data.selectedCategory !== category.id && { backgroundColor: theme.colors.surfaceVariant }
-                      ]}
-                    >
-                      <MaterialCommunityIcons 
-                        name={category.icon as any} 
-                        size={16} 
-                        color={item.data.selectedCategory === category.id ? 'white' : theme.colors.onSurfaceVariant} 
-                      />
-                      <Text style={[
-                        styles.categoryChipText,
-                        { color: item.data.selectedCategory === category.id ? 'white' : theme.colors.onSurfaceVariant }
-                      ]}>
-                        {category.name}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
-          </View>
-        );
-        
-      case 'quickActions':
-        return (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-              Quick Actions
-            </Text>
-            <View style={styles.quickActionsGrid}>
-              <TouchableOpacity
-                style={[styles.quickActionCard, { backgroundColor: theme.colors.surface }]}
-                onPress={() => navigation.navigate('BuildTab' as never)}
-              >
-                <LinearGradient
-                  colors={['#667eea', '#764ba2']}
-                  style={styles.quickActionIcon}
-                >
-                  <MaterialCommunityIcons name="plus" size={24} color="white" />
-                </LinearGradient>
-                <Text style={[styles.quickActionTitle, { color: theme.colors.onSurface }]}>
-                  Create New
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.quickActionCard, { backgroundColor: theme.colors.surface }]}
-                onPress={() => handleCategorySelect('popular')}
-              >
-                <LinearGradient
-                  colors={['#fa709a', '#fee140']}
-                  style={styles.quickActionIcon}
-                >
-                  <MaterialCommunityIcons name="trending-up" size={24} color="white" />
-                </LinearGradient>
-                <Text style={[styles.quickActionTitle, { color: theme.colors.onSurface }]}>
-                  Popular
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
-        
-      case 'featured':
-        return (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-              Featured
-            </Text>
-            <TouchableOpacity
-              style={[styles.featuredCard, { backgroundColor: theme.colors.surface }]}
-              onPress={() => handleAutomationPress(item.data)}
-            >
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.featuredGradient}
-              >
-                <Text style={styles.featuredTitle}>{item.data.title}</Text>
-                <Text style={styles.featuredDescription}>{item.data.description}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        );
-        
-      case 'trending':
-        return (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                🔥 Trending Now
-              </Text>
-              <TouchableOpacity onPress={() => handleCategorySelect('popular')}>
-                <Text style={[styles.seeAllText, { color: theme.colors.primary }]}>
-                  See All
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              horizontal
-              data={item.data}
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={(trending) => trending.id}
-              renderItem={({ item: trendingItem }) => (
-                <TouchableOpacity
-                  style={[styles.trendingCard, { backgroundColor: theme.colors.surface }]}
-                  onPress={() => handleAutomationPress(trendingItem)}
-                >
-                  <Text style={[styles.trendingTitle, { color: theme.colors.onSurface }]}>
-                    {trendingItem.title}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        );
-        
-      case 'sectionTitle':
-        return (
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-              {item.data.title}
-            </Text>
-            <Text style={[styles.resultCount, { color: theme.colors.onSurfaceVariant }]}>
-              {item.data.count} result{item.data.count !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        );
-        
-      case 'automation':
-        return (
-          <TouchableOpacity
-            style={[styles.automationCard, { backgroundColor: theme.colors.surface }]}
-            onPress={() => handleAutomationPress(item.data)}
-          >
-            <View style={styles.automationHeader}>
-              <View style={[styles.automationIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                <MaterialCommunityIcons 
-                  name={item.data.icon || 'robot'} 
-                  size={24} 
-                  color={theme.colors.primary} 
-                />
-              </View>
-              <View style={styles.automationInfo}>
-                <Text style={[styles.automationTitle, { color: theme.colors.onSurface }]}>
-                  {item.data.title}
-                </Text>
-                <Text style={[styles.automationAuthor, { color: theme.colors.onSurfaceVariant }]}>
-                  by {item.data.author}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => handleLike(item.data.id, item.data.hasLiked)}
-              >
-                <MaterialCommunityIcons 
-                  name={item.data.hasLiked ? 'heart' : 'heart-outline'} 
-                  size={24} 
-                  color={item.data.hasLiked ? '#FF4444' : theme.colors.onSurfaceVariant} 
-                />
-              </TouchableOpacity>
-            </View>
-            <Text style={[styles.automationDescription, { color: theme.colors.onSurfaceVariant }]} numberOfLines={2}>
-              {item.data.description}
-            </Text>
-            <View style={styles.automationFooter}>
-              <View style={styles.automationStat}>
-                <MaterialCommunityIcons name="heart" size={16} color={theme.colors.onSurfaceVariant} />
-                <Text style={[styles.automationStatText, { color: theme.colors.onSurfaceVariant }]}>
-                  {item.data.likes}
-                </Text>
-              </View>
-              <View style={styles.automationStat}>
-                <MaterialCommunityIcons name="play-circle" size={16} color={theme.colors.onSurfaceVariant} />
-                <Text style={[styles.automationStatText, { color: theme.colors.onSurfaceVariant }]}>
-                  {item.data.uses}
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        );
-        
-      case 'empty':
-        return (
-          <EmptyState
-            icon={item.data.searchQuery ? "magnify-scan" : "robot-confused"}
-            title={item.data.searchQuery ? "No Results Found" : "No Automations Yet"}
-            description={
-              item.data.searchQuery
-                ? `No automations found for "${item.data.searchQuery}"`
-                : "No automations available in this category"
-            }
-            action={
-              item.data.searchQuery
-                ? {
-                    label: "Clear Search",
-                    onPress: () => setSearchQuery(''),
-                  }
-                : item.data.selectedCategory !== 'all'
-                ? {
-                    label: "Browse All Categories",
-                    onPress: () => handleCategorySelect('all'),
-                  }
-                : undefined
-            }
+  const renderAutomationCard = useCallback(({ item }: { item: Automation }) => (
+    <TouchableOpacity
+      style={[styles.automationCard, { backgroundColor: theme.colors.surface }]}
+      onPress={() => handleAutomationPress(item)}
+      activeOpacity={0.7}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+    >
+      <View style={styles.automationHeader}>
+        <View style={[styles.automationIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+          <MaterialCommunityIcons 
+            name={item.icon || 'robot'} 
+            size={28} 
+            color={theme.colors.primary} 
           />
-        );
-        
-      default:
-        return null;
-    }
-  }, [theme, searchQuery, handleSearch, handleCategorySelect, handleAutomationPress, handleLike, navigation]);
+        </View>
+        <View style={styles.automationInfo}>
+          <Text style={[styles.automationTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text style={[styles.automationAuthor, { color: theme.colors.onSurfaceVariant }]}>
+            by {item.author}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => handleLike(item.id, item.hasLiked)}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={styles.likeButton}
+        >
+          <MaterialCommunityIcons 
+            name={item.hasLiked ? 'heart' : 'heart-outline'} 
+            size={24} 
+            color={item.hasLiked ? '#FF4444' : theme.colors.onSurfaceVariant} 
+          />
+        </TouchableOpacity>
+      </View>
+      <Text style={[styles.automationDescription, { color: theme.colors.onSurfaceVariant }]} numberOfLines={2}>
+        {item.description}
+      </Text>
+      <View style={styles.automationFooter}>
+        <View style={styles.automationStats}>
+          <View style={styles.stat}>
+            <MaterialCommunityIcons name="heart" size={16} color={theme.colors.onSurfaceVariant} />
+            <Text style={[styles.statText, { color: theme.colors.onSurfaceVariant }]}>
+              {item.likes}
+            </Text>
+          </View>
+          <View style={styles.stat}>
+            <MaterialCommunityIcons name="play-circle" size={16} color={theme.colors.onSurfaceVariant} />
+            <Text style={[styles.statText, { color: theme.colors.onSurfaceVariant }]}>
+              {item.uses}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  ), [theme, handleAutomationPress, handleLike]);
 
   if (isLoadingPublic && publicAutomations.length === 0) {
     return (
@@ -621,18 +366,16 @@ const DiscoverScreen: React.FC = memo(() => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
         <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
           Discover
         </Text>
       </View>
       
-      <FlatList
-        data={sections}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.key}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -640,19 +383,186 @@ const DiscoverScreen: React.FC = memo(() => {
             tintColor={theme.colors.primary}
           />
         }
-        // Performance optimizations
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        windowSize={10}
-        initialNumToRender={10}
-        getItemLayout={(data, index) => {
-          // Estimate item heights for better performance
-          let height = 100; // Default automation card height
-          if (index < 3) height = 200; // Header sections are taller
-          return { length: height, offset: height * index, index };
-        }}
-      />
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Search Bar */}
+        <View style={styles.section}>
+          <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <MaterialCommunityIcons name="magnify" size={20} color={theme.colors.onSurfaceVariant} />
+            <TextInput
+              style={[styles.searchInput, { color: theme.colors.onSurface }]}
+              placeholder="Search automations..."
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              value={searchQuery}
+              onChangeText={handleSearch}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity 
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <MaterialCommunityIcons name="close-circle" size={18} color={theme.colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Categories */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+            Categories
+          </Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesContainer}
+          >
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[
+                  styles.categoryChip,
+                  selectedCategory === category.id && [styles.categoryChipSelected, { backgroundColor: category.color }]
+                ]}
+                onPress={() => handleCategorySelect(category.id)}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              >
+                <MaterialCommunityIcons 
+                  name={category.icon as any} 
+                  size={18} 
+                  color={selectedCategory === category.id ? 'white' : theme.colors.onSurfaceVariant} 
+                />
+                <Text style={[
+                  styles.categoryChipText,
+                  { color: selectedCategory === category.id ? 'white' : theme.colors.onSurfaceVariant }
+                ]}>
+                  {category.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Quick Actions */}
+        {selectedCategory === 'all' && !searchQuery && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              Quick Actions
+            </Text>
+            <View style={styles.quickActionsGrid}>
+              <TouchableOpacity
+                style={[styles.quickActionCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => navigation.navigate('BuildTab' as never)}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <LinearGradient
+                  colors={['#667eea', '#764ba2']}
+                  style={styles.quickActionIcon}
+                >
+                  <MaterialCommunityIcons name="plus" size={24} color="white" />
+                </LinearGradient>
+                <Text style={[styles.quickActionTitle, { color: theme.colors.onSurface }]}>
+                  Create New
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.quickActionCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => handleCategorySelect('popular')}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <LinearGradient
+                  colors={['#fa709a', '#fee140']}
+                  style={styles.quickActionIcon}
+                >
+                  <MaterialCommunityIcons name="trending-up" size={24} color="white" />
+                </LinearGradient>
+                <Text style={[styles.quickActionTitle, { color: theme.colors.onSurface }]}>
+                  Popular
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Featured */}
+        {selectedCategory === 'all' && !searchQuery && featuredAutomation && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              Featured
+            </Text>
+            <TouchableOpacity
+              style={[styles.featuredCard, { backgroundColor: theme.colors.surface }]}
+              onPress={() => handleAutomationPress(featuredAutomation)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                style={styles.featuredGradient}
+              >
+                <Text style={styles.featuredTitle}>{featuredAutomation.title}</Text>
+                <Text style={styles.featuredDescription} numberOfLines={2}>
+                  {featuredAutomation.description}
+                </Text>
+                <View style={styles.featuredAuthor}>
+                  <Text style={styles.featuredAuthorText}>by {featuredAutomation.author}</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Results Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              {searchQuery ? `Results for "${searchQuery}"` :
+               selectedCategory === 'all' ? 'All Automations' : 
+               categories.find(c => c.id === selectedCategory)?.name || 'Automations'}
+            </Text>
+            <Text style={[styles.resultCount, { color: theme.colors.onSurfaceVariant }]}>
+              {filteredAutomations.length} result{filteredAutomations.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
+
+          {filteredAutomations.length > 0 ? (
+            <FlatList
+              data={filteredAutomations}
+              renderItem={renderAutomationCard}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+            />
+          ) : (
+            <EmptyState
+              icon={searchQuery ? "magnify-scan" : "robot-confused"}
+              title={searchQuery ? "No Results Found" : "No Automations Yet"}
+              description={
+                searchQuery
+                  ? `No automations found for "${searchQuery}"`
+                  : "No automations available in this category"
+              }
+              action={
+                searchQuery
+                  ? {
+                      label: "Clear Search",
+                      onPress: () => setSearchQuery(''),
+                    }
+                  : selectedCategory !== 'all'
+                  ? {
+                      label: "Browse All Categories",
+                      onPress: () => handleCategorySelect('all'),
+                    }
+                  : undefined
+              }
+            />
+          )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 });
@@ -682,39 +592,56 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
   },
-  listContent: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingBottom: 20,
   },
-  headerSection: {
-    paddingTop: 12,
+  section: {
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
     gap: 12,
-    marginBottom: 16,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
   },
-  categoriesSection: {
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     marginBottom: 16,
   },
-  categoryTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  resultCount: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  categoriesContainer: {
+    paddingRight: 20,
   },
   categoryChip: {
-    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 12,
     borderRadius: 20,
-    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    gap: 8,
+    minHeight: 44,
   },
   categoryChipSelected: {
     elevation: 4,
@@ -723,47 +650,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
-  categoryChipGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
-  },
   categoryChipText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  section: {
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  resultCount: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
   quickActionsGrid: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   quickActionCard: {
     flex: 1,
-    padding: 16,
+    padding: 20,
     borderRadius: 16,
     alignItems: 'center',
     elevation: 1,
@@ -771,17 +668,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
+    minHeight: 120,
   },
   quickActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   quickActionTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   featuredCard: {
@@ -794,38 +692,31 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   featuredGradient: {
-    padding: 20,
+    padding: 24,
   },
   featuredTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 8,
   },
   featuredDescription: {
-    fontSize: 14,
+    fontSize: 16,
     color: 'rgba(255,255,255,0.9)',
+    marginBottom: 12,
+    lineHeight: 22,
   },
-  trendingCard: {
-    padding: 16,
-    marginRight: 12,
-    borderRadius: 12,
-    minWidth: 150,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+  featuredAuthor: {
+    alignSelf: 'flex-start',
   },
-  trendingTitle: {
+  featuredAuthorText: {
     fontSize: 14,
-    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
   },
   automationCard: {
-    marginHorizontal: 20,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -838,40 +729,55 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   automationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   automationInfo: {
     flex: 1,
   },
   automationTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   automationAuthor: {
     fontSize: 14,
+    opacity: 0.8,
+  },
+  likeButton: {
+    padding: 8,
+    marginRight: -8,
   },
   automationDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 16,
+    opacity: 0.8,
   },
   automationFooter: {
     flexDirection: 'row',
-    gap: 16,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  automationStat: {
+  automationStats: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  stat: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  automationStatText: {
+  statText: {
     fontSize: 14,
+    fontWeight: '500',
+  },
+  separator: {
+    height: 16,
   },
 });
 

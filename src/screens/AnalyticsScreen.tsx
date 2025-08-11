@@ -9,28 +9,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-// Safe imports for Victory Native with error fallback
-let VictoryChart: any, VictoryLine: any, VictoryPie: any, VictoryBar: any, VictoryAxis: any, VictoryTheme: any;
-try {
-  const victory = require('victory-native');
-  VictoryChart = victory.VictoryChart;
-  VictoryLine = victory.VictoryLine;
-  VictoryPie = victory.VictoryPie;
-  VictoryBar = victory.VictoryBar;
-  VictoryAxis = victory.VictoryAxis;
-  VictoryTheme = victory.VictoryTheme;
-} catch (error) {
-  EventLogger.warn('Analytics', 'Victory Native failed to load, charts will be disabled:', error);
-  // Fallback components
-  const FallbackChart = () => (
-    <View style={{ padding: 20, alignItems: 'center' }}>
-      <MaterialCommunityIcons name="chart-line" size={48} color="#666" />
-      <Text style={{ marginTop: 10, color: '#666' }}>Charts unavailable</Text>
-    </View>
-  );
-  VictoryChart = VictoryLine = VictoryPie = VictoryBar = VictoryAxis = FallbackChart;
-  VictoryTheme = { material: {} };
-}
 import { Card, CardHeader, CardBody } from '../components/atoms/Card';
 import { Button, Badge, Shimmer, ShimmerPlaceholder } from '../components/atoms';
 import { useSafeTheme } from '../components/common/ThemeFallbackWrapper';
@@ -39,6 +17,20 @@ import { useGetAnalyticsQuery } from '../store/api/analyticsApi';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { formatDistanceToNow } from 'date-fns';
 import { EventLogger } from '../utils/EventLogger';
+
+// Disable Victory Native for now - causing render issues
+const FallbackChart = () => (
+  <View style={{ padding: 20, alignItems: 'center' }}>
+    <MaterialCommunityIcons name="chart-line" size={48} color="#666" />
+    <Text style={{ marginTop: 10, color: '#666' }}>Charts temporarily disabled</Text>
+  </View>
+);
+const VictoryChart = FallbackChart;
+const VictoryLine = FallbackChart;
+const VictoryPie = FallbackChart;
+const VictoryBar = FallbackChart;
+const VictoryAxis = FallbackChart;
+const VictoryTheme = { material: {} };
 
 const { width } = Dimensions.get('window');
 
@@ -216,33 +208,7 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
                   <Shimmer width={chartWidth - 40} height={160} borderRadius={8} />
                 </View>
               ) : (
-                <VictoryChart
-                width={chartWidth}
-                height={200}
-                padding={{ top: 20, bottom: 40, left: 60, right: 40 }}
-                theme={VictoryTheme.material}
-              >
-                <VictoryAxis
-                  dependentAxis
-                  style={{
-                    grid: { stroke: colors.border?.light || '#E0E0E0' },
-                    tickLabels: { fill: colors.text?.secondary || '#666666', fontSize: 12 },
-                  }}
-                />
-                <VictoryAxis
-                  style={{
-                    grid: { stroke: colors.border?.light || '#E0E0E0' },
-                    tickLabels: { fill: colors.text?.secondary || '#666666', fontSize: 12 },
-                  }}
-                />
-                <VictoryLine
-                  data={executionData}
-                  style={{
-                    data: { stroke: colors.brand?.primary || '#6200ee', strokeWidth: 3 },
-                  }}
-                  interpolation="catmullRom"
-                />
-              </VictoryChart>
+                <FallbackChart />
               )}
             </CardBody>
           </Card>
@@ -254,18 +220,7 @@ export const AnalyticsScreen: React.FC<{ navigation?: any }> = ({ navigation }) 
             <CardHeader title="Success Rate" icon="check-circle" />
             <CardBody>
               <View style={styles.pieChartContainer}>
-                <VictoryPie
-                  data={successRateData}
-                  width={chartWidth}
-                  height={200}
-                  innerRadius={60}
-                  padAngle={3}
-                  colorScale={[colors.semantic?.success || '#4CAF50', colors.semantic?.error || '#F44336']}
-                  labelRadius={({ innerRadius }) => (innerRadius as number) + 30}
-                  style={{
-                    labels: { fill: colors.text?.primary || '#000000', fontSize: 14 },
-                  }}
-                />
+                <FallbackChart />
                 <View style={styles.pieChartCenter}>
                   <Text style={[styles.pieChartValue, { color: colors.text?.primary || '#000000' }]}>
                     {successRateData[0].y}%

@@ -22,7 +22,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { LineChart, PieChart, BarChart } from 'react-native-chart-kit';
-import { useAnalytics, ANALYTICS_EVENTS, SCREEN_NAMES } from '../../contexts/AnalyticsContext';
+import { useAnalytics } from '../../contexts/AnalyticsContext';
 import { AnalyticsService } from '../../services/analytics/AnalyticsService';
 import { PerformanceMonitor, PerformanceSummary } from '../../services/monitoring/PerformanceMonitor';
 import { EventLogger } from '../../utils/EventLogger';
@@ -74,16 +74,17 @@ interface AnalyticsDashboardProps {
 
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ navigation }) => {
   const theme = useTheme();
-  const { track, trackScreen, isInitialized } = useAnalytics();
+  const { track, screen } = useAnalytics();
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
   const [performanceData, setPerformanceData] = useState<PerformanceSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const [isInitialized, setIsInitialized] = useState(true);
 
   // Track screen view
   useEffect(() => {
-    trackScreen(SCREEN_NAMES.ANALYTICS_DASHBOARD);
+    screen('AnalyticsDashboard');
   }, []);
 
   // Load analytics data
@@ -150,7 +151,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ navigati
       setPerformanceData(perfData);
       
       // Track analytics viewed event
-      track(ANALYTICS_EVENTS.FEATURE_USED, {
+      track('feature_used', {
         feature_name: 'analytics_dashboard',
         time_range: timeRange,
       });
@@ -197,7 +198,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ navigati
         action: {
           label: 'Edit Automation',
           onPress: () => {
-            track(ANALYTICS_EVENTS.BUTTON_PRESSED, {
+            track('button_pressed', {
               button_name: 'edit_automation_from_insight',
               automation_name: 'Morning Routine',
             });
@@ -357,25 +358,29 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ navigati
         <Card.Title title="Most Used Automations" />
         <Card.Content>
           {analytics.mostUsedAutomations.map((automation, index) => (
-            <List.Item
-              key={automation.id}
-              title={automation.name}
-              description={`${automation.executions} executions`}
-              left={(props) => (
-                <View style={[styles.rankBadge, { backgroundColor: theme.colors.brand?.primary || '#6200ee' }]}>
-                  <Text style={[styles.rankText, { color: theme.colors.onPrimary }]}>
-                    {index + 1}
-                  </Text>
-                </View>
-              )}
-              right={(props) => (
-                <ProgressBar 
-                  progress={automation.executions / analytics.mostUsedAutomations[0].executions}
-                  style={styles.automationProgress}
-                  color={theme.colors.brand?.primary || '#6200ee'}
-                />
-              )}
-            />
+            <View key={automation.id} style={{ paddingVertical: 4 }}>
+              <List.Item
+                title={automation.name}
+                description={`${automation.executions} executions`}
+                style={{ paddingVertical: 8 }}
+                left={(props) => (
+                  <View style={[styles.rankBadge, { backgroundColor: theme.colors.primary || '#6200ee' }]}>
+                    <Text style={[styles.rankText, { color: '#ffffff' }]}>
+                      {index + 1}
+                    </Text>
+                  </View>
+                )}
+                right={(props) => (
+                  <View style={{ width: 80, alignSelf: 'center' }}>
+                    <ProgressBar 
+                      progress={automation.executions / analytics.mostUsedAutomations[0].executions}
+                      style={styles.automationProgress}
+                      color={theme.colors.primary || '#6200ee'}
+                    />
+                  </View>
+                )}
+              />
+            </View>
           ))}
         </Card.Content>
       </Card>
@@ -409,21 +414,25 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ navigati
         <Card.Title title="Achievements" subtitle={`${analytics.achievements.length} unlocked`} />
         <Card.Content>
           {analytics.achievements.map((achievement) => (
-            <List.Item
-              key={achievement.id}
-              title={achievement.name}
-              description={achievement.description}
-              left={() => (
-                <View style={styles.achievementIcon}>
-                  <Text style={styles.achievementEmoji}>{achievement.icon}</Text>
-                </View>
-              )}
-              right={() => (
-                <Text style={styles.achievementDate}>
-                  {new Date(achievement.unlockedAt).toLocaleDateString()}
-                </Text>
-              )}
-            />
+            <View key={achievement.id} style={{ paddingVertical: 4 }}>
+              <List.Item
+                title={achievement.name}
+                description={achievement.description}
+                style={{ paddingVertical: 8 }}
+                left={() => (
+                  <View style={styles.achievementIcon}>
+                    <Text style={styles.achievementEmoji}>{achievement.icon}</Text>
+                  </View>
+                )}
+                right={() => (
+                  <View style={{ justifyContent: 'center' }}>
+                    <Text style={styles.achievementDate}>
+                      {new Date(achievement.unlockedAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                )}
+              />
+            </View>
           ))}
         </Card.Content>
       </Card>
@@ -502,7 +511,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ navigati
           <Button 
             mode="outlined" 
             onPress={() => {
-              track(ANALYTICS_EVENTS.BUTTON_PRESSED, {
+              track('button_pressed', {
                 button_name: 'export_analytics_data',
               });
               // Implement data export functionality
@@ -552,14 +561,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#333',
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
-    marginTop: 4,
+    marginTop: 2,
   },
   progressBar: {
     height: 8,
@@ -585,7 +594,8 @@ const styles = StyleSheet.create({
   },
   rankText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#fff',
   },
   automationProgress: {
     width: 60,
@@ -605,8 +615,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   deploymentValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#333',
   },
   deploymentLabel: {
@@ -623,7 +633,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   achievementEmoji: {
-    fontSize: 20,
+    fontSize: 18,
   },
   achievementDate: {
     fontSize: 12,
@@ -631,7 +641,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   insightItem: {
-    marginBottom: 16,
+    marginBottom: 12,
+    paddingBottom: 12,
   },
   insightHeader: {
     marginBottom: 8,
@@ -640,21 +651,24 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   insightTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
+    color: '#333',
   },
   insightDescription: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
-    lineHeight: 20,
+    lineHeight: 18,
+    marginBottom: 4,
   },
   insightAction: {
     alignSelf: 'flex-start',
     marginTop: 8,
   },
   insightDivider: {
-    marginTop: 16,
+    marginTop: 12,
+    marginBottom: 4,
   },
   performanceGrid: {
     flexDirection: 'row',
@@ -665,8 +679,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   performanceValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
     color: '#333',
   },
   performanceLabel: {

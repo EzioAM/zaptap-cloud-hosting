@@ -15,7 +15,7 @@ interface StepConnectorProps {
 
 export const StepConnector: React.FC<StepConnectorProps> = ({
   isActive = false,
-  color = theme.tokens.colors.indigo[500],
+  color = theme.tokens?.colors?.brand?.[500] || '#6366F1',
 }) => {
   const animatedLineStyle = useAnimatedStyle(() => {
     if (isActive) {
@@ -83,18 +83,18 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: -theme.spacing.xs,
+    marginVertical: -(theme.spacing?.xs || 4),
   },
   line: {
     position: 'absolute',
     width: 2,
     height: '100%',
-    left: theme.spacing.md + 24 - 1, // Align with icon center
+    left: (theme.spacing?.md || 16) + 24 - 1, // Align with icon center
   },
   dotsContainer: {
     flexDirection: 'row',
     position: 'absolute',
-    left: theme.spacing.md + 24 - 6, // Center dots on line
+    left: (theme.spacing?.md || 16) + 24 - 6, // Center dots on line
   },
   dot: {
     width: 4,

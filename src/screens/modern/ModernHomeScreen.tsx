@@ -38,6 +38,7 @@ import { SkeletonWidget, StatsSkeletonWidget, ActionsSkeletonWidget, FeaturedSke
 import { ErrorState } from '../../components/states/ErrorState';
 import { EmptyState } from '../../components/states/EmptyState';
 import { ParallaxScrollView } from '../../components/common/ParallaxScrollView';
+import { UserAvatar } from '../../components/atoms/UserAvatar';
 
 // Dashboard widgets - import both regular and enhanced versions
 import {
@@ -417,28 +418,13 @@ const ModernHomeScreen: React.FC = memo(() => {
             title={`${greeting}, ${userName}!`}
             subtitle="What would you like to automate today?"
             rightComponent={
-              <TouchableOpacity
+              <UserAvatar
+                size={40}
                 onPress={() => {
                   triggerHaptic('light');
                   navigation.navigate('ProfileTab' as never);
                 }}
-                style={styles.profileButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                activeOpacity={0.7}
-              >
-                <LinearGradient
-                  colors={['#8B5CF6', '#EC4899', '#F472B6']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.avatarGradient}
-                >
-                  <MaterialCommunityIcons 
-                    name="account" 
-                    size={24} 
-                    color="white" 
-                  />
-                </LinearGradient>
-              </TouchableOpacity>
+              />
             }
           />
         </Animated.View>
@@ -460,28 +446,13 @@ const ModernHomeScreen: React.FC = memo(() => {
               {userName}
             </Text>
           </View>
-          <TouchableOpacity
+          <UserAvatar
+            size={40}
             onPress={() => {
               triggerHaptic('light');
               navigation.navigate('ProfileTab' as never);
             }}
-            style={styles.profileButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            activeOpacity={0.7}
-          >
-            <LinearGradient
-              colors={['#8B5CF6', '#EC4899', '#F472B6']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.avatarGradient}
-            >
-              <MaterialCommunityIcons 
-                name="account" 
-                size={24} 
-                color="white" 
-              />
-            </LinearGradient>
-          </TouchableOpacity>
+          />
         </Animated.View>
       )}
 

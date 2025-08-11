@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet, Text, ActivityIndicator } from 'react-nat
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootState } from '../store';
-import { preloadNextScreens } from '../navigation/LazyNavigator';
+import { preloadNextScreens } from '../navigation/archive/LazyNavigator';
 import { EventLogger } from '../utils/EventLogger';
 
 // Lazy load dashboard widgets
@@ -48,8 +48,8 @@ const OptimizedHomeScreen: React.FC = () => {
   // Use selectors efficiently
   const automationStats = useSelector((state: RootState) => ({
     total: state.automation?.automations?.length || 0,
-    active: state.automation?.automations?.filter(a => a.isActive).length || 0,
-    recent: state.automation?.recentExecutions?.length || 0,
+    active: state.automation?.automations?.filter(a => a.is_public).length || 0,
+    recent: 0,
   }), (prev, next) => 
     prev.total === next.total && 
     prev.active === next.active && 
@@ -84,9 +84,6 @@ const OptimizedHomeScreen: React.FC = () => {
       showsVerticalScrollIndicator={false}
       // Optimize scroll performance
       removeClippedSubviews={true}
-      maxToRenderPerBatch={5}
-      updateCellsBatchingPeriod={50}
-      windowSize={10}
     >
       <HomeHeader />
       

@@ -356,6 +356,15 @@ export const DeveloperMenuScreen: React.FC<DeveloperMenuScreenProps> = ({ naviga
             />
             <Divider style={styles.toolDivider} />
             <List.Item
+              title="Test Automation Steps"
+              description="Verify all automation step types are functional"
+              left={(props) => <List.Icon {...props} icon="test-tube" color="#00bcd4" />}
+              onPress={() => {
+                navigation.navigate('AutomationTest');
+              }}
+            />
+            <Divider style={styles.toolDivider} />
+            <List.Item
               title="Reset Onboarding"
               description="Show onboarding screens again (requires app restart)"
               left={(props) => <List.Icon {...props} icon="restart" color="#9c27b0" />}

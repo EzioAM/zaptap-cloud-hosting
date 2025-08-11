@@ -45,6 +45,7 @@ import { PressableAnimated, FeedbackAnimation } from '../../components/automatio
 import { ErrorState } from '../../components/states/ErrorState';
 import { EmptyState } from '../../components/states/EmptyState';
 import { NavigationDebugger } from '../../components/debug/NavigationDebugger';
+import { ProfileImagePicker } from '../../components/molecules/ProfileImagePicker';
 
 // Enhanced components
 import { GradientHeader } from '../../components/shared/GradientHeader';
@@ -600,38 +601,7 @@ const ModernProfileScreen: React.FC = memo(() => {
               elevation: 12,
             }]}>
             <View style={styles.profileHeader}>
-              <View style={styles.avatarContainer}>
-                {user?.user_metadata?.avatar_url ? (
-                  <Image
-                    source={{ uri: user.user_metadata.avatar_url }}
-                    style={styles.avatar}
-                  />
-                ) : (
-                  <LinearGradient
-                    colors={['#FF6B6B', '#FF8E53']}
-                    style={[styles.avatar, styles.avatarPlaceholder]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.avatarInitial}>
-                      {user?.email?.charAt(0)?.toUpperCase() || user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || 'U'}
-                    </Text>
-                  </LinearGradient>
-                )}
-                <View style={styles.completionBadge}>
-                  <Animated.View
-                    style={[
-                      styles.completionBar,
-                      {
-                        width: profileCompletion.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0%', '100%'],
-                        }),
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
+              <ProfileImagePicker />
               
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>
@@ -646,8 +616,21 @@ const ModernProfileScreen: React.FC = memo(() => {
                   {isAuthenticated && user?.email ? user.email : 'Not signed in'}
                 </Text>
                 <Text style={styles.profileCompletion}>
-                  {profileStats.completionPercentage}% Complete
+                  Profile {profileStats.completionPercentage}% Complete
                 </Text>
+                <View style={styles.completionProgressContainer}>
+                  <Animated.View
+                    style={[
+                      styles.completionProgressBar,
+                      {
+                        width: profileCompletion.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%'],
+                        }),
+                      },
+                    ]}
+                  />
+                </View>
               </View>
             </View>
           </LinearGradient>
@@ -970,10 +953,9 @@ const styles = StyleSheet.create({
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 16,  // Add gap between profile image and info
   },
-  avatarContainer: {
-    position: 'relative',
-  },
+  // Removed avatarContainer - no longer needed
   avatar: {
     width: 80,
     height: 80,
@@ -997,23 +979,22 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  completionBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 16,
-    width: 30,
+  completionProgressContainer: {
+    marginTop: 8,
     height: 4,
     backgroundColor: 'rgba(255,255,255,0.3)',
     borderRadius: 2,
     overflow: 'hidden',
+    width: '100%',
   },
-  completionBar: {
+  completionProgressBar: {
     height: '100%',
     backgroundColor: '#4CAF50',
     borderRadius: 2,
   },
   profileInfo: {
     flex: 1,
+    marginLeft: 12,  // Add left margin for better spacing from profile image
   },
   profileName: {
     fontSize: 22,

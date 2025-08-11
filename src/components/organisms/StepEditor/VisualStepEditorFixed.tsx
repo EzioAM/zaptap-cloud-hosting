@@ -7,20 +7,82 @@ import {
   Text,
   Dimensions,
   FlatList,
-  PanResponder,
-  Animated,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import RNAnimated, { FadeInDown, Layout } from 'react-native-reanimated';
 import { useSafeTheme } from '../../common/ThemeFallbackWrapper';
-import { theme } from '../../../theme';
 import { AutomationStep, StepType } from '../../../types';
-import { StepCard } from './StepCard';
-import { StepPalette } from './StepPalette';
-import { StepConnector } from './StepConnector';
-import { Button } from '../../atoms';
-import { EmptyState } from '../../molecules';
-import { useHaptic } from '../../../hooks/useHaptic';
+
+// Simple fallback components to avoid import issues
+const SafeStepCard = ({ step, index, onEdit, onDelete, isSelected }: any) => {
+  const theme = useSafeTheme();
+  const colors = theme.colors;
+  
+  return (
+    <TouchableOpacity 
+      style={[styles.stepCard, { backgroundColor: colors.surface || '#fff', borderColor: isSelected ? '#6200ee' : '#e0e0e0' }]}
+      onPress={onEdit}
+    >
+      <View style={styles.stepContent}>
+        <MaterialCommunityIcons name="cog" size={24} color="#6200ee" />
+        <View style={styles.stepInfo}>
+          <Text style={[styles.stepTitle, { color: colors.onSurface || '#333' }]}>
+            Step {index + 1}: {step.type}
+          </Text>
+          <Text style={[styles.stepDescription, { color: colors.onSurfaceVariant || '#666' }]}>
+            {step.config?.message || step.config?.url || step.config?.phoneNumber || 'Tap to configure'}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={onDelete} style={styles.deleteButton}>
+          <MaterialCommunityIcons name="delete" size={20} color="#f44336" />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const SafeStepPalette = ({ visible, onClose, onSelectStep }: any) => {
+  const theme = useSafeTheme();
+  const colors = theme.colors;
+  
+  const stepTypes = [
+    { type: 'notification', label: 'Show Notification', icon: 'bell' },
+    { type: 'sms', label: 'Send SMS', icon: 'message' },
+    { type: 'email', label: 'Send Email', icon: 'email' },
+    { type: 'delay', label: 'Add Delay', icon: 'clock' },
+    { type: 'variable', label: 'Set Variable', icon: 'variable' },
+    { type: 'webhook', label: 'Call Webhook', icon: 'webhook' },
+  ];
+  
+  if (!visible) return null;
+  
+  return (
+    <View style={styles.overlay}>
+      <View style={[styles.paletteContainer, { backgroundColor: colors.surface || '#fff' }]}>
+        <View style={styles.paletteHeader}>
+          <Text style={[styles.paletteTitle, { color: colors.onSurface || '#333' }]}>Add Step</Text>
+          <TouchableOpacity onPress={onClose}>
+            <MaterialCommunityIcons name="close" size={24} color={colors.onSurface || '#333'} />
+          </TouchableOpacity>
+        </View>
+        <ScrollView>
+          {stepTypes.map((step) => (
+            <TouchableOpacity
+              key={step.type}
+              style={styles.stepOption}
+              onPress={() => onSelectStep(step.type)}
+            >
+              <MaterialCommunityIcons name={step.icon as any} size={24} color="#6200ee" />
+              <Text style={[styles.stepOptionText, { color: colors.onSurface || '#333' }]}>
+                {step.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </View>
+  );
+};
 
 interface VisualStepEditorProps {
   steps: AutomationStep[];
@@ -41,38 +103,34 @@ export const VisualStepEditor: React.FC<VisualStepEditorProps> = ({
 }) => {
   const currentTheme = useSafeTheme();
   const colors = currentTheme.colors;
-  const { trigger } = useHaptic();
   const [showPalette, setShowPalette] = useState(false);
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const handleMoveUp = useCallback((index: number) => {
     if (index > 0) {
       const newSteps = [...steps];
       [newSteps[index], newSteps[index - 1]] = [newSteps[index - 1], newSteps[index]];
-      trigger('light');
       onStepsChange(newSteps);
     }
-  }, [steps, onStepsChange, trigger]);
+  }, [steps, onStepsChange]);
 
   const handleMoveDown = useCallback((index: number) => {
     if (index < steps.length - 1) {
       const newSteps = [...steps];
       [newSteps[index], newSteps[index + 1]] = [newSteps[index + 1], newSteps[index]];
-      trigger('light');
       onStepsChange(newSteps);
     }
-  }, [steps, onStepsChange, trigger]);
+  }, [steps, onStepsChange]);
 
   const handleAddStep = (stepType: StepType) => {
     const newStep: AutomationStep = {
       id: Date.now().toString(),
       type: stepType,
       config: {},
-      order: steps.length,
+      enabled: true,
+      title: `Step ${steps.length + 1}`,
     };
     
-    trigger('light');
     onStepsChange([...steps, newStep]);
     setShowPalette(false);
     
@@ -84,111 +142,61 @@ export const VisualStepEditor: React.FC<VisualStepEditorProps> = ({
 
   const handleStepPress = (index: number) => {
     if (!readonly) {
-      trigger('light');
       setSelectedStepIndex(index);
       onStepEdit(index);
     }
   };
 
-  const handleStepLongPress = (index: number) => {
+  const handleStepDelete = (index: number) => {
     if (!readonly) {
-      trigger('medium');
-      setSelectedStepIndex(index);
+      Alert.alert(
+        'Delete Step',
+        'Are you sure you want to delete this step?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => onStepDelete(index) }
+        ]
+      );
     }
   };
 
   const renderStep = ({ item, index }: { item: AutomationStep; index: number }) => {
     const isSelected = selectedStepIndex === index;
-    const isDragging = draggedIndex === index;
     
     return (
-      <RNAnimated.View
-        entering={FadeInDown.delay(index * 50)}
-        layout={Layout.springify()}
-        style={[
-          styles.stepContainer,
-          isSelected && styles.selectedStep,
-          isDragging && styles.draggingStep,
-        ]}
-      >
-        {index > 0 && <StepConnector />}
-        
-        <View style={styles.stepRow}>
-          {!readonly && (
-            <View style={styles.dragHandle}>
-              <TouchableOpacity
-                onPress={() => handleMoveUp(index)}
-                disabled={index === 0}
-                style={[styles.moveButton, index === 0 && styles.moveButtonDisabled]}
-              >
-                <MaterialCommunityIcons 
-                  name="chevron-up" 
-                  size={20} 
-                  color={index === 0 ? colors.text?.tertiary || '#999' : colors.text?.primary || '#000'} 
-                />
-              </TouchableOpacity>
-              <MaterialCommunityIcons 
-                name="drag" 
-                size={20} 
-                color={colors.text?.secondary || '#666'} 
-              />
-              <TouchableOpacity
-                onPress={() => handleMoveDown(index)}
-                disabled={index === steps.length - 1}
-                style={[styles.moveButton, index === steps.length - 1 && styles.moveButtonDisabled]}
-              >
-                <MaterialCommunityIcons 
-                  name="chevron-down" 
-                  size={20} 
-                  color={index === steps.length - 1 ? colors.text?.tertiary || '#999' : colors.text?.primary || '#000'} 
-                />
-              </TouchableOpacity>
-            </View>
-          )}
-          
-          <TouchableOpacity
-            style={styles.stepCardWrapper}
-            onPress={() => handleStepPress(index)}
-            onLongPress={() => handleStepLongPress(index)}
-            activeOpacity={0.7}
-          >
-            <StepCard
-              step={item}
-              index={index}
-              isSelected={isSelected}
-              onEdit={() => onStepEdit(index)}
-              onDelete={() => {
-                trigger('light');
-                onStepDelete(index);
-              }}
-              readonly={readonly}
-            />
-          </TouchableOpacity>
-        </View>
-      </RNAnimated.View>
+      <View key={item.id} style={styles.stepContainer}>
+        <SafeStepCard
+          step={item}
+          index={index}
+          isSelected={isSelected}
+          onEdit={() => handleStepPress(index)}
+          onDelete={() => handleStepDelete(index)}
+        />
+      </View>
     );
   };
 
   if (steps.length === 0 && !readonly) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background?.primary || '#F5F5F5' }]}>
-        <EmptyState
-          icon="robot-confused"
-          title="No Steps Yet"
-          description="Add your first automation step to get started"
-          action={
-            <Button
-              mode="primary"
-              onPress={() => setShowPalette(true)}
-              icon="plus"
-              size="large"
-            >
-              Add First Step
-            </Button>
-          }
-        />
+      <View style={[styles.container, { backgroundColor: colors.background || '#F5F5F5' }]}>
+        <View style={styles.emptyContainer}>
+          <MaterialCommunityIcons name="robot-confused" size={64} color="#ccc" />
+          <Text style={[styles.emptyTitle, { color: colors.onBackground || '#333' }]}>
+            No Steps Yet
+          </Text>
+          <Text style={[styles.emptyDescription, { color: colors.onBackground || '#666' }]}>
+            Add your first automation step to get started
+          </Text>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: colors.primary || '#6200ee' }]}
+            onPress={() => setShowPalette(true)}
+          >
+            <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
+            <Text style={styles.addButtonText}>Add First Step</Text>
+          </TouchableOpacity>
+        </View>
         
-        <StepPalette
+        <SafeStepPalette
           visible={showPalette}
           onClose={() => setShowPalette(false)}
           onSelectStep={handleAddStep}
@@ -198,30 +206,25 @@ export const VisualStepEditor: React.FC<VisualStepEditorProps> = ({
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background?.primary || '#F5F5F5' }]}>
-      <FlatList
-        data={steps}
-        renderItem={renderStep}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListFooterComponent={
-          !readonly ? (
-            <View style={styles.addButtonContainer}>
-              <TouchableOpacity
-                style={[styles.addButton, { backgroundColor: colors.brand?.primary || '#6200ee' }]}
-                onPress={() => setShowPalette(true)}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
-                <Text style={styles.addButtonText}>Add Step</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null
-        }
-      />
+    <View style={[styles.container, { backgroundColor: colors.background || '#F5F5F5' }]}>
+      <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+        {steps.map((step, index) => renderStep({ item: step, index }))}
+        
+        {!readonly && (
+          <View style={styles.addButtonContainer}>
+            <TouchableOpacity
+              style={[styles.addButton, { backgroundColor: colors.primary || '#6200ee' }]}
+              onPress={() => setShowPalette(true)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
+              <Text style={styles.addButtonText}>Add Step</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
       
-      <StepPalette
+      <SafeStepPalette
         visible={showPalette}
         onClose={() => setShowPalette(false)}
         onSelectStep={handleAddStep}
@@ -241,35 +244,56 @@ const styles = StyleSheet.create({
   stepContainer: {
     marginBottom: 12,
   },
-  selectedStep: {
-    transform: [{ scale: 1.02 }],
+  stepCard: {
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  draggingStep: {
-    opacity: 0.8,
-    transform: [{ scale: 1.05 }],
-  },
-  stepRow: {
+  stepContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  dragHandle: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  stepInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  stepDescription: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  deleteButton: {
+    padding: 8,
+  },
+  emptyContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 32,
   },
-  moveButton: {
-    padding: 4,
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
   },
-  moveButtonDisabled: {
-    opacity: 0.3,
-  },
-  stepCardWrapper: {
-    flex: 1,
+  emptyDescription: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
   },
   addButtonContainer: {
     marginTop: 16,
-    paddingHorizontal: 16,
     alignItems: 'center',
   },
   addButton: {
@@ -290,6 +314,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  // SafeStepPalette styles
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+    zIndex: 1000,
+  },
+  paletteContainer: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '70%',
+    padding: 16,
+  },
+  paletteHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  paletteTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+  },
+  stepOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  stepOptionText: {
+    fontSize: 16,
+    marginLeft: 12,
   },
 });
 

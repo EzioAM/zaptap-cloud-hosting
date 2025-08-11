@@ -42,17 +42,46 @@ export class EmailExecutor extends BaseExecutor {
       const sanitizedSubject = subjectValidation.sanitizedInput || subject;
       const sanitizedBody = bodyValidation.sanitizedInput || body;
       
-      // Construct mailto URL
-      const mailtoUrl = this.constructMailtoUrl(sanitizedTo, sanitizedSubject, sanitizedBody);
-      
-      // Check if we can open the URL
-      const canOpen = await Linking.canOpenURL(mailtoUrl);
-      if (!canOpen) {
-        throw new Error('No email app available on this device');
+      // Try to use Mail Composer if available, otherwise fallback to mailto URL
+      let useMailComposer = false;
+      try {
+        // Dynamically import Mail Composer to avoid errors if not available
+        const MailComposer = await import('expo-mail-composer').catch(() => null);
+        if (MailComposer) {
+          const isAvailable = await MailComposer.isAvailableAsync();
+          if (isAvailable) {
+            useMailComposer = true;
+            const result = await MailComposer.composeAsync({
+              recipients: [sanitizedTo],
+              subject: sanitizedSubject,
+              body: sanitizedBody,
+              isHtml: false,
+            });
+            
+            if (result.status !== MailComposer.MailComposerStatus.SENT && 
+                result.status !== MailComposer.MailComposerStatus.SAVED) {
+              throw new Error('Email was cancelled or failed');
+            }
+          }
+        }
+      } catch (mailComposerError) {
+        console.debug('Mail Composer not available, using mailto fallback');
+        useMailComposer = false;
       }
       
-      // Open email client
-      await Linking.openURL(mailtoUrl);
+      if (!useMailComposer) {
+        // Fallback to mailto URL
+        const mailtoUrl = this.constructMailtoUrl(sanitizedTo, sanitizedSubject, sanitizedBody);
+        
+        // Check if we can open the URL
+        const canOpen = await Linking.canOpenURL(mailtoUrl);
+        if (!canOpen) {
+          throw new Error('No email app available on this device');
+        }
+        
+        // Open email client
+        await Linking.openURL(mailtoUrl);
+      }
       
       const result: ExecutionResult = {
         success: true,

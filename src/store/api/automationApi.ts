@@ -153,24 +153,86 @@ export const automationApi = createApi({
     }),
 
     /**
-     * Get public automations for gallery (no authentication required)
+     * Get public automations for gallery with enhanced filtering and like status
      */
-    getPublicAutomations: builder.query<AutomationData[], { limit?: number }>({
-      query: ({ limit = 50 }) =>
-        createQueryConfig('automations', {
-          method: 'GET',
-          params: {
-            is_public: 'eq.true',
-          },
-          select: '*',
-          order: 'created_at.desc',
-          limit,
-        }),
-      transformErrorResponse: (response: any) => ({
-        status: response.status || 'FETCH_ERROR',
-        message: response.data?.message || 'Failed to fetch public automations',
-        code: response.data?.code,
-      }),
+    getPublicAutomations: builder.query<AutomationData[], { 
+      limit?: number; 
+      category?: string; 
+      search?: string;
+    }>({
+      queryFn: async ({ limit = 50, category, search }, { signal }) => {
+        try {
+          // Get current user for like status
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          let query = supabase
+            .from('automations')
+            .select(`
+              *,
+              automation_likes!left(user_id),
+              likes_count:automation_likes(count)
+            `)
+            .eq('is_public', true)
+            .order('created_at', { ascending: false })
+            .limit(limit)
+            .abortSignal(signal);
+
+          // Add category filter if specified
+          if (category && category !== 'all') {
+            if (category === 'popular') {
+              // For popular, we can order by a popularity metric
+              query = query.order('likes_count', { ascending: false });
+            } else if (category === 'new') {
+              // For new, we can filter by recent creations (last 30 days)
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              query = query.gte('created_at', thirtyDaysAgo.toISOString());
+            } else {
+              // Filter by category
+              query = query.eq('category', category);
+            }
+          }
+
+          // Add text search if specified
+          if (search) {
+            query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+          }
+
+          const { data, error } = await query;
+
+          if (error) {
+            EventLogger.error('API', 'Error fetching public automations:', error as Error);
+            return {
+              error: {
+                status: 'FETCH_ERROR',
+                message: error.message || 'Failed to fetch public automations',
+                code: error.code,
+              }
+            };
+          }
+
+          // Transform data to include hasLiked status
+          const transformedData = (data || []).map((automation: any) => ({
+            ...automation,
+            hasLiked: user ? automation.automation_likes.some((like: any) => like.user_id === user.id) : false,
+            likes: Array.isArray(automation.likes_count) ? automation.likes_count.length : (automation.likes_count || 0),
+          }));
+
+          return { data: transformedData };
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            return { error: { status: 'TIMEOUT_ERROR', message: 'Request cancelled' } };
+          }
+          
+          EventLogger.error('API', 'Failed to fetch public automations:', error as Error);
+          return {
+            error: {
+              status: 'FETCH_ERROR',
+              message: error.message || 'Failed to fetch public automations',
+            }
+          };
+        }
+      },
       providesTags: [{ type: 'Automation', id: 'PUBLIC' }],
     }),
 
@@ -751,23 +813,28 @@ export const automationApi = createApi({
             };
           }
 
-          const { error } = await supabase
+          // Use upsert to handle duplicates gracefully
+          const { error: likeError } = await supabase
             .from('automation_likes')
-            .insert({ 
+            .upsert({ 
               automation_id: automationId,
               user_id: user.id 
+            }, {
+              onConflict: 'automation_id,user_id'
             });
 
-          if (error && !error.message.includes('duplicate')) {
-            EventLogger.error('API', 'Error liking automation:', error as Error);
+          if (likeError) {
+            EventLogger.error('API', 'Error liking automation:', likeError as Error);
             return {
               error: {
                 status: 'ACTION_ERROR',
-                message: error.message || 'Failed to like automation',
-                code: error.code,
+                message: likeError.message || 'Failed to like automation',
+                code: likeError.code,
               }
             };
           }
+
+          // Note: likes_count will be calculated dynamically in the query
 
           return { data: null };
         } catch (error: any) {
@@ -784,6 +851,7 @@ export const automationApi = createApi({
         { type: 'Automation', id: automationId },
         { type: 'Automation', id: 'LIST' },
         { type: 'Automation', id: 'PUBLIC' },
+        { type: 'Automation', id: 'TRENDING' },
       ],
     }),
 
@@ -823,6 +891,8 @@ export const automationApi = createApi({
             };
           }
 
+          // Note: likes_count will be calculated dynamically in the query
+
           return { data: null };
         } catch (error: any) {
           EventLogger.error('API', 'Failed to unlike automation:', error as Error);
@@ -838,6 +908,7 @@ export const automationApi = createApi({
         { type: 'Automation', id: automationId },
         { type: 'Automation', id: 'LIST' },
         { type: 'Automation', id: 'PUBLIC' },
+        { type: 'Automation', id: 'TRENDING' },
       ],
     }),
 

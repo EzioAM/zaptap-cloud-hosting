@@ -12,10 +12,8 @@ import {
   TextInput as RNTextInput,
 } from 'react-native';
 import {
-  Appbar,
   Portal,
   Modal,
-  Searchbar,
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,11 +21,8 @@ import * as Haptics from 'expo-haptics';
 import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { AutomationTemplateService, AutomationTemplate } from '../../services/templates/AutomationTemplates';
-import { useCreateAutomationMutation } from '../../store/api/automationApi';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { supabase } from '../../services/supabase/client';
-import { FullScreenModal } from '../../components/common/FullScreenModal';
 
 interface TemplatesScreenProps {
   navigation: any;
@@ -48,7 +43,6 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const theme = useSafeTheme();
   const { user } = useSelector((state: RootState) => state.auth);
-  const [createAutomation] = useCreateAutomationMutation();
 
   // Animated values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -56,8 +50,6 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
   const filterButtonsAnim = useRef(new Animated.Value(0)).current;
   const templateCardsAnim = useRef(new Animated.Value(0)).current;
 
-  // Screen dimensions
-  const { width } = Dimensions.get('window');
 
   useEffect(() => {
     // Initial animations
@@ -122,44 +114,48 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
       [
         {
           text: 'Quick Load',
-          onPress: async () => {
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            // Load directly into builder without customization
-            const automation = AutomationTemplateService.createAutomationFromTemplate(
-              template,
-              user?.id || 'guest',
-              { title: `${template.title} (from template)` }
-            );
-            navigation.navigate('AutomationBuilder', {
-              automation: automation,
-              isTemplate: false,
-              showQRGenerator: false
-            });
-            Alert.alert(
-              'Template Loaded! 🎉',
-              `"${automation.title}" has been loaded with all ${automation.steps.length} steps.`
-            );
+          onPress: () => {
+            (async () => {
+              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              // Load directly into builder without customization
+              const automation = AutomationTemplateService.createAutomationFromTemplate(
+                template,
+                user?.id || 'guest',
+                { title: `${template.title} (from template)` }
+              );
+              navigation.navigate('AutomationBuilder', {
+                automation: automation,
+                isTemplate: false,
+                showQRGenerator: false
+              });
+              Alert.alert(
+                'Template Loaded! 🎉',
+                `"${automation.title}" has been loaded with all ${automation.steps.length} steps.`
+              );
+            })();
           }
         },
         {
           text: 'Customize First',
-          onPress: async () => {
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            // Open customization modal
-            setSelectedTemplate(template);
-            setCustomTitle(template.title);
-            
-            // Extract phone number requirements from template steps
-            const phoneRequirements: Record<string, string> = {};
-            template.steps.forEach(step => {
-              if (step.config.phoneNumber === '') {
-                const stepKey = step.id.replace(`${template.id}-`, '');
-                phoneRequirements[stepKey] = '';
-              }
-            });
-            setPhoneNumbers(phoneRequirements);
-            
-            setShowCustomizeModal(true);
+          onPress: () => {
+            (async () => {
+              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              // Open customization modal
+              setSelectedTemplate(template);
+              setCustomTitle(template.title);
+              
+              // Extract phone number requirements from template steps
+              const phoneRequirements: Record<string, string> = {};
+              template.steps.forEach(step => {
+                if (step.type === 'sms' && 'phoneNumber' in step.config && step.config.phoneNumber === '') {
+                  const stepKey = step.id.replace(`${template.id}-`, '');
+                  phoneRequirements[stepKey] = '';
+                }
+              });
+              setPhoneNumbers(phoneRequirements);
+              
+              setShowCustomizeModal(true);
+            })();
           }
         },
         {
@@ -221,7 +217,7 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
     }
   };
 
-  const renderTemplateCard = (template: AutomationTemplate, index: number) => {
+  const TemplateCard: React.FC<{ template: AutomationTemplate; index: number }> = ({ template, index }) => {
     const cardAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -232,7 +228,7 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
         delay: index * 100,
         useNativeDriver: true,
       }).start();
-    }, []);
+    }, [cardAnim, index]);
 
     const handleCardPress = async () => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -299,7 +295,7 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
             <View style={styles.cardContent}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardIcon}>
-                  <Icon name={template.icon} size={32} color={template.color} />
+                  <Icon name={template.icon as any} size={32} color={template.color} />
                 </View>
                 <View style={styles.cardInfo}>
                   <RNText style={[styles.templateTitle, { color: theme.colors.text.primary }]}>
@@ -379,7 +375,7 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
     );
   };
 
-  const renderCategoryCard = ({ item, index }: { item: any; index: number }) => {
+  const CategoryCard: React.FC<{ item: any; index: number }> = ({ item, index }) => {
     const categoryAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -390,7 +386,7 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
         delay: index * 50,
         useNativeDriver: true,
       }).start();
-    }, []);
+    }, [categoryAnim, index]);
 
     const handleCategoryPress = async () => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -628,7 +624,7 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
             <RNText style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Choose Category</RNText>
             <FlatList
               data={categories}
-              renderItem={({ item, index }) => renderCategoryCard({ item, index })}
+              renderItem={({ item, index }) => <CategoryCard item={item} index={index} />}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
               style={styles.categoriesList}
@@ -650,7 +646,7 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
             >
               <RNText style={[styles.resultsText, { color: theme.colors.text.secondary }]}>
                 {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''} found
-                {filter === 'category' && selectedCategory && (
+                {!!(filter === 'category' && selectedCategory) && (
                   <RNText style={[styles.categoryFilter, { color: theme.colors.brand.primary }]}>
                     {' '}in {categories.find(c => c.id === selectedCategory)?.name}
                   </RNText>
@@ -669,7 +665,7 @@ const TemplatesScreen: React.FC<TemplatesScreenProps> = ({ navigation }) => {
             >
               <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 {filteredTemplates.length > 0 ? (
-                  filteredTemplates.map((template, index) => renderTemplateCard(template, index))
+                  filteredTemplates.map((template, index) => <TemplateCard key={template.id} template={template} index={index} />)
                 ) : (
                   <View style={styles.emptyState}>
                     <Icon name="robot-confused" size={64} color={theme.colors.text.tertiary} />

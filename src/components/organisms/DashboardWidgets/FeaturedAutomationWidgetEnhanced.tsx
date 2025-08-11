@@ -395,7 +395,7 @@ export const FeaturedAutomationWidgetEnhanced: React.FC = () => {
           {/* Title and Description */}
           <Text style={styles.heroTitle}>{featured.name}</Text>
           <Text style={styles.heroDescription}>
-            {featured.description || 'Automate your daily tasks with this powerful workflow'}
+            {featured.description || ''}
           </Text>
 
           {/* Stats Row */}

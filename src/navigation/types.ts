@@ -26,6 +26,13 @@ export type RootStackParamList = {
     isTemplate?: boolean;
     showQRGenerator?: boolean;
   } | undefined;
+  ModernAutomationBuilder: {
+    automationId?: string;
+    automation?: AutomationData;
+    template?: AutomationData;
+    mode?: 'create' | 'edit' | 'template';
+    readonly?: boolean;
+  } | undefined;
   MyAutomations: undefined;
   Gallery: undefined;
   AutomationDetails: { 
@@ -56,6 +63,7 @@ export type RootStackParamList = {
   
   // Developer screens
   DeveloperMenu: undefined;
+  AutomationTest: undefined;
   ModernReviews: undefined;
   ModernComments: undefined;
   
@@ -82,6 +90,76 @@ export type RootStackParamList = {
   Search: { query?: string; category?: string } | undefined;
   Analytics: undefined;
   AnalyticsDashboard: undefined;
+  
+  // Settings Screens
+  NotificationSettings: undefined;
+  SecuritySettings: undefined;
+  EnhancedSettings: undefined;
+  AdvancedSettings: undefined;
+  TriggerSettings: undefined;
+  IntegrationsSettings: undefined;
+  
+  // Profile Screens
+  Premium: undefined;
+  Notifications: undefined;
+  Badges: undefined;
+  Subscription: undefined;
+  
+  // Support Screens
+  HelpCenter: undefined;
+  ContactSupport: undefined;
+  Tutorials: undefined;
+  
+  // IoT Screen
+  IoTDashboard: undefined;
+  
+  // Community Screens
+  Community: undefined;
+  Trending: undefined;
+  Challenges: undefined;
+  Share: undefined;
+  
+  // Automation Screens
+  AutomationCatalog: undefined;
+  SmartSuggestions: undefined;
+  AutomationEditor: { automationId?: string } | undefined;
+  Scheduler: undefined;
+  TriggerConfig: { automationId?: string } | undefined;
+  ActionLibrary: undefined;
+  GalleryFixed: undefined;
+  
+  // Integration Screens
+  IntegrationHub: undefined;
+  APIKeyManagement: undefined;
+  WebhookManager: undefined;
+  CloudSync: undefined;
+  BackupRestore: undefined;
+  
+  // Analytics Screens
+  AnalyticsDetail: { metricId?: string } | undefined;
+  PerformanceMetrics: undefined;
+  UsageStats: undefined;
+  AutomationInsights: undefined;
+  Reports: undefined;
+  
+  // NFC Screens
+  NFCWriter: undefined;
+  NFCReader: undefined;
+  NFCManagement: undefined;
+  
+  // QR Screens
+  QRGenerator: { automationId?: string } | undefined;
+  QRManagement: undefined;
+  
+  // Deployment Screens
+  DeploymentManager: undefined;
+  AccessControl: { automationId?: string } | undefined;
+  SharingSettings: { automationId?: string } | undefined;
+  
+  // Onboarding Screens
+  OnboardingCustomization: undefined;
+  FirstAutomationGuide: undefined;
+  InteractiveTutorial: undefined;
 };
 
 // More specific navigation types

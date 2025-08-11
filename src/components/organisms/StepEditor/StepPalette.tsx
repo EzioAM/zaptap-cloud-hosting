@@ -16,6 +16,7 @@ import { theme } from '../../../theme';
 import { StepType } from '../../../types';
 import { Card } from '../../atoms/Card';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { stepTypeCategories, stepTypeMetadata } from '../../../services/automation/executors';
 
 interface StepPaletteProps {
   visible: boolean;
@@ -32,52 +33,55 @@ interface StepOption {
   icon: string;
   description: string;
   category: string;
+  color?: string;
 }
 
-const stepOptions: StepOption[] = [
-  // Communication
-  { type: 'notification', label: 'Show Notification', icon: 'bell', description: 'Display a system notification', category: 'Communication' },
-  { type: 'sms', label: 'Send SMS', icon: 'message-text', description: 'Send a text message', category: 'Communication' },
-  { type: 'email', label: 'Send Email', icon: 'email', description: 'Send an email', category: 'Communication' },
-  { type: 'speak_text', label: 'Speak Text', icon: 'text-to-speech', description: 'Convert text to speech', category: 'Communication' },
+// Convert the metadata to step options
+const stepOptions: StepOption[] = Object.entries(stepTypeMetadata).map(([type, metadata]) => {
+  // Find which category this step belongs to
+  let category = 'Other';
+  for (const [catKey, catData] of Object.entries(stepTypeCategories)) {
+    if (catData.steps.includes(type)) {
+      category = catData.title;
+      break;
+    }
+  }
   
-  // Web & Network
-  { type: 'webhook', label: 'Call Webhook', icon: 'webhook', description: 'Make HTTP request', category: 'Web & Network' },
-  { type: 'http_request', label: 'HTTP Request', icon: 'cloud-upload', description: 'Advanced HTTP request', category: 'Web & Network' },
-  { type: 'wifi', label: 'Toggle WiFi', icon: 'wifi', description: 'Turn WiFi on/off', category: 'Web & Network' },
-  { type: 'bluetooth', label: 'Toggle Bluetooth', icon: 'bluetooth', description: 'Turn Bluetooth on/off', category: 'Web & Network' },
-  
-  // Control Flow
-  { type: 'delay', label: 'Add Delay', icon: 'clock', description: 'Wait for specified time', category: 'Control Flow' },
-  { type: 'condition', label: 'If Condition', icon: 'help-rhombus', description: 'Conditional execution', category: 'Control Flow' },
-  { type: 'variable', label: 'Set Variable', icon: 'variable', description: 'Store a value', category: 'Control Flow' },
-  { type: 'script', label: 'Run Script', icon: 'code-braces', description: 'Execute JavaScript', category: 'Control Flow' },
-  
-  // Device
-  { type: 'location', label: 'Get Location', icon: 'map-marker', description: 'Get current location', category: 'Device' },
-  { type: 'clipboard', label: 'Copy to Clipboard', icon: 'clipboard-text', description: 'Copy text to clipboard', category: 'Device' },
-  { type: 'sound', label: 'Play Sound', icon: 'volume-high', description: 'Play a sound effect', category: 'Device' },
-  { type: 'vibration', label: 'Vibrate', icon: 'vibrate', description: 'Vibrate the device', category: 'Device' },
-  { type: 'flashlight', label: 'Toggle Flashlight', icon: 'flashlight', description: 'Turn flashlight on/off', category: 'Device' },
-  { type: 'brightness', label: 'Set Brightness', icon: 'brightness-6', description: 'Adjust screen brightness', category: 'Device' },
-  
-  // Apps & System
-  { type: 'open_app', label: 'Open App', icon: 'application', description: 'Launch an application', category: 'Apps & System' },
-  { type: 'close_app', label: 'Close App', icon: 'close-box', description: 'Close an application', category: 'Apps & System' },
-  { type: 'share', label: 'Share Content', icon: 'share-variant', description: 'Share via system dialog', category: 'Apps & System' },
-  { type: 'shortcut', label: 'Run Shortcut', icon: 'apple', description: 'Execute iOS Shortcut', category: 'Apps & System' },
-  
-  // Productivity
-  { type: 'calendar', label: 'Add Calendar Event', icon: 'calendar', description: 'Create calendar entry', category: 'Productivity' },
-  { type: 'reminder', label: 'Set Reminder', icon: 'reminder', description: 'Create a reminder', category: 'Productivity' },
-  { type: 'contact', label: 'Call Contact', icon: 'contacts', description: 'Call a contact', category: 'Productivity' },
-  { type: 'translate', label: 'Translate Text', icon: 'translate', description: 'Translate between languages', category: 'Productivity' },
-  
-  // Data
-  { type: 'weather', label: 'Get Weather', icon: 'weather-partly-cloudy', description: 'Fetch weather data', category: 'Data' },
-];
+  return {
+    type: type as StepType,
+    label: metadata.title,
+    icon: metadata.icon,
+    description: metadata.description,
+    category,
+    color: metadata.color
+  };
+});
 
-const categories = [...new Set(stepOptions.map(opt => opt.category))];
+// Add any legacy step types that might not be in the new system yet
+const additionalSteps: StepOption[] = [
+  { type: 'speak_text', label: 'Speak Text', icon: 'text-to-speech', description: 'Convert text to speech', category: 'Communication' },
+  { type: 'http_request', label: 'HTTP Request', icon: 'cloud-upload', description: 'Advanced HTTP request', category: 'Communication' },
+  { type: 'wifi', label: 'Toggle WiFi', icon: 'wifi', description: 'Turn WiFi on/off', category: 'Device & Location' },
+  { type: 'bluetooth', label: 'Toggle Bluetooth', icon: 'bluetooth', description: 'Turn Bluetooth on/off', category: 'Device & Location' },
+  { type: 'script', label: 'Run Script', icon: 'code-braces', description: 'Execute JavaScript', category: 'Control Flow' },
+  { type: 'sound', label: 'Play Sound', icon: 'volume-high', description: 'Play a sound effect', category: 'Device & Location' },
+  { type: 'vibration', label: 'Vibrate', icon: 'vibrate', description: 'Vibrate the device', category: 'Device & Location' },
+  { type: 'flashlight', label: 'Toggle Flashlight', icon: 'flashlight', description: 'Turn flashlight on/off', category: 'Device & Location' },
+  { type: 'brightness', label: 'Set Brightness', icon: 'brightness-6', description: 'Adjust screen brightness', category: 'Device & Location' },
+  { type: 'close_app', label: 'Close App', icon: 'close-box', description: 'Close an application', category: 'App Integration' },
+  { type: 'share', label: 'Share Content', icon: 'share-variant', description: 'Share via system dialog', category: 'App Integration' },
+  { type: 'shortcut', label: 'Run Shortcut', icon: 'apple', description: 'Execute iOS Shortcut', category: 'App Integration' },
+  { type: 'calendar', label: 'Add Calendar Event', icon: 'calendar', description: 'Create calendar entry', category: 'App Integration' },
+  { type: 'reminder', label: 'Set Reminder', icon: 'reminder', description: 'Create a reminder', category: 'App Integration' },
+  { type: 'contact', label: 'Call Contact', icon: 'contacts', description: 'Call a contact', category: 'App Integration' },
+  { type: 'translate', label: 'Translate Text', icon: 'translate', description: 'Translate between languages', category: 'Text & Math' },
+  { type: 'weather', label: 'Get Weather', icon: 'weather-partly-cloudy', description: 'Fetch weather data', category: 'Variables & Data' },
+].filter(step => !stepOptions.find(s => s.type === step.type)); // Only add if not already present
+
+// Combine all steps
+const allStepOptions = [...stepOptions, ...additionalSteps];
+
+const categories = [...new Set(allStepOptions.map(opt => opt.category))].sort();
 
 export const StepPalette: React.FC<StepPaletteProps> = ({
   visible,
@@ -92,7 +96,7 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
   const filteredSteps = useMemo(() => {
-    let filtered = stepOptions;
+    let filtered = allStepOptions;
     
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -100,7 +104,7 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
         step =>
           step.label.toLowerCase().includes(query) ||
           step.description.toLowerCase().includes(query) ||
-          step.category.toLowerCase().includes(query)
+          step.type.toLowerCase().includes(query)
       );
     }
     
@@ -111,300 +115,305 @@ export const StepPalette: React.FC<StepPaletteProps> = ({
     return filtered;
   }, [searchQuery, selectedCategory]);
   
-  const recentStepOptions = recentSteps
-    .map(type => stepOptions.find(opt => opt.type === type))
-    .filter(Boolean) as StepOption[];
+  const recentStepOptions = useMemo(() => {
+    return recentSteps
+      .map(type => allStepOptions.find(opt => opt.type === type))
+      .filter(Boolean) as StepOption[];
+  }, [recentSteps]);
   
   const handleSelectStep = (stepType: StepType) => {
-    trigger('light');
+    trigger('impact');
     onSelectStep(stepType);
+    onClose();
   };
   
-  const renderStepOption = (step: StepOption, index: number) => (
-    <Animated.View
-      key={step.type}
-      entering={FadeInDown.delay(index * 30).springify()}
-    >
-      <TouchableOpacity
-        onPress={() => handleSelectStep(step.type)}
-        activeOpacity={0.7}
-      >
-        <Card variant="outlined" style={styles.stepOption}>
-          <View style={styles.stepOptionContent}>
-            <View
-              style={[
-                styles.stepIcon,
-                { backgroundColor: `${colors?.brand?.primary || colors?.primary || '#6200ee'}15` },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name={step.icon as any}
-                size={24}
-                color={colors?.brand?.primary || colors?.primary || '#6200ee'}
-              />
-            </View>
-            <View style={styles.stepInfo}>
-              <Text style={[styles.stepLabel, { color: colors?.text?.primary || colors?.onSurface || '#333333' }]}>
-                {step.label}
-              </Text>
-              <Text style={[styles.stepDescription, { color: colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' }]}>
-                {step.description}
-              </Text>
-            </View>
-            <MaterialCommunityIcons
-              name="plus"
-              size={20}
-              color={colors?.text?.tertiary || colors?.onSurfaceVariant || '#999999'}
-            />
-          </View>
-        </Card>
-      </TouchableOpacity>
-    </Animated.View>
-  );
+  const getCategoryIcon = (category: string): string => {
+    const categoryData = Object.values(stepTypeCategories).find(cat => cat.title === category);
+    return categoryData?.icon || 'folder';
+  };
+  
+  if (!visible) return null;
   
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="slide"
+      transparent={true}
       onRequestClose={onClose}
     >
-      <TouchableOpacity 
-        style={styles.modalBackdrop}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <TouchableOpacity 
-          activeOpacity={1}
-          style={[styles.container, { backgroundColor: colors?.background?.primary || colors?.background || '#ffffff' }]}
+      <View style={styles.overlay}>
+        <Animated.View
+          entering={FadeInDown.springify()}
+          style={[styles.container, { backgroundColor: colors.background }]}
         >
-          <View style={styles.handle} />
-          
+          {/* Header */}
           <View style={styles.header}>
-          <Text style={[styles.title, { color: colors?.text?.primary || colors?.onSurface || '#333333' }]}>
-            Add Step
-          </Text>
-          <TouchableOpacity onPress={onClose}>
-            <MaterialCommunityIcons
-              name="close"
-              size={24}
-              color={colors?.text?.secondary || colors?.onSurfaceVariant || '#666666'}
-            />
-          </TouchableOpacity>
-        </View>
-        
-        <View style={[styles.searchContainer, { backgroundColor: colors?.surface?.secondary || colors?.surface || '#f5f5f5' }]}>
-          <MaterialCommunityIcons
-            name="magnify"
-            size={20}
-            color={colors?.text?.secondary || colors?.onSurfaceVariant || '#666666'}
-          />
-          <TextInput
-            style={[styles.searchInput, { color: colors?.text?.primary || colors?.onSurface || '#333333' }]}
-            placeholder="Search steps..."
-            placeholderTextColor={colors?.text?.tertiary || colors?.onSurfaceVariant || '#999999'}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <MaterialCommunityIcons
-                name="close-circle"
-                size={20}
-                color={colors?.text?.secondary || colors?.onSurfaceVariant || '#666666'}
+            <View style={styles.headerTop}>
+              <Text style={[styles.title, { color: colors.text }]}>Add Step</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Search Bar */}
+            <View style={[styles.searchBar, { backgroundColor: colors.surface }]}>
+              <MaterialCommunityIcons name="magnify" size={20} color={colors.textSecondary} />
+              <TextInput
+                style={[styles.searchInput, { color: colors.text }]}
+                placeholder="Search steps..."
+                placeholderTextColor={colors.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
               />
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryScroll}
-          contentContainerStyle={styles.categoryContainer}
-        >
-          <TouchableOpacity
-            onPress={() => setSelectedCategory(null)}
-            style={[
-              styles.categoryChip,
-              !selectedCategory && { backgroundColor: colors?.brand?.primary || colors?.primary || '#6200ee' },
-            ]}
+              {searchQuery ? (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <MaterialCommunityIcons name="close-circle" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+          
+          {/* Categories */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoriesContainer}
+            contentContainerStyle={styles.categoriesContent}
           >
-            <Text
-              style={[
-                styles.categoryText,
-                { color: !selectedCategory ? '#FFFFFF' : colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' },
-              ]}
-            >
-              All
-            </Text>
-          </TouchableOpacity>
-          {categories.map(category => (
             <TouchableOpacity
-              key={category}
-              onPress={() => setSelectedCategory(category)}
               style={[
                 styles.categoryChip,
-                selectedCategory === category && { backgroundColor: colors?.brand?.primary || colors?.primary || '#6200ee' },
+                { backgroundColor: !selectedCategory ? colors.primary : colors.surface }
               ]}
+              onPress={() => setSelectedCategory(null)}
             >
               <Text
                 style={[
-                  styles.categoryText,
-                  { color: selectedCategory === category ? '#FFFFFF' : colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' },
+                  styles.categoryChipText,
+                  { color: !selectedCategory ? colors.onPrimary : colors.text }
                 ]}
               >
-                {category}
+                All
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-        
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={styles.stepsList}
-          contentContainerStyle={styles.stepsContent}
-        >
-          {recentStepOptions.length > 0 && !searchQuery && !selectedCategory && (
-            <>
-              <Text style={[styles.sectionTitle, { color: colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' }]}>
-                Recently Used
-              </Text>
-              {recentStepOptions.map((step, index) => renderStepOption(step, index))}
-              <Text style={[styles.sectionTitle, { color: colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' }]}>
-                All Steps
-              </Text>
-            </>
-          )}
+            {categories.map(category => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryChip,
+                  { backgroundColor: selectedCategory === category ? colors.primary : colors.surface }
+                ]}
+                onPress={() => setSelectedCategory(category === selectedCategory ? null : category)}
+              >
+                <MaterialCommunityIcons
+                  name={getCategoryIcon(category) as any}
+                  size={16}
+                  color={selectedCategory === category ? colors.onPrimary : colors.text}
+                  style={{ marginRight: 4 }}
+                />
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    { color: selectedCategory === category ? colors.onPrimary : colors.text }
+                  ]}
+                >
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
           
-          {filteredSteps.map((step, index) => renderStepOption(step, index))}
-          
-          {filteredSteps.length === 0 && (
-            <View style={styles.emptyState}>
-              <MaterialCommunityIcons
-                name="magnify-close"
-                size={48}
-                color={colors?.text?.disabled || colors?.onSurfaceDisabled || '#CCCCCC'}
-              />
-              <Text style={[styles.emptyText, { color: colors?.text?.secondary || colors?.onSurfaceVariant || '#666666' }]}>
-                No steps found
-              </Text>
+          {/* Steps List */}
+          <ScrollView style={styles.stepsList} showsVerticalScrollIndicator={false}>
+            {/* Recent Steps */}
+            {recentStepOptions.length > 0 && !searchQuery && !selectedCategory && (
+              <>
+                <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+                  Recently Used
+                </Text>
+                <View style={styles.stepsGrid}>
+                  {recentStepOptions.slice(0, 4).map(step => (
+                    <TouchableOpacity
+                      key={`recent-${step.type}`}
+                      style={[styles.stepCard, { backgroundColor: colors.surface }]}
+                      onPress={() => handleSelectStep(step.type)}
+                    >
+                      <View style={[styles.stepIcon, { backgroundColor: step.color || colors.primary + '20' }]}>
+                        <MaterialCommunityIcons
+                          name={step.icon as any}
+                          size={24}
+                          color={step.color || colors.primary}
+                        />
+                      </View>
+                      <Text style={[styles.stepLabel, { color: colors.text }]} numberOfLines={1}>
+                        {step.label}
+                      </Text>
+                      <Text style={[styles.stepDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+                        {step.description}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+            
+            {/* All Steps */}
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+              {selectedCategory || 'All Steps'}
+            </Text>
+            <View style={styles.stepsGrid}>
+              {filteredSteps.map(step => (
+                <TouchableOpacity
+                  key={step.type}
+                  style={[styles.stepCard, { backgroundColor: colors.surface }]}
+                  onPress={() => handleSelectStep(step.type)}
+                >
+                  <View style={[styles.stepIcon, { backgroundColor: step.color ? step.color + '20' : colors.primary + '20' }]}>
+                    <MaterialCommunityIcons
+                      name={step.icon as any}
+                      size={24}
+                      color={step.color || colors.primary}
+                    />
+                  </View>
+                  <Text style={[styles.stepLabel, { color: colors.text }]} numberOfLines={1}>
+                    {step.label}
+                  </Text>
+                  <Text style={[styles.stepDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+                    {step.description}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          )}
-        </ScrollView>
-        </TouchableOpacity>
-      </TouchableOpacity>
+            
+            {filteredSteps.length === 0 && (
+              <View style={styles.emptyState}>
+                <MaterialCommunityIcons name="magnify-close" size={48} color={colors.textSecondary} />
+                <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+                  No steps found
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </Animated.View>
+      </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalBackdrop: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',  // Slightly darker for better contrast
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   container: {
-    maxHeight: screenHeight * 0.85,
-    borderTopLeftRadius: theme.tokens.borderRadius.xl,
-    borderTopRightRadius: theme.tokens.borderRadius.xl,
-    paddingBottom: theme.spacing.xl,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: theme.tokens.colors.gray[300],
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
+    height: screenHeight * 0.85,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 8,
   },
   header: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.md,
+    marginBottom: 16,
   },
   title: {
-    ...theme.typography.headlineMedium,
+    fontSize: 24,
+    fontWeight: '600',
   },
-  searchContainer: {
+  closeButton: {
+    padding: 4,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.tokens.borderRadius.md,
-    marginBottom: theme.spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
   },
   searchInput: {
     flex: 1,
-    marginLeft: theme.spacing.sm,
-    ...theme.typography.bodyMedium,
+    marginLeft: 8,
+    fontSize: 16,
   },
-  categoryScroll: {
-    maxHeight: 40,
-    marginBottom: theme.spacing.md,
+  categoriesContainer: {
+    maxHeight: 50,
+    paddingHorizontal: 16,
+    marginVertical: 8,
   },
-  categoryContainer: {
-    paddingHorizontal: theme.spacing.lg,
+  categoriesContent: {
+    alignItems: 'center',
   },
   categoryChip: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.tokens.borderRadius.full,
-    backgroundColor: theme.tokens.colors.gray[200],
-    marginRight: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
   },
-  categoryText: {
-    ...theme.typography.labelMedium,
-    fontWeight: '600',
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   stepsList: {
     flex: 1,
-  },
-  stepsContent: {
-    paddingHorizontal: theme.spacing.lg,
+    padding: 16,
   },
   sectionTitle: {
-    ...theme.typography.labelLarge,
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  stepOption: {
-    marginBottom: theme.spacing.sm,
-  },
-  stepOptionContent: {
+  stepsGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.md,
+    flexWrap: 'wrap',
+    marginBottom: 24,
+    marginHorizontal: -6,
+  },
+  stepCard: {
+    width: '47%',
+    padding: 16,
+    margin: '1.5%',
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   stepIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.tokens.borderRadius.md,
-    justifyContent: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
-    marginRight: theme.spacing.sm,
-  },
-  stepInfo: {
-    flex: 1,
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   stepLabel: {
-    ...theme.typography.bodyMedium,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   stepDescription: {
-    ...theme.typography.caption,
+    fontSize: 12,
+    lineHeight: 16,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.xxl,
+    justifyContent: 'center',
+    paddingVertical: 48,
   },
-  emptyText: {
-    ...theme.typography.bodyLarge,
-    marginTop: theme.spacing.md,
+  emptyStateText: {
+    marginTop: 12,
+    fontSize: 16,
   },
 });

@@ -35,9 +35,60 @@ const { width: screenWidth } = Dimensions.get('window');
 type Props = NativeStackScreenProps<RootStackParamList, 'Reviews'>;
 
 const ReviewsScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { automation } = route.params;
   const { user } = useSelector((state: RootState) => state.auth);
   const theme = useSafeTheme();
+  const [automation, setAutomation] = useState<AutomationData | null>(null);
+  
+  // Handle both automation object and automationId
+  useEffect(() => {
+    const loadAutomation = async () => {
+      if (!route.params) {
+        EventLogger.warn('ReviewsScreen', 'No params provided');
+        navigation.goBack();
+        return;
+      }
+      
+      if (route.params.automation) {
+        setAutomation(route.params.automation);
+      } else if (route.params.automationId) {
+        // Load automation by ID if needed
+        try {
+          // For now, just use a mock automation
+          // In production, you'd fetch from the database
+          const mockAutomation: AutomationData = {
+            id: route.params.automationId,
+            name: 'Loading...',
+            description: '',
+            userId: '',
+            steps: [],
+            isActive: true,
+            isPublic: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          setAutomation(mockAutomation);
+        } catch (error) {
+          EventLogger.error('ReviewsScreen', 'Failed to load automation', error);
+          navigation.goBack();
+        }
+      } else {
+        EventLogger.warn('ReviewsScreen', 'No automation or automationId provided');
+        navigation.goBack();
+      }
+    };
+    
+    loadAutomation();
+  }, [route.params, navigation]);
+  
+  // Show loading while automation is being loaded
+  if (!automation) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={{ marginTop: 16, color: theme.colors.text }}>Loading automation...</Text>
+      </View>
+    );
+  }
   
   const [reviews, setReviews] = useState<AutomationReview[]>([]);
   const [ratingStats, setRatingStats] = useState<RatingStats>({

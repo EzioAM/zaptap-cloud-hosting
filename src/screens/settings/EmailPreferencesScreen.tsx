@@ -20,7 +20,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { EventLogger } from '../../utils/EventLogger';
@@ -350,7 +350,7 @@ const EmailPreferencesScreen: React.FC = () => {
                   onValueChange={() => togglePreference(category.key)}
                   disabled={isSaving}
                   trackColor={{ 
-                    false: theme.colors.border.light, 
+                    false: theme.colors?.border || '#e0e0e0', 
                     true: `${category.color}40` 
                   }}
                   thumbColor={preferences[category.key] ? category.color : theme.colors.text?.tertiary || '#999999'}

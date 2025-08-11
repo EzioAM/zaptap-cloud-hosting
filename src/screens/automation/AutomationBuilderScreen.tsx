@@ -50,6 +50,7 @@ import { EventLogger } from '../../utils/EventLogger';
     const colors = theme.colors;
     const [steps, setSteps] = useState<AutomationStep[]>([]);
     const [automationTitle, setAutomationTitle] = useState('My Automation');
+    const [automationDescription, setAutomationDescription] = useState('');
     const [isExecuting, setIsExecuting] = useState(false);
     const [showStepPicker, setShowStepPicker] = useState(false);
     const [showQRGenerator, setShowQRGenerator] = useState(false);
@@ -58,6 +59,7 @@ import { EventLogger } from '../../utils/EventLogger';
     const [showNFCWriter, setShowNFCWriter] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [savedAutomationId, setSavedAutomationId] = useState<string | null>(null);
     const [showStepConfig, setShowStepConfig] = useState(false);
     const [configStepIndex, setConfigStepIndex] = useState<number | null>(null);
@@ -129,6 +131,7 @@ import { EventLogger } from '../../utils/EventLogger';
         });
         
         setAutomationTitle(automation.title);
+        setAutomationDescription(automation.description || '');
         
         // Ensure steps are properly structured
         const loadedSteps = (automation.steps || []).map((step: any, index: number) => ({
@@ -320,7 +323,7 @@ import { EventLogger } from '../../utils/EventLogger';
       const automationData: AutomationData = {
         id: '',
         title: automationTitle,
-        description: 'Created with Automation Builder',
+        description: automationDescription || 'Created with Automation Builder',
         steps,
         created_by: '',
         created_at: new Date().toISOString(),
@@ -1220,6 +1223,31 @@ import { EventLogger } from '../../utils/EventLogger';
                       </View>
                     </TouchableOpacity>
                   )}
+                  
+                  {isEditingDescription ? (
+                    <TextInput
+                      mode="outlined"
+                      style={styles.descriptionInput}
+                      value={automationDescription}
+                      onChangeText={setAutomationDescription}
+                      onBlur={() => setIsEditingDescription(false)}
+                      autoFocus
+                      placeholder="Describe what this automation does (optional)"
+                      multiline
+                      numberOfLines={2}
+                      theme={{ colors: { primary: colors.primary } }}
+                    />
+                  ) : (
+                    <TouchableOpacity onPress={() => setIsEditingDescription(true)}>
+                      <View style={styles.descriptionContainer}>
+                        <Text style={styles.description}>
+                          {automationDescription || 'Tap to add description (optional)'}
+                        </Text>
+                        <Icon name="pencil" size={14} color="#999" style={styles.editIcon} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                  
                   <View style={styles.meta}>
                     <Chip icon="layers" compact>{steps.length} steps</Chip>
                     <Chip icon="check-circle" compact>
@@ -1288,6 +1316,31 @@ import { EventLogger } from '../../utils/EventLogger';
                     </View>
                   </TouchableOpacity>
                 )}
+                
+                {isEditingDescription ? (
+                  <TextInput
+                    mode="outlined"
+                    style={styles.descriptionInput}
+                    value={automationDescription}
+                    onChangeText={setAutomationDescription}
+                    onBlur={() => setIsEditingDescription(false)}
+                    autoFocus
+                    placeholder="Describe what this automation does (optional)"
+                    multiline
+                    numberOfLines={2}
+                    theme={{ colors: { primary: colors.primary } }}
+                  />
+                ) : (
+                  <TouchableOpacity onPress={() => setIsEditingDescription(true)}>
+                    <View style={styles.descriptionContainer}>
+                      <Text style={styles.description}>
+                        {automationDescription || 'Tap to add description (optional)'}
+                      </Text>
+                      <Icon name="pencil" size={14} color="#999" style={styles.editIcon} />
+                    </View>
+                  </TouchableOpacity>
+                )}
+                
                 <View style={styles.meta}>
                   <Chip icon="layers" compact>{steps.length} steps</Chip>
                   <Chip icon="check-circle" compact>
@@ -1358,12 +1411,12 @@ import { EventLogger } from '../../utils/EventLogger';
             <QRGenerator
               automationId={savedAutomationId}
               automationTitle={automationTitle}
-              automationDescription="Created with Automation Builder"
+              automationDescription={automationDescription || 'Created with Automation Builder'}
               creator="You"
               automation={{
                 id: savedAutomationId,
                 title: automationTitle,
-                description: 'Created with Automation Builder',
+                description: automationDescription || 'Created with Automation Builder',
                 steps,
                 created_by: '',
                 created_at: new Date().toISOString(),
@@ -1412,7 +1465,7 @@ import { EventLogger } from '../../utils/EventLogger';
               automation={{
                 id: savedAutomationId,
                 title: automationTitle,
-                description: 'Created with Automation Builder',
+                description: automationDescription || 'Created with Automation Builder',
                 steps,
                 created_by: '',
                 created_at: new Date().toISOString(),
@@ -1526,6 +1579,29 @@ import { EventLogger } from '../../utils/EventLogger';
       marginBottom: 16,
       textAlign: 'center',
       fontSize: 18,
+    },
+    descriptionContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+      paddingVertical: 4,
+      paddingHorizontal: 12,
+      backgroundColor: '#f8f9fa',
+      borderRadius: 8,
+      minHeight: 40,
+    },
+    description: {
+      fontSize: 14,
+      color: '#666',
+      textAlign: 'center',
+      flex: 1,
+      lineHeight: 20,
+    },
+    descriptionInput: {
+      marginBottom: 16,
+      textAlign: 'center',
+      fontSize: 14,
     },
     editIcon: {
       marginLeft: 10,

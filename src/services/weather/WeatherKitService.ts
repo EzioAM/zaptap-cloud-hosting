@@ -105,7 +105,12 @@ class WeatherKitService {
       });
 
       if (error) {
-        EventLogger.error('WeatherKit', 'Failed to fetch JWT token:', error);
+        // Don't log as error if it's just not configured yet
+        if (error.message?.includes('401') || error.message?.includes('not found')) {
+          EventLogger.debug('WeatherKit', 'WeatherKit Edge Function not configured');
+        } else {
+          EventLogger.error('WeatherKit', 'Failed to fetch JWT token:', error);
+        }
         return null;
       }
 
@@ -251,7 +256,13 @@ class WeatherKitService {
 
       return weatherData;
     } catch (error) {
-      EventLogger.error('WeatherKit', 'Failed to fetch weather data:', error as Error);
+      // Only log as error if it's not an auth issue
+      const errorMessage = (error as Error).message || '';
+      if (errorMessage.includes('401') || errorMessage.includes('JWT')) {
+        EventLogger.debug('WeatherKit', 'Weather service not configured or authenticated');
+      } else {
+        EventLogger.error('WeatherKit', 'Failed to fetch weather data:', error as Error);
+      }
       return null;
     }
   }

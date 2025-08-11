@@ -175,12 +175,34 @@ class DeveloperServiceClass {
     };
   }
 
+  private originalConsoleMethods = {
+    error: console.error,
+    warn: console.warn
+  };
+
   private setupConsoleMonitoring() {
-    const originalError = console.error;
-    const originalWarn = console.warn;
+    // Only set up once to avoid circular references
+    if (this.consoleMonitoringSetup) {
+      return;
+    }
+    this.consoleMonitoringSetup = true;
+
+    const originalError = this.originalConsoleMethods.error;
+    const originalWarn = this.originalConsoleMethods.warn;
 
     console.error = (...args: any[]) => {
       this.performanceMetrics.errorCount++;
+      
+      // Add developer context to crash reports if available
+      try {
+        if (CrashReporter && typeof CrashReporter.addContext === 'function') {
+          CrashReporter.addContext('developer_metrics', this.getPerformanceMetrics());
+          CrashReporter.addContext('feature_flags', this.getFeatureFlags());
+        }
+      } catch (e) {
+        // CrashReporter not available, skip
+      }
+      
       originalError.apply(console, args);
     };
 
@@ -190,6 +212,8 @@ class DeveloperServiceClass {
     };
   }
 
+  private consoleMonitoringSetup = false;
+
   private setupPerformanceMonitoring() {
     // Update metrics periodically
     setInterval(() => {
@@ -198,23 +222,9 @@ class DeveloperServiceClass {
   }
 
   private integrateCrashReporting() {
-    try {
-      // Enhanced error reporting with developer context
-      const originalReportError = console.error;
-      console.error = (...args: any[]) => {
-        this.performanceMetrics.errorCount++;
-        
-        // Add developer context to crash reports
-        if (CrashReporter && typeof CrashReporter.addContext === 'function') {
-          CrashReporter.addContext('developer_metrics', this.getPerformanceMetrics());
-          CrashReporter.addContext('feature_flags', this.getFeatureFlags());
-        }
-        
-        originalReportError.apply(console, args);
-      };
-    } catch (error) {
-      // CrashReporter not available
-    }
+    // Crash reporting is now integrated in setupConsoleMonitoring
+    // This method is kept for backward compatibility
+    // No need to override console.error again
   }
 
   private setupStoreMonitoring() {

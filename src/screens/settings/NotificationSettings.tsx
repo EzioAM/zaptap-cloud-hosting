@@ -21,7 +21,7 @@ import { Text, ActivityIndicator, IconButton } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -70,7 +70,7 @@ const SettingItem: React.FC<SettingItemProps> = ({
     <TouchableOpacity
       style={[
         styles.settingItem,
-        { backgroundColor: theme.colors.surface.primary }
+        { backgroundColor: theme.colors.surface?.primary || '#FFFFFF' }
       ]}
       onPress={handleToggle}
       disabled={disabled}
@@ -82,19 +82,19 @@ const SettingItem: React.FC<SettingItemProps> = ({
             styles.iconContainer, 
             { backgroundColor: `${iconColor}15` }
           ]}>
-            <Icon name={icon} size={24} color={disabled ? theme.colors.text.tertiary : iconColor} />
+            <Icon name={icon as any} size={24} color={disabled ? theme.colors.text?.tertiary || '#999999' : iconColor} />
           </View>
           <View style={styles.settingText}>
             <Text style={[
               styles.settingTitle,
-              { color: disabled ? theme.colors.text.tertiary : theme.colors.text.primary }
+              { color: disabled ? (theme.colors.text?.tertiary || '#999999') : (theme.colors.text?.primary || '#000000') }
             ]}>
               {title}
             </Text>
             {description && (
               <Text style={[
                 styles.settingDescription,
-                { color: disabled ? theme.colors.text.tertiary : theme.colors.text.secondary }
+                { color: disabled ? (theme.colors.text?.tertiary || '#999999') : (theme.colors.text?.secondary || '#666666') }
               ]}>
                 {description}
               </Text>
@@ -106,10 +106,10 @@ const SettingItem: React.FC<SettingItemProps> = ({
           onValueChange={handleToggle}
           disabled={disabled}
           trackColor={{ 
-            false: theme.colors.border.light, 
+            false: theme.colors.border?.light || '#E0E0E0', 
             true: `${iconColor}40` 
           }}
-          thumbColor={value ? iconColor : theme.colors.text.tertiary}
+          thumbColor={value ? iconColor : theme.colors.text?.tertiary || '#999999'}
         />
       </View>
     </TouchableOpacity>
@@ -167,25 +167,25 @@ const TimePicker: React.FC<TimePickerProps> = ({ label, time, onTimeChange, disa
       disabled={disabled}
       style={[
         styles.timePicker,
-        { backgroundColor: theme.colors.surface.primary }
+        { backgroundColor: theme.colors.surface?.primary || '#FFFFFF' }
       ]}
       activeOpacity={0.7}
     >
       <Icon 
         name="clock-outline" 
         size={20} 
-        color={disabled ? theme.colors.text.tertiary : theme.colors.brand.primary}
+        color={disabled ? (theme.colors.text?.tertiary || '#999999') : (theme.colors.brand?.primary || '#6366F1')}
         style={styles.clockIcon}
       />
       <Text style={[
         styles.timeLabel,
-        { color: disabled ? theme.colors.text.tertiary : theme.colors.text.secondary }
+        { color: disabled ? (theme.colors.text?.tertiary || '#999999') : (theme.colors.text?.secondary || '#666666') }
       ]}>
         {label}
       </Text>
       <Text style={[
         styles.timeValue,
-        { color: disabled ? theme.colors.text.tertiary : theme.colors.text.primary }
+        { color: disabled ? (theme.colors.text?.tertiary || '#999999') : (theme.colors.text?.primary || '#000000') }
       ]}>
         {time}
       </Text>
@@ -321,7 +321,7 @@ const NotificationSettings: React.FC = () => {
       title: 'Enable Notifications',
       description: 'Master toggle for all push notifications',
       icon: 'bell',
-      color: theme.colors.brand.primary,
+      color: theme.colors.brand?.primary || '#6366F1',
       isEnabled: true, // Always enabled regardless of other settings
     },
     {
@@ -329,7 +329,7 @@ const NotificationSettings: React.FC = () => {
       title: 'Automation Alerts',
       description: 'Execution status and automation updates',
       icon: 'robot',
-      color: theme.colors.brand.secondary,
+      color: theme.colors.brand?.secondary || '#8B5CF6',
       value: localPreferences.categories.automations,
       onChange: (value: boolean) => updateCategoryPreference('automations', value),
     },
@@ -338,7 +338,7 @@ const NotificationSettings: React.FC = () => {
       title: 'Sharing Notifications',
       description: 'When someone shares content with you',
       icon: 'share-variant',
-      color: theme.colors.semantic.info,
+      color: theme.colors.semantic?.info || '#2196F3',
       value: localPreferences.categories.shares,
       onChange: (value: boolean) => updateCategoryPreference('shares', value),
     },
@@ -347,7 +347,7 @@ const NotificationSettings: React.FC = () => {
       title: 'Social Updates',
       description: 'Follows, reviews, and community activity',
       icon: 'account-group',
-      color: theme.colors.brand.accent,
+      color: theme.colors.brand?.accent || '#EC4899',
       value: localPreferences.categories.social,
       onChange: (value: boolean) => updateCategoryPreference('social', value),
     },
@@ -356,7 +356,7 @@ const NotificationSettings: React.FC = () => {
       title: 'System Notifications',
       description: 'App updates and important announcements',
       icon: 'information',
-      color: theme.colors.semantic.warning,
+      color: theme.colors.semantic?.warning || '#FF9800',
       value: localPreferences.categories.system,
       onChange: (value: boolean) => updateCategoryPreference('system', value),
     },
@@ -368,7 +368,7 @@ const NotificationSettings: React.FC = () => {
       title: 'Sound',
       description: 'Play notification sounds',
       icon: 'volume-high',
-      color: theme.colors.semantic.success,
+      color: theme.colors.semantic?.success || '#4CAF50',
       value: localPreferences.sound,
       onChange: (value: boolean) => updateLocalPreference({ sound: value }),
     },
@@ -377,7 +377,7 @@ const NotificationSettings: React.FC = () => {
       title: 'Vibration',
       description: 'Vibrate for notifications',
       icon: 'vibrate',
-      color: theme.colors.brand.primary,
+      color: theme.colors.brand?.primary || '#6366F1',
       value: localPreferences.vibration,
       onChange: (value: boolean) => updateLocalPreference({ vibration: value }),
       showOnIOS: true,
@@ -387,7 +387,7 @@ const NotificationSettings: React.FC = () => {
       title: 'Lock Screen Preview',
       description: 'Show content on lock screen',
       icon: 'eye',
-      color: theme.colors.semantic.info,
+      color: theme.colors.semantic?.info || '#2196F3',
       value: localPreferences.preview,
       onChange: (value: boolean) => updateLocalPreference({ preview: value }),
     },
@@ -395,7 +395,7 @@ const NotificationSettings: React.FC = () => {
 
   if (!isInitialized) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background?.primary || "#F5F5F5" }]}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         
         {/* Loading Header */}
@@ -419,8 +419,8 @@ const NotificationSettings: React.FC = () => {
         </LinearGradient>
 
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.brand.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.text.secondary }]}>
+          <ActivityIndicator size="large" color={theme.colors.brand?.primary || "#6366F1"} />
+          <Text style={[styles.loadingText, { color: theme.colors.text?.secondary || "#666666" }]}>
             Loading notification settings...
           </Text>
         </View>
@@ -429,7 +429,7 @@ const NotificationSettings: React.FC = () => {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background?.primary || "#F5F5F5" }]}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
       {/* Modern Gradient Header */}
@@ -491,24 +491,24 @@ const NotificationSettings: React.FC = () => {
             style={[
               styles.permissionBanner,
               { 
-                backgroundColor: theme.colors.surface.primary,
+                backgroundColor: theme.colors.surface?.primary || "#FFFFFF",
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }]
               }
             ]}
           >
-            <Icon name="alert-circle" size={24} color={theme.colors.semantic.warning} />
+            <Icon name="alert-circle" size={24} color={theme.colors.semantic?.warning || "#FF9800"} />
             <View style={styles.permissionContent}>
-              <Text style={[styles.permissionTitle, { color: theme.colors.text.primary }]}>
+              <Text style={[styles.permissionTitle, { color: theme.colors.text?.primary || "#000000" }]}>
                 Notifications Disabled
               </Text>
-              <Text style={[styles.permissionDescription, { color: theme.colors.text.secondary }]}>
+              <Text style={[styles.permissionDescription, { color: theme.colors.text?.secondary || "#666666" }]}>
                 Enable notifications to receive updates about your automations and important alerts
               </Text>
             </View>
             <TouchableOpacity 
               onPress={handleRequestPermissions} 
-              style={[styles.enableButton, { backgroundColor: theme.colors.semantic.warning }]}
+              style={[styles.enableButton, { backgroundColor: theme.colors.semantic?.warning || "#FF9800" }]}
             >
               <Text style={styles.enableButtonText}>Enable</Text>
             </TouchableOpacity>
@@ -520,18 +520,18 @@ const NotificationSettings: React.FC = () => {
           style={[
             styles.introCard,
             { 
-              backgroundColor: theme.colors.surface.primary,
+              backgroundColor: theme.colors.surface?.primary || "#FFFFFF",
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
             }
           ]}
         >
           <View style={styles.introContent}>
-            <Icon name="bell-outline" size={32} color={theme.colors.brand.primary} />
-            <Text style={[styles.introTitle, { color: theme.colors.text.primary }]}>
+            <Icon name="bell-outline" size={32} color={theme.colors.brand?.primary || "#6366F1"} />
+            <Text style={[styles.introTitle, { color: theme.colors.text?.primary || "#000000" }]}>
               Notification Preferences
             </Text>
-            <Text style={[styles.introSubtitle, { color: theme.colors.text.secondary }]}>
+            <Text style={[styles.introSubtitle, { color: theme.colors.text?.secondary || "#666666" }]}>
               Customize when and how you receive notifications. You can enable or disable specific types of alerts.
             </Text>
           </View>
@@ -547,7 +547,7 @@ const NotificationSettings: React.FC = () => {
             }
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text?.primary || "#000000" }]}>
             General Settings
           </Text>
           
@@ -558,7 +558,7 @@ const NotificationSettings: React.FC = () => {
             onValueChange={(value) => updateLocalPreference({ enabled: value })}
             disabled={permissionStatus !== 'granted'}
             icon="bell"
-            iconColor={theme.colors.brand.primary}
+            iconColor={theme.colors.brand?.primary || "#6366F1"}
             theme={theme}
           />
         </Animated.View>
@@ -573,7 +573,7 @@ const NotificationSettings: React.FC = () => {
             }
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text?.primary || "#000000" }]}>
             Notification Types
           </Text>
           
@@ -615,7 +615,7 @@ const NotificationSettings: React.FC = () => {
             }
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text?.primary || "#000000" }]}>
             Sound & Haptics
           </Text>
           
@@ -664,7 +664,7 @@ const NotificationSettings: React.FC = () => {
             }
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text?.primary || "#000000" }]}>
             Quiet Hours
           </Text>
           
@@ -675,7 +675,7 @@ const NotificationSettings: React.FC = () => {
             onValueChange={(value) => updateQuietHoursPreference({ enabled: value })}
             disabled={isNotificationsDisabled}
             icon="moon"
-            iconColor={theme.colors.semantic.info}
+            iconColor={theme.colors.semantic?.info || "#2196F3"}
             theme={theme}
           />
           
@@ -721,7 +721,7 @@ const NotificationSettings: React.FC = () => {
             style={[
               styles.primaryButton,
               { 
-                backgroundColor: theme.colors.brand.primary,
+                backgroundColor: theme.colors.brand?.primary || "#6366F1",
                 opacity: isSaving || hasChanges ? (isSaving ? 0.7 : 1) : 0.5
               }
             ]}
@@ -745,8 +745,8 @@ const NotificationSettings: React.FC = () => {
             style={[
               styles.testButton,
               { 
-                backgroundColor: theme.colors.surface.primary,
-                borderColor: isNotificationsDisabled ? theme.colors.border.light : theme.colors.brand.secondary,
+                backgroundColor: theme.colors.surface?.primary || "#FFFFFF",
+                borderColor: isNotificationsDisabled ? theme.colors.border?.light || "#E0E0E0" : theme.colors.brand?.secondary || "#8B5CF6",
                 opacity: isNotificationsDisabled ? 0.5 : 1 
               }
             ]}
@@ -756,11 +756,11 @@ const NotificationSettings: React.FC = () => {
             <Icon 
               name="send" 
               size={20} 
-              color={isNotificationsDisabled ? theme.colors.text.tertiary : theme.colors.brand.secondary}
+              color={isNotificationsDisabled ? theme.colors.text?.tertiary || "#999999" : theme.colors.brand?.secondary || "#8B5CF6"}
             />
             <Text style={[
               styles.testButtonText,
-              { color: isNotificationsDisabled ? theme.colors.text.tertiary : theme.colors.brand.secondary }
+              { color: isNotificationsDisabled ? theme.colors.text?.tertiary || "#999999" : theme.colors.brand?.secondary || "#8B5CF6" }
             ]}>
               Send Test Notification
             </Text>
@@ -777,8 +777,8 @@ const NotificationSettings: React.FC = () => {
             }
           ]}
         >
-          <Icon name="information" size={16} color={theme.colors.text.tertiary} />
-          <Text style={[styles.noteText, { color: theme.colors.text.tertiary }]}>
+          <Icon name="information" size={16} color={theme.colors.text?.tertiary || "#999999"} />
+          <Text style={[styles.noteText, { color: theme.colors.text?.tertiary || "#999999" }]}>
             Note: Permission status and system-level notification settings may override these preferences. Check your device settings if notifications aren't working as expected.
           </Text>
         </Animated.View>

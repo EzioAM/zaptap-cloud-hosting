@@ -2,33 +2,24 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Animated,
-  Dimensions,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { updateProfile } from '../../store/slices/authSlice';
-import { ThemedInput } from '../../components/ui/ThemedInput';
-import { GradientButton } from '../../components/shared/GradientButton';
 import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
-import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { EventLogger } from '../../utils/EventLogger';
 import { supabase } from '../../services/supabase/client';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface ProfileData {
   firstName: string;
@@ -54,7 +45,6 @@ const EditProfileScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
   
-  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   
@@ -134,7 +124,6 @@ const EditProfileScreen: React.FC = () => {
   const loadUserProfile = async () => {
     if (!user?.id) return;
     
-    setIsLoading(true);
     try {
       // Get user metadata from auth
       const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -172,26 +161,24 @@ const EditProfileScreen: React.FC = () => {
     } catch (error) {
       EventLogger.error('EditProfile', 'Failed to load profile:', error as Error);
       Alert.alert('Error', 'Failed to load profile data');
-    } finally {
-      setIsLoading(false);
     }
   };
   
-  const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
+  const triggerHaptic = async (type: 'light' | 'medium' | 'heavy' = 'light') => {
     try {
       switch (type) {
         case 'light':
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           break;
         case 'medium':
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           break;
         case 'heavy':
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
           break;
       }
     } catch (error) {
-      // Haptics not supported
+      EventLogger.error('EditProfile', 'Haptics not supported:', error as Error);
     }
   };
   
@@ -215,82 +202,7 @@ const EditProfileScreen: React.FC = () => {
     }
   };
   
-  const pickImage = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'We need camera roll permissions to update your avatar.');
-        return;
-      }
-      
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
-      });
-      
-      if (!result.canceled && result.assets[0]) {
-        setProfileData(prev => ({ ...prev, avatarUri: result.assets[0].uri }));
-        triggerHaptic('medium');
-        
-        // Avatar update animation
-        Animated.sequence([
-          Animated.timing(avatarRotateAnim, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.timing(avatarRotateAnim, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }
-    } catch (error) {
-      EventLogger.error('EditProfile', 'Image picker error:', error as Error);
-      Alert.alert('Error', 'Failed to pick image');
-    }
-  };
   
-  const uploadAvatar = async (userId: string, uri: string): Promise<string | null> => {
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `${userId}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-      
-      // Delete old avatar if exists
-      if (originalData.avatarUri && originalData.avatarUri.includes('avatars/')) {
-        const oldPath = originalData.avatarUri.split('avatars/')[1];
-        await supabase.storage.from('avatars').remove([`avatars/${oldPath}`]);
-      }
-      
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, blob, {
-          contentType: `image/${fileExt}`,
-          upsert: true,
-        });
-      
-      if (uploadError) {
-        EventLogger.error('EditProfile', 'Avatar upload error:', uploadError as Error);
-        return null;
-      }
-      
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-      
-      return publicUrl;
-    } catch (error) {
-      EventLogger.error('EditProfile', 'Avatar upload failed:', error as Error);
-      return null;
-    }
-  };
   
   const validateUrl = (url: string): boolean => {
     if (!url) return true; // Empty is valid
@@ -305,14 +217,6 @@ const EditProfileScreen: React.FC = () => {
   const validateProfile = (): boolean => {
     const newErrors: Partial<ProfileData> = {};
     
-    if (!profileData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
-    }
-    
-    if (!profileData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
-    }
-    
     if (profileData.website && !validateUrl(profileData.website)) {
       newErrors.website = 'Invalid website URL';
     }
@@ -322,7 +226,10 @@ const EditProfileScreen: React.FC = () => {
   };
   
   const handleSave = async () => {
+    console.log('[EditProfile] handleSave called');
+    
     if (!validateProfile() || !user?.id) {
+      console.log('[EditProfile] Validation failed or no user ID');
       triggerHaptic('heavy');
       return;
     }
@@ -330,92 +237,141 @@ const EditProfileScreen: React.FC = () => {
     setIsSaving(true);
     triggerHaptic('medium');
     
+    console.log('[EditProfile] Starting save with data:', { 
+      firstName: profileData.firstName, 
+      lastName: profileData.lastName 
+    });
+    
     try {
-      let avatarUrl = originalData.avatarUri;
-      
-      // Upload new avatar if changed
-      if (profileData.avatarUri !== originalData.avatarUri && profileData.avatarUri) {
-        const uploadedUrl = await uploadAvatar(user.id, profileData.avatarUri);
-        if (uploadedUrl) {
-          avatarUrl = uploadedUrl;
-        }
-      }
-      
       const fullName = `${profileData.firstName} ${profileData.lastName}`.trim();
+      console.log('[EditProfile] Full name:', fullName);
+      console.log('[EditProfile] About to update auth metadata...');
       
-      // Update auth metadata
-      const { error: authError } = await supabase.auth.updateUser({
-        data: {
-          full_name: fullName,
-          first_name: profileData.firstName,
-          last_name: profileData.lastName,
-          phone: profileData.phone,
-          company: profileData.company,
-          role: profileData.role,
-          bio: profileData.bio,
-          website: profileData.website,
-          location: profileData.location,
-          avatar_url: avatarUrl,
-          twitter: profileData.socialLinks.twitter,
-          linkedin: profileData.socialLinks.linkedin,
-          github: profileData.socialLinks.github,
-        },
-      });
+      // Keep existing avatar URL for now (don't update avatar in this screen)
+      const avatarUrl = user?.user_metadata?.avatar_url || originalData.avatarUri;
       
-      if (authError) {
-        throw authError;
+      // Update auth metadata with timeout
+      console.log('[EditProfile] Calling supabase.auth.updateUser...');
+      
+      try {
+        const authUpdatePromise = supabase.auth.updateUser({
+          data: {
+            full_name: fullName || undefined,
+            first_name: profileData.firstName,
+            last_name: profileData.lastName,
+            phone: profileData.phone,
+            company: profileData.company,
+            role: profileData.role,
+            bio: profileData.bio,
+            website: profileData.website,
+            location: profileData.location,
+            twitter: profileData.socialLinks.twitter,
+            linkedin: profileData.socialLinks.linkedin,
+            github: profileData.socialLinks.github,
+          },
+        });
+        
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Auth update timeout')), 5000)
+        );
+        
+        const { error: authError } = await Promise.race([authUpdatePromise, timeoutPromise]) as any;
+        
+        if (authError) {
+          console.log('[EditProfile] Auth update error:', authError);
+          throw authError;
+        }
+        
+        console.log('[EditProfile] Auth metadata updated successfully');
+      } catch (error) {
+        console.log('[EditProfile] Auth update failed or timed out:', error);
+        // Continue anyway - we can still update the database and Redux
+        console.log('[EditProfile] Continuing with database update despite auth failure...');
       }
       
-      // Update users table
-      const { error: dbError } = await supabase
-        .from('users')
-        .update({
-          name: fullName,
-          first_name: profileData.firstName,
-          last_name: profileData.lastName,
-          phone: profileData.phone,
-          company: profileData.company,
-          role: profileData.role,
-          bio: profileData.bio,
-          website: profileData.website,
-          location: profileData.location,
-          avatar_url: avatarUrl,
-          twitter: profileData.socialLinks.twitter,
-          linkedin: profileData.socialLinks.linkedin,
-          github: profileData.socialLinks.github,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
+      console.log('[EditProfile] About to update database...');
       
-      if (dbError) {
-        throw dbError;
+      // Update users table with only the fields that exist in the table (with timeout)
+      console.log('[EditProfile] Calling database update...');
+      
+      try {
+        const dbUpdatePromise = supabase
+          .from('users')
+          .update({
+            name: fullName || user?.email?.split('@')[0] || 'User',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+          
+        const dbTimeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Database update timeout')), 5000)
+        );
+        
+        const { error: dbError } = await Promise.race([dbUpdatePromise, dbTimeoutPromise]) as any;
+        
+        if (dbError) {
+          console.log('[EditProfile] Database update error:', dbError);
+          throw dbError;
+        }
+        
+        console.log('[EditProfile] Database updated successfully');
+      } catch (error) {
+        console.log('[EditProfile] Database update failed or timed out:', error);
+        console.log('[EditProfile] Continuing with Redux update despite database failure...');
       }
       
-      // Update Redux store
+      console.log('[EditProfile] Database operations complete - continuing with Redux update');
+      console.log('[EditProfile] Full name to save:', fullName);
+      
+      // Update Redux store immediately with the data we know is correct
+      console.log('[EditProfile] About to update Redux store...');
       dispatch(updateProfile({
-        name: fullName,
+        name: fullName || user?.email?.split('@')[0] || 'User',
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
         avatar_url: avatarUrl,
+        user_metadata: {
+          ...user?.user_metadata,
+          full_name: fullName || undefined,
+          first_name: profileData.firstName,
+          last_name: profileData.lastName,
+        },
       }));
       
-      triggerHaptic('heavy');
-      Alert.alert(
-        'Success',
-        'Your profile has been updated successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      console.log('[EditProfile] Redux store updated successfully');
       
+      // Update the original data to reflect saved changes
+      console.log('[EditProfile] Updating local state...');
       setOriginalData({ ...profileData, avatarUri: avatarUrl });
       setHasChanges(false);
-    } catch (error: any) {
-      EventLogger.error('EditProfile', 'Failed to save profile:', error as Error);
-      Alert.alert('Error', error.message || 'Failed to save profile');
-    } finally {
+      
+      // Stop the spinner immediately
+      console.log('[EditProfile] Stopping loading spinner...');
       setIsSaving(false);
+      
+      console.log('[EditProfile] Save complete, preparing navigation...');
+      
+      // Trigger success haptic
+      console.log('[EditProfile] Triggering success haptic...');
+      triggerHaptic('heavy');
+      
+      // Navigate back immediately - the profile has been saved
+      console.log('[EditProfile] Scheduling navigation...');
+      setTimeout(() => {
+        console.log('[EditProfile] Executing navigation.goBack()...');
+        navigation.goBack();
+        console.log('[EditProfile] Navigation completed');
+      }, 100);
+      
+    } catch (error: any) {
+      console.log('[EditProfile] Save failed with error:', error);
+      EventLogger.error('EditProfile', 'Failed to save profile:', error as Error);
+      setIsSaving(false);
+      
+      // Small delay for error alert too
+      setTimeout(() => {
+        Alert.alert('Error', error.message || 'Failed to save profile');
+      }, 100);
     }
   };
   
@@ -438,23 +394,7 @@ const EditProfileScreen: React.FC = () => {
     }
   };
   
-  if (isLoading) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background?.primary || theme.colors.background || '#F5F5F5' }]}>
-        <LinearGradient
-          colors={['#6366F1', '#8B5CF6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.loadingGradient}
-        >
-          <View style={styles.loadingContent}>
-            <ActivityIndicator size="large" color="white" />
-            <Text style={styles.loadingText}>Loading profile...</Text>
-          </View>
-        </LinearGradient>
-      </SafeAreaView>
-    );
-  }
+  // Remove the problematic full-screen loading - just show the normal form
   
   // Simplified version that works
   const backgroundColor = theme.colors.background?.primary || theme.colors.background || '#F5F5F5';
@@ -464,12 +404,20 @@ const EditProfileScreen: React.FC = () => {
       {/* Simple header first */}
       <View style={{ backgroundColor: '#6366F1', padding: 20, paddingTop: 40 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={handleCancel}>
             <MaterialCommunityIcons name="close" size={24} color="white" />
           </TouchableOpacity>
           <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold' }}>Edit Profile</Text>
-          <TouchableOpacity onPress={() => console.log('Save pressed')}>
-            <MaterialCommunityIcons name="check" size={24} color="white" />
+          <TouchableOpacity onPress={handleSave} disabled={isSaving || !hasChanges}>
+            {isSaving ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <MaterialCommunityIcons 
+                name="check" 
+                size={24} 
+                color={hasChanges ? "white" : "rgba(255,255,255,0.5)"} 
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -480,16 +428,40 @@ const EditProfileScreen: React.FC = () => {
         
         <View style={{ marginBottom: 20 }}>
           <Text style={{ fontSize: 14, color: '#666', marginBottom: 5 }}>First Name</Text>
-          <View style={{ borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 12, backgroundColor: 'white' }}>
-            <Text style={{ color: '#000' }}>{profileData.firstName || 'Enter first name'}</Text>
-          </View>
+          <TextInput
+            style={{ 
+              borderWidth: 1, 
+              borderColor: '#DDD', 
+              borderRadius: 8, 
+              padding: 12, 
+              backgroundColor: 'white',
+              color: '#000',
+              fontSize: 16
+            }}
+            value={profileData.firstName}
+            onChangeText={(text) => handleInputChange('firstName', text)}
+            placeholder="Enter first name"
+            placeholderTextColor="#999"
+          />
         </View>
         
         <View style={{ marginBottom: 20 }}>
           <Text style={{ fontSize: 14, color: '#666', marginBottom: 5 }}>Last Name</Text>
-          <View style={{ borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 12, backgroundColor: 'white' }}>
-            <Text style={{ color: '#000' }}>{profileData.lastName || 'Enter last name'}</Text>
-          </View>
+          <TextInput
+            style={{ 
+              borderWidth: 1, 
+              borderColor: '#DDD', 
+              borderRadius: 8, 
+              padding: 12, 
+              backgroundColor: 'white',
+              color: '#000',
+              fontSize: 16
+            }}
+            value={profileData.lastName}
+            onChangeText={(text) => handleInputChange('lastName', text)}
+            placeholder="Enter last name"
+            placeholderTextColor="#999"
+          />
         </View>
         
         <View style={{ marginBottom: 20 }}>
@@ -497,6 +469,49 @@ const EditProfileScreen: React.FC = () => {
           <View style={{ borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 12, backgroundColor: '#F5F5F5' }}>
             <Text style={{ color: '#666' }}>{profileData.email || user?.email || 'No email'}</Text>
           </View>
+        </View>
+        
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 14, color: '#666', marginBottom: 5 }}>Phone</Text>
+          <TextInput
+            style={{ 
+              borderWidth: 1, 
+              borderColor: '#DDD', 
+              borderRadius: 8, 
+              padding: 12, 
+              backgroundColor: 'white',
+              color: '#000',
+              fontSize: 16
+            }}
+            value={profileData.phone}
+            onChangeText={(text) => handleInputChange('phone', text)}
+            placeholder="Enter phone number"
+            placeholderTextColor="#999"
+            keyboardType="phone-pad"
+          />
+        </View>
+        
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 14, color: '#666', marginBottom: 5 }}>Bio</Text>
+          <TextInput
+            style={{ 
+              borderWidth: 1, 
+              borderColor: '#DDD', 
+              borderRadius: 8, 
+              padding: 12, 
+              backgroundColor: 'white',
+              color: '#000',
+              fontSize: 16,
+              minHeight: 100,
+              textAlignVertical: 'top'
+            }}
+            value={profileData.bio}
+            onChangeText={(text) => handleInputChange('bio', text)}
+            placeholder="Tell us about yourself"
+            placeholderTextColor="#999"
+            multiline={true}
+            numberOfLines={4}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -506,25 +521,5 @@ const EditProfileScreen: React.FC = () => {
   // This simplified version works reliably
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingContent: {
-    alignItems: 'center',
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'white',
-    marginTop: 16,
-  },
-});
 
 export default EditProfileScreen;

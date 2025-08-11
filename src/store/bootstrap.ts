@@ -33,7 +33,7 @@ export const bootstrapServices = async (store: Store<RootState, any>) => {
 
     // Initialize Supabase auth listener
     const { supabase } = await import('../services/supabase/client');
-    const { restoreSession, signOutSuccess, updateTokens } = await import('./slices/authSlice');
+    const { restoreSession, signOutSuccess, updateTokens, setUser } = await import('./slices/authSlice');
     
     // Set up auth state change listener
     supabase.auth.onAuthStateChange(async (event, session) => {
@@ -41,13 +41,39 @@ export const bootstrapServices = async (store: Store<RootState, any>) => {
       
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session) {
+          // Build the name using the best available data
+          let userName = 'User';
+          const metadata = session.user.user_metadata || {};
+          
+          // Try full_name first
+          if (metadata.full_name) {
+            userName = metadata.full_name;
+          }
+          // Try first and last name combination
+          else if (metadata.first_name || metadata.last_name) {
+            const firstName = metadata.first_name || '';
+            const lastName = metadata.last_name || '';
+            userName = `${firstName} ${lastName}`.trim() || 'User';
+          }
+          // Try name field
+          else if (metadata.name) {
+            userName = metadata.name;
+          }
+          // Fall back to email prefix only as last resort
+          else if (session.user.email) {
+            userName = session.user.email.split('@')[0];
+          }
+          
           store.dispatch(restoreSession({
             user: {
               id: session.user.id,
               email: session.user.email!,
-              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-              avatar_url: session.user.user_metadata?.avatar_url,
-              role: session.user.user_metadata?.role || 'user',
+              name: userName,
+              first_name: metadata.first_name,
+              last_name: metadata.last_name,
+              avatar_url: metadata.avatar_url,
+              role: metadata.role || 'user',
+              user_metadata: metadata,
             },
             accessToken: session.access_token,
             refreshToken: session.refresh_token,
@@ -57,10 +83,49 @@ export const bootstrapServices = async (store: Store<RootState, any>) => {
         store.dispatch(signOutSuccess());
       } else if (event === 'USER_UPDATED') {
         if (session) {
+          // Update tokens
           store.dispatch(updateTokens({
             accessToken: session.access_token,
             refreshToken: session.refresh_token,
           }));
+          
+          // Also update the user data with the latest metadata
+          const updatedUser = session.user;
+          if (updatedUser) {
+            // Build the name using the best available data
+            let userName = 'User';
+            const metadata = updatedUser.user_metadata || {};
+            
+            // Try full_name first
+            if (metadata.full_name) {
+              userName = metadata.full_name;
+            }
+            // Try first and last name combination
+            else if (metadata.first_name || metadata.last_name) {
+              const firstName = metadata.first_name || '';
+              const lastName = metadata.last_name || '';
+              userName = `${firstName} ${lastName}`.trim() || 'User';
+            }
+            // Try name field
+            else if (metadata.name) {
+              userName = metadata.name;
+            }
+            // Fall back to email prefix only as last resort
+            else if (updatedUser.email) {
+              userName = updatedUser.email.split('@')[0];
+            }
+            
+            store.dispatch(setUser({
+              id: updatedUser.id,
+              email: updatedUser.email!,
+              name: userName,
+              first_name: metadata.first_name,
+              last_name: metadata.last_name,
+              avatar_url: metadata.avatar_url,
+              role: metadata.role || 'user',
+              user_metadata: metadata,
+            }));
+          }
         }
       }
     });

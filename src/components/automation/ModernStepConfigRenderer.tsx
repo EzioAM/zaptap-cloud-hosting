@@ -924,6 +924,352 @@ const ModernStepConfigRenderer: React.FC<ModernStepConfigRendererProps> = ({
         </FormSection>
       );
 
+    case 'cloud_storage':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="cloud-upload"
+            title="Cloud Storage"
+            description="Upload, download, or manage files in cloud storage"
+            color="#2196F3"
+          />
+          <ModernSegmentedButtons
+            value={config.action || 'upload'}
+            onValueChange={(value) => updateConfig({ action: value })}
+            buttons={[
+              { value: 'upload', label: 'Upload' },
+              { value: 'download', label: 'Download' },
+              { value: 'list', label: 'List' },
+              { value: 'delete', label: 'Delete' },
+            ]}
+          />
+          <ModernTextInput
+            label="Bucket Name"
+            value={config.bucket || 'user-files'}
+            onChangeText={(text) => updateConfig({ bucket: text })}
+            placeholder="user-files"
+            icon="folder"
+            helper="Storage bucket name (default: user-files)"
+          />
+          <ModernTextInput
+            label="File Name"
+            value={config.fileName || ''}
+            onChangeText={(text) => updateConfig({ fileName: text })}
+            placeholder="document.txt"
+            icon="file"
+          />
+          {config.action === 'upload' && (
+            <ModernTextInput
+              label="Content/Variable"
+              value={config.content || ''}
+              onChangeText={(text) => updateConfig({ content: text })}
+              placeholder="File content or {{variableName}}"
+              multiline
+              icon="text"
+              helper="Content to upload or variable containing content"
+            />
+          )}
+          <ModernTextInput
+            label="Result Variable"
+            value={config.variableName || ''}
+            onChangeText={(text) => updateConfig({ variableName: text })}
+            placeholder="cloudResult"
+            icon="variable"
+          />
+        </FormSection>
+      );
+
+    case 'file':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="file"
+            title="File Operations"
+            description="Read, write, or manage local files on device"
+            color="#4CAF50"
+          />
+          <ModernSegmentedButtons
+            value={config.action || 'read'}
+            onValueChange={(value) => updateConfig({ action: value })}
+            buttons={[
+              { value: 'read', label: 'Read' },
+              { value: 'write', label: 'Write' },
+              { value: 'append', label: 'Append' },
+              { value: 'delete', label: 'Delete' },
+              { value: 'pick', label: 'Pick' },
+            ]}
+          />
+          <ModernTextInput
+            label="File Name"
+            value={config.fileName || ''}
+            onChangeText={(text) => updateConfig({ fileName: text })}
+            placeholder="notes.txt"
+            icon="file-document"
+            helper="File name in app's document directory"
+          />
+          {(config.action === 'write' || config.action === 'append') && (
+            <ModernTextInput
+              label="Content"
+              value={config.content || ''}
+              onChangeText={(text) => updateConfig({ content: text })}
+              placeholder="Content to write or {{variableName}}"
+              multiline
+              numberOfLines={3}
+              icon="text"
+            />
+          )}
+          <ModernTextInput
+            label="Result Variable"
+            value={config.variableName || ''}
+            onChangeText={(text) => updateConfig({ variableName: text })}
+            placeholder="fileContent"
+            icon="variable"
+          />
+        </FormSection>
+      );
+
+    case 'random':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="dice-multiple"
+            title="Random Generator"
+            description="Generate random numbers, strings, UUIDs, and more"
+            color="#FF6B6B"
+          />
+          <ModernSegmentedButtons
+            value={config.type || 'number'}
+            onValueChange={(value) => updateConfig({ type: value })}
+            buttons={[
+              { value: 'number', label: 'Number' },
+              { value: 'uuid', label: 'UUID' },
+              { value: 'string', label: 'String' },
+              { value: 'choice', label: 'Choice' },
+            ]}
+          />
+          {config.type === 'number' && (
+            <>
+              <ModernTextInput
+                label="Minimum"
+                value={config.min?.toString() || '1'}
+                onChangeText={(text) => updateConfig({ min: parseInt(text) || 1 })}
+                placeholder="1"
+                keyboardType="numeric"
+                icon="numeric-1"
+              />
+              <ModernTextInput
+                label="Maximum"
+                value={config.max?.toString() || '100'}
+                onChangeText={(text) => updateConfig({ max: parseInt(text) || 100 })}
+                placeholder="100"
+                keyboardType="numeric"
+                icon="numeric-9-plus"
+              />
+            </>
+          )}
+          {config.type === 'string' && (
+            <>
+              <ModernTextInput
+                label="Length"
+                value={config.length?.toString() || '10'}
+                onChangeText={(text) => updateConfig({ length: parseInt(text) || 10 })}
+                placeholder="10"
+                keyboardType="numeric"
+                icon="ruler"
+              />
+              <ModernTextInput
+                label="Characters"
+                value={config.chars || 'alphanumeric'}
+                onChangeText={(text) => updateConfig({ chars: text })}
+                placeholder="alphanumeric, letters, numbers, hex"
+                icon="alphabetical"
+              />
+            </>
+          )}
+          {config.type === 'choice' && (
+            <ModernTextInput
+              label="Choices (comma separated)"
+              value={config.choices || ''}
+              onChangeText={(text) => updateConfig({ choices: text })}
+              placeholder="Option 1, Option 2, Option 3"
+              icon="format-list-bulleted"
+            />
+          )}
+          <ModernTextInput
+            label="Variable Name"
+            value={config.variableName || ''}
+            onChangeText={(text) => updateConfig({ variableName: text })}
+            placeholder="randomValue"
+            icon="variable"
+          />
+        </FormSection>
+      );
+
+    case 'group':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="group"
+            title="Group Actions"
+            description="Execute multiple steps together in sequence or parallel"
+            color="#3F51B5"
+          />
+          <ModernSegmentedButtons
+            value={config.mode || 'sequential'}
+            onValueChange={(value) => updateConfig({ mode: value })}
+            buttons={[
+              { value: 'sequential', label: 'Sequential' },
+              { value: 'parallel', label: 'Parallel' },
+              { value: 'conditional', label: 'Conditional' },
+            ]}
+          />
+          <ChipGroup
+            label="Continue on Error"
+            value={config.continueOnError || false}
+            onValueChange={(value) => updateConfig({ continueOnError: value })}
+            options={[
+              { value: true, label: 'Yes' },
+              { value: false, label: 'No' },
+            ]}
+          />
+          {config.mode === 'conditional' && (
+            <>
+              <ModernTextInput
+                label="Condition Variable"
+                value={config.conditionVariable || ''}
+                onChangeText={(text) => updateConfig({ conditionVariable: text })}
+                placeholder="isEnabled"
+                icon="help-rhombus"
+              />
+              <ModernTextInput
+                label="Expected Value"
+                value={config.expectedValue || ''}
+                onChangeText={(text) => updateConfig({ expectedValue: text })}
+                placeholder="true"
+                icon="equal"
+              />
+            </>
+          )}
+          <InfoCard
+            icon="information"
+            title="Note"
+            description="Add child steps after creating this group action"
+            color="#757575"
+          />
+        </FormSection>
+      );
+
+    case 'external_automation':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="play-circle"
+            title="Run Automation"
+            description="Trigger another automation by name or ID"
+            color="#E91E63"
+          />
+          <ModernTextInput
+            label="Automation Name or ID"
+            value={config.automationId || ''}
+            onChangeText={(text) => updateConfig({ automationId: text })}
+            placeholder="My Other Automation"
+            icon="play"
+            helper="Name or ID of the automation to run"
+          />
+          <ChipGroup
+            label="Wait for Completion"
+            value={config.waitForCompletion || false}
+            onValueChange={(value) => updateConfig({ waitForCompletion: value })}
+            options={[
+              { value: true, label: 'Yes' },
+              { value: false, label: 'No' },
+            ]}
+          />
+          {config.waitForCompletion && (
+            <ModernTextInput
+              label="Timeout (seconds)"
+              value={config.timeout?.toString() || '30'}
+              onChangeText={(text) => updateConfig({ timeout: parseInt(text) || 30 })}
+              placeholder="30"
+              keyboardType="numeric"
+              icon="timer"
+            />
+          )}
+          <ModernTextInput
+            label="Input Variables (JSON)"
+            value={config.inputs || '{}'}
+            onChangeText={(text) => updateConfig({ inputs: text })}
+            placeholder='{"key": "value"}'
+            multiline
+            icon="code-json"
+            helper="Variables to pass to the automation"
+          />
+        </FormSection>
+      );
+
+    case 'qr_code':
+      return (
+        <FormSection>
+          <InfoCard
+            icon="qrcode"
+            title="QR Code"
+            description="Generate QR codes with custom data"
+            color="#212121"
+          />
+          <ModernSegmentedButtons
+            value={config.action || 'generate'}
+            onValueChange={(value) => updateConfig({ action: value })}
+            buttons={[
+              { value: 'generate', label: 'Generate' },
+              { value: 'generateFile', label: 'Save File' },
+              { value: 'share', label: 'Share' },
+            ]}
+          />
+          <ModernTextInput
+            label="Data"
+            value={config.data || ''}
+            onChangeText={(text) => updateConfig({ data: text })}
+            placeholder="https://example.com or {{variableName}}"
+            multiline
+            icon="text"
+            helper="Text, URL, or data to encode"
+          />
+          {(config.action === 'generateFile' || config.action === 'share') && (
+            <ModernTextInput
+              label="File Name"
+              value={config.fileName || ''}
+              onChangeText={(text) => updateConfig({ fileName: text })}
+              placeholder="qr_code.png"
+              icon="file-image"
+            />
+          )}
+          {config.action === 'share' && (
+            <ModernTextInput
+              label="Share Message"
+              value={config.message || ''}
+              onChangeText={(text) => updateConfig({ message: text })}
+              placeholder="Check out this QR code"
+              icon="message"
+            />
+          )}
+          <ModernTextInput
+            label="Size (pixels)"
+            value={config.size?.toString() || '200'}
+            onChangeText={(text) => updateConfig({ size: parseInt(text) || 200 })}
+            placeholder="200"
+            keyboardType="numeric"
+            icon="resize"
+          />
+          <ModernTextInput
+            label="Variable Name"
+            value={config.variableName || ''}
+            onChangeText={(text) => updateConfig({ variableName: text })}
+            placeholder="qrCodeData"
+            icon="variable"
+          />
+        </FormSection>
+      );
+
     default:
       return (
         <InfoCard

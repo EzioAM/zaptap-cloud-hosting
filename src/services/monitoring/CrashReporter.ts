@@ -124,8 +124,8 @@ class CrashReporterService {
 
       // Initialize synchronous setup first
       await Promise.resolve().then(() => {
-        // Setup global error handlers
-        this.setupGlobalErrorHandlers();
+        // Skip global error handlers - ErrorUtils not available in this environment
+        // this.setupGlobalErrorHandlers(); // Disabled to prevent runtime errors
         
         // Setup console interception
         this.setupConsoleInterception();
@@ -543,44 +543,10 @@ class CrashReporterService {
    * Setup global error handlers
    */
   private setupGlobalErrorHandlers(): void {
-    // Handle JavaScript errors
-    if (typeof ErrorUtils !== 'undefined') {
-      const originalHandler = ErrorUtils.getGlobalHandler();
-      ErrorUtils.setGlobalHandler((error: Error, isFatal: boolean) => {
-        this.createAndQueueReport({
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-          type: 'javascript',
-          fatal: isFatal,
-        }, undefined, isFatal ? 'critical' : 'high');
-
-        // Call original handler
-        if (originalHandler) {
-          originalHandler(error, isFatal);
-        }
-      });
-    }
-
-    // Handle unhandled promise rejections
-    if (this.config.captureUnhandledPromiseRejections && typeof global !== 'undefined') {
-      const originalHandler = global.onunhandledrejection;
-      global.onunhandledrejection = (event: any) => {
-        this.createAndQueueReport({
-          name: 'UnhandledPromiseRejection',
-          message: event.reason?.message || 'Unhandled promise rejection',
-          stack: event.reason?.stack,
-          type: 'unhandled_rejection',
-          fatal: false,
-        }, {
-          promise: event.promise?.toString(),
-        }, 'high');
-        
-        if (originalHandler) {
-          originalHandler(event);
-        }
-      };
-    }
+    // DISABLED: ErrorUtils not available in all React Native environments  
+    // This prevents "Cannot read property 'setGlobalHandler' of undefined" errors
+    // TODO: Re-enable after Expo SDK/React Native compatibility issues are resolved
+    return;
   }
 
   /**

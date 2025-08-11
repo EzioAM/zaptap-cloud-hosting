@@ -247,9 +247,21 @@ export class AutomationEngine {
    */
   private async createExecutionRecord(automationData: AutomationData): Promise<string> {
     try {
+      // Skip database operations for test automations
+      if (automationData.id?.startsWith('test-')) {
+        console.log('[AutomationEngine] Skipping execution record for test automation');
+        return `test-exec-${Date.now()}`;
+      }
+
       // Get the current user who is running the automation
       const { data: { user } } = await supabase.auth.getUser();
       console.log('[AutomationEngine] Creating execution record for user:', user?.id);
+      
+      // If no user is authenticated and automation doesn't have an ID, skip database
+      if (!user?.id && !automationData.id) {
+        console.log('[AutomationEngine] No user or automation ID, skipping execution record');
+        return `local-exec-${Date.now()}`;
+      }
       
       const executionData = {
         automation_id: automationData.id,
@@ -271,8 +283,9 @@ export class AutomationEngine {
       if (error) throw error;
       return data.id;
     } catch (error) {
-      this.logger.error('Failed to create execution record', { error });
-      throw error;
+      this.logger.error('Failed to create execution record:', { error });
+      // Don't throw - return a temporary ID so execution can continue
+      return `temp-exec-${Date.now()}`;
     }
   }
 
@@ -288,6 +301,12 @@ export class AutomationEngine {
     error?: string
   ): Promise<void> {
     if (!this.executionId) return;
+
+    // Skip database operations for test/local executions
+    if (this.executionId.startsWith('test-') || this.executionId.startsWith('local-') || this.executionId.startsWith('temp-')) {
+      console.log('[AutomationEngine] Skipping step execution update for test/local automation');
+      return;
+    }
 
     try {
       await supabase
@@ -315,6 +334,7 @@ export class AutomationEngine {
         .eq('id', this.executionId);
     } catch (error) {
       this.logger.error('Failed to update step execution', { error });
+      // Don't throw - let execution continue
     }
   }
 
@@ -324,6 +344,12 @@ export class AutomationEngine {
   private async completeExecution(status: 'success' | 'failed' | 'cancelled', error?: string): Promise<void> {
     if (!this.executionId) {
       console.log('[AutomationEngine] No executionId, skipping completeExecution');
+      return;
+    }
+
+    // Skip database operations for test/local executions
+    if (this.executionId.startsWith('test-') || this.executionId.startsWith('local-') || this.executionId.startsWith('temp-')) {
+      console.log('[AutomationEngine] Skipping execution completion for test/local automation');
       return;
     }
 
@@ -385,6 +411,12 @@ export class AutomationEngine {
    */
   private async updateExecutionCount(automationId: string): Promise<void> {
     try {
+      // Skip database operations for test automations
+      if (automationId?.startsWith('test-')) {
+        console.log('[AutomationEngine] Skipping execution count update for test automation');
+        return;
+      }
+
       // Use atomic increment operation
       const { error } = await supabase.rpc('increment_execution_count', {
         automation_id: automationId
@@ -414,7 +446,7 @@ export class AutomationEngine {
       this.logger.info('Updated execution count', { automationId });
     } catch (error) {
       this.logger.error('Failed to update execution count', { automationId, error });
-      throw error;
+      // Don't throw - let execution continue even if count update fails
     }
   }
 

@@ -27,6 +27,7 @@ interface StepCardProps {
   isSelected?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
   readonly?: boolean;
 }

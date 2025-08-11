@@ -3,7 +3,7 @@ export * from './Button';
 export * from './Card';
 export * from './Badge';
 export * from './IconButton';
-export * from './Shimmer';
+export * from './Shimmer/index';
 
 // Enhanced components
 export * from './InteractiveElement/InteractiveElement';

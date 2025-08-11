@@ -190,7 +190,7 @@ const FeaturedCard: React.FC<FeaturedCardProps> = ({
             <View style={styles.featuredCreator}>
               <Ionicons name="person-circle" size={20} color={colors.text.tertiary} />
               <Text style={[styles.featuredCreatorText, { color: colors.text.secondary }]}>
-                {automation.createdBy.username}
+                {automation.createdBy?.username || automation.author || "Community"}
               </Text>
             </View>
             

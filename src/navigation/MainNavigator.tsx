@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ModernBottomTabNavigator } from './ModernBottomTabNavigator';
 // import { ModernBottomTabNavigator } from './EmergencyBottomTabNavigator';
 import AutomationBuilderScreen from '../screens/automation/AutomationBuilderScreen';
+import ModernAutomationBuilder from '../screens/modern/ModernAutomationBuilder';
 import AutomationDetailsScreen from '../screens/automation/AutomationDetailsScreen';
 import { ExecutionHistoryScreen } from '../screens/ExecutionHistoryScreen';
 import TemplatesScreen from '../screens/automation/TemplatesScreen';
@@ -29,7 +30,8 @@ import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
 import EmailPreferencesScreen from '../screens/settings/EmailPreferencesScreen';
 import PrivacyPolicyScreen from '../screens/placeholder/PrivacyPolicyScreen';
-import EnhancedSettingsScreen from '../screens/settings/EnhancedSettingsScreen';
+// import EnhancedSettingsScreen from '../screens/settings/EnhancedSettingsScreen';
+import SimpleSettingsScreen from '../screens/settings/SimpleSettingsScreen';
 import ScannerScreen from '../screens/modern/ScannerScreen';
 // Orphaned screens to be integrated
 import SearchScreen from '../screens/discover/SearchScreen';
@@ -37,6 +39,86 @@ import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import MyAutomationsScreen from '../screens/automation/MyAutomationsScreen';
 import GalleryScreenWrapper from '../screens/automation/GalleryScreenWrapper';
 import { AnalyticsDashboard } from '../screens/profile/AnalyticsDashboard';
+// Additional screens to integrate
+import NotificationSettings from '../screens/settings/NotificationSettings';
+// import SecurityScreen from '../screens/settings/SecurityScreen';
+import EnhancedSettingsScreen from '../screens/settings/EnhancedSettingsScreen';
+// import AdvancedSettingsScreen from '../screens/settings/AdvancedSettingsScreen';
+// import TriggerSettingsScreen from '../screens/settings/TriggerSettingsScreen';
+// import IntegrationsScreen from '../screens/settings/IntegrationsScreen';
+// import PremiumScreen from '../screens/profile/PremiumScreen';
+// import HelpCenterScreen from '../screens/support/HelpCenterScreen';
+// import ContactSupportScreen from '../screens/support/ContactSupportScreen';
+// import FeedbackScreen from '../screens/support/FeedbackScreen';
+// import TutorialsScreen from '../screens/support/TutorialsScreen';
+import IoTDashboardScreen from '../screens/IoTDashboardScreen';
+// import NotificationsScreen from '../screens/profile/NotificationsScreen';
+// import BadgesScreen from '../screens/profile/BadgesScreen';
+// import SubscriptionScreen from '../screens/profile/SubscriptionScreen';
+// import CommunityScreen from '../screens/community/CommunityScreen';
+// import TrendingScreen from '../screens/community/TrendingScreen';
+// import ChallengesScreen from '../screens/community/ChallengesScreen';
+// import ShareScreen from '../screens/community/ShareScreen';
+// import AutomationCatalogScreen from '../screens/automation/AutomationCatalogScreen';
+// import SmartSuggestionsScreen from '../screens/automation/SmartSuggestionsScreen';
+// import AutomationEditorScreen from '../screens/automation/AutomationEditorScreen';
+// import SchedulerScreen from '../screens/automation/SchedulerScreen';
+// import TriggerConfigScreen from '../screens/automation/TriggerConfigScreen';
+// import ActionLibraryScreen from '../screens/automation/ActionLibraryScreen';
+// import IntegrationHubScreen from '../screens/integrations/IntegrationHubScreen';
+// import APIKeyManagementScreen from '../screens/integrations/APIKeyManagementScreen';
+// import WebhookManagerScreen from '../screens/integrations/WebhookManagerScreen';
+// import CloudSyncScreen from '../screens/integrations/CloudSyncScreen';
+// import BackupRestoreScreen from '../screens/integrations/BackupRestoreScreen';
+// import AnalyticsDetailScreen from '../screens/analytics/AnalyticsDetailScreen';
+// import PerformanceMetricsScreen from '../screens/analytics/PerformanceMetricsScreen';
+// import UsageStatsScreen from '../screens/analytics/UsageStatsScreen';
+// import AutomationInsightsScreen from '../screens/analytics/AutomationInsightsScreen';
+// import ReportsScreen from '../screens/analytics/ReportsScreen';
+// import NFCWriterScreen from '../screens/nfc/NFCWriterScreen';
+// import NFCReaderScreen from '../screens/nfc/NFCReaderScreen';
+// import NFCManagementScreen from '../screens/nfc/NFCManagementScreen';
+// import QRGeneratorScreen from '../screens/qr/QRGeneratorScreen';
+// import QRManagementScreen from '../screens/qr/QRManagementScreen';
+// import DeploymentManagerScreen from '../screens/deployment/DeploymentManagerScreen';
+// import AccessControlScreen from '../screens/deployment/AccessControlScreen';
+// import SharingSettingsScreen from '../screens/deployment/SharingSettingsScreen';
+// import OnboardingCustomizationScreen from '../screens/onboarding/OnboardingCustomizationScreen';
+// import FirstAutomationGuideScreen from '../screens/onboarding/FirstAutomationGuideScreen';
+// import InteractiveTutorialScreen from '../screens/onboarding/InteractiveTutorialScreen';
+import GalleryScreenFixed from '../screens/automation/GalleryScreenFixed';
+import { AutomationTestScreen } from '../screens/AutomationTestScreen';
+
+// Placeholder component for screens that don't exist yet
+const PlaceholderScreen = ({ route }: any) => {
+  const React = require('react');
+  const { View, Text, StyleSheet } = require('react-native');
+  return (
+    <View style={styles.placeholderContainer}>
+      <Text style={styles.placeholderTitle}>{route.name}</Text>
+      <Text style={styles.placeholderText}>Coming Soon</Text>
+    </View>
+  );
+};
+
+const styles = {
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  placeholderTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: '#666',
+  },
+};
 import { RootStackParamList } from './types';
 import { EventLogger } from '../utils/EventLogger';
 import { NavigationErrorBoundary } from '../components/ErrorBoundaries';
@@ -195,6 +277,11 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         options={{ title: 'Build Automation' }}
       />
       <Stack.Screen
+        name="ModernAutomationBuilder"
+        component={ModernAutomationBuilder}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="AutomationDetails"
         component={AutomationDetailsScreen}
         options={{ title: 'Automation Details' }}
@@ -230,6 +317,11 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         options={{ title: 'Developer Menu' }}
       />
       <Stack.Screen
+        name="AutomationTest"
+        component={AutomationTestScreen}
+        options={{ title: 'Automation Test' }}
+      />
+      <Stack.Screen
         name="ModernReviews"
         component={ReviewsScreen}
         options={{ headerShown: false }}
@@ -241,7 +333,7 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
       />
       <Stack.Screen
         name="Settings"
-        component={EnhancedSettingsScreen}
+        component={SimpleSettingsScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen
@@ -344,6 +436,253 @@ export const MainNavigator: React.FC<MainNavigatorProps> = ({ isAuthenticated = 
         name="AnalyticsDashboard"
         component={AnalyticsDashboard}
         options={{ title: 'Analytics Dashboard' }}
+      />
+      {/* Settings Screens */}
+      <Stack.Screen
+        name="NotificationSettings"
+        component={NotificationSettings}
+        options={{ title: 'Notification Settings' }}
+      />
+      <Stack.Screen
+        name="SecuritySettings"
+        component={PlaceholderScreen}
+        options={{ title: 'Security Settings' }}
+      />
+      <Stack.Screen
+        name="EnhancedSettings"
+        component={EnhancedSettingsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AdvancedSettings"
+        component={PlaceholderScreen}
+        options={{ title: 'Advanced Settings' }}
+      />
+      <Stack.Screen
+        name="TriggerSettings"
+        component={PlaceholderScreen}
+        options={{ title: 'Trigger Settings' }}
+      />
+      <Stack.Screen
+        name="IntegrationsSettings"
+        component={PlaceholderScreen}
+        options={{ title: 'Integrations' }}
+      />
+      {/* Profile Screens */}
+      <Stack.Screen
+        name="Premium"
+        component={PlaceholderScreen}
+        options={{ title: 'Premium' }}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={PlaceholderScreen}
+        options={{ title: 'Notifications' }}
+      />
+      <Stack.Screen
+        name="Badges"
+        component={PlaceholderScreen}
+        options={{ title: 'Badges' }}
+      />
+      <Stack.Screen
+        name="Subscription"
+        component={PlaceholderScreen}
+        options={{ title: 'Subscription' }}
+      />
+      {/* Support Screens */}
+      <Stack.Screen
+        name="HelpCenter"
+        component={PlaceholderScreen}
+        options={{ title: 'Help Center' }}
+      />
+      <Stack.Screen
+        name="ContactSupport"
+        component={PlaceholderScreen}
+        options={{ title: 'Contact Support' }}
+      />
+      <Stack.Screen
+        name="Feedback"
+        component={PlaceholderScreen}
+        options={{ title: 'Feedback' }}
+      />
+      <Stack.Screen
+        name="Tutorials"
+        component={PlaceholderScreen}
+        options={{ title: 'Tutorials' }}
+      />
+      {/* IoT Screen */}
+      <Stack.Screen
+        name="IoTDashboard"
+        component={IoTDashboardScreen}
+        options={{ title: 'IoT Dashboard' }}
+      />
+      {/* Community Screens */}
+      <Stack.Screen
+        name="Community"
+        component={PlaceholderScreen}
+        options={{ title: 'Community' }}
+      />
+      <Stack.Screen
+        name="Trending"
+        component={PlaceholderScreen}
+        options={{ title: 'Trending' }}
+      />
+      <Stack.Screen
+        name="Challenges"
+        component={PlaceholderScreen}
+        options={{ title: 'Challenges' }}
+      />
+      <Stack.Screen
+        name="Share"
+        component={PlaceholderScreen}
+        options={{ title: 'Share' }}
+      />
+      {/* Automation Screens */}
+      <Stack.Screen
+        name="AutomationCatalog"
+        component={PlaceholderScreen}
+        options={{ title: 'Automation Catalog' }}
+      />
+      <Stack.Screen
+        name="SmartSuggestions"
+        component={PlaceholderScreen}
+        options={{ title: 'Smart Suggestions' }}
+      />
+      <Stack.Screen
+        name="AutomationEditor"
+        component={PlaceholderScreen}
+        options={{ title: 'Automation Editor' }}
+      />
+      <Stack.Screen
+        name="Scheduler"
+        component={PlaceholderScreen}
+        options={{ title: 'Scheduler' }}
+      />
+      <Stack.Screen
+        name="TriggerConfig"
+        component={PlaceholderScreen}
+        options={{ title: 'Trigger Configuration' }}
+      />
+      <Stack.Screen
+        name="ActionLibrary"
+        component={PlaceholderScreen}
+        options={{ title: 'Action Library' }}
+      />
+      <Stack.Screen
+        name="GalleryFixed"
+        component={GalleryScreenFixed}
+        options={{ title: 'Gallery' }}
+      />
+      {/* Integration Screens */}
+      <Stack.Screen
+        name="IntegrationHub"
+        component={PlaceholderScreen}
+        options={{ title: 'Integration Hub' }}
+      />
+      <Stack.Screen
+        name="APIKeyManagement"
+        component={PlaceholderScreen}
+        options={{ title: 'API Key Management' }}
+      />
+      <Stack.Screen
+        name="WebhookManager"
+        component={PlaceholderScreen}
+        options={{ title: 'Webhook Manager' }}
+      />
+      <Stack.Screen
+        name="CloudSync"
+        component={PlaceholderScreen}
+        options={{ title: 'Cloud Sync' }}
+      />
+      <Stack.Screen
+        name="BackupRestore"
+        component={PlaceholderScreen}
+        options={{ title: 'Backup & Restore' }}
+      />
+      {/* Analytics Screens */}
+      <Stack.Screen
+        name="AnalyticsDetail"
+        component={PlaceholderScreen}
+        options={{ title: 'Analytics Detail' }}
+      />
+      <Stack.Screen
+        name="PerformanceMetrics"
+        component={PlaceholderScreen}
+        options={{ title: 'Performance Metrics' }}
+      />
+      <Stack.Screen
+        name="UsageStats"
+        component={PlaceholderScreen}
+        options={{ title: 'Usage Statistics' }}
+      />
+      <Stack.Screen
+        name="AutomationInsights"
+        component={PlaceholderScreen}
+        options={{ title: 'Automation Insights' }}
+      />
+      <Stack.Screen
+        name="Reports"
+        component={PlaceholderScreen}
+        options={{ title: 'Reports' }}
+      />
+      {/* NFC Screens */}
+      <Stack.Screen
+        name="NFCWriter"
+        component={PlaceholderScreen}
+        options={{ title: 'NFC Writer' }}
+      />
+      <Stack.Screen
+        name="NFCReader"
+        component={PlaceholderScreen}
+        options={{ title: 'NFC Reader' }}
+      />
+      <Stack.Screen
+        name="NFCManagement"
+        component={PlaceholderScreen}
+        options={{ title: 'NFC Management' }}
+      />
+      {/* QR Screens */}
+      <Stack.Screen
+        name="QRGenerator"
+        component={PlaceholderScreen}
+        options={{ title: 'QR Generator' }}
+      />
+      <Stack.Screen
+        name="QRManagement"
+        component={PlaceholderScreen}
+        options={{ title: 'QR Management' }}
+      />
+      {/* Deployment Screens */}
+      <Stack.Screen
+        name="DeploymentManager"
+        component={PlaceholderScreen}
+        options={{ title: 'Deployment Manager' }}
+      />
+      <Stack.Screen
+        name="AccessControl"
+        component={PlaceholderScreen}
+        options={{ title: 'Access Control' }}
+      />
+      <Stack.Screen
+        name="SharingSettings"
+        component={PlaceholderScreen}
+        options={{ title: 'Sharing Settings' }}
+      />
+      {/* Onboarding Screens */}
+      <Stack.Screen
+        name="OnboardingCustomization"
+        component={PlaceholderScreen}
+        options={{ title: 'Customize Onboarding' }}
+      />
+      <Stack.Screen
+        name="FirstAutomationGuide"
+        component={PlaceholderScreen}
+        options={{ title: 'First Automation Guide' }}
+      />
+      <Stack.Screen
+        name="InteractiveTutorial"
+        component={PlaceholderScreen}
+        options={{ title: 'Interactive Tutorial' }}
       />
       </Stack.Navigator>
     );

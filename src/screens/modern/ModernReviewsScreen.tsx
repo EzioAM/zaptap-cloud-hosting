@@ -16,8 +16,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeTheme } from '../../components/common/ThemeFallbackWrapper';
 import { useNavigation } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
 import { supabase } from '../../services/supabase/client';
 import * as Haptics from 'expo-haptics';
 
@@ -62,7 +60,6 @@ const getAvatarColor = (name: string = '') => {
 const ModernReviewsScreen: React.FC = () => {
   const theme = useSafeTheme();
   const navigation = useNavigation();
-  const { user } = useSelector((state: RootState) => state.auth);
   
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,6 +171,23 @@ const ModernReviewsScreen: React.FC = () => {
     }
   }, [reviews]);
   
+  const deleteReview = async (reviewId: string) => {
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .delete()
+        .eq('id', reviewId);
+      
+      if (!error) {
+        setReviews(prev => prev.filter(r => r.id !== reviewId));
+        Alert.alert('Success', 'Review deleted');
+      }
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      Alert.alert('Error', 'Failed to delete review');
+    }
+  };
+
   const handleDeleteReview = useCallback((reviewId: string) => {
     Alert.alert(
       'Delete Review',
@@ -183,26 +197,36 @@ const ModernReviewsScreen: React.FC = () => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('reviews')
-                .delete()
-                .eq('id', reviewId);
-              
-              if (!error) {
-                setReviews(prev => prev.filter(r => r.id !== reviewId));
-                Alert.alert('Success', 'Review deleted');
-              }
-            } catch (error) {
-              console.error('Error deleting review:', error);
-              Alert.alert('Error', 'Failed to delete review');
-            }
+          onPress: () => {
+            deleteReview(reviewId);
           },
         },
       ]
     );
   }, []);
+  
+  const handleSortToggle = () => {
+    let nextSort: 'recent' | 'rating' | 'helpful';
+    
+    if (sortBy === 'recent') {
+      nextSort = 'rating';
+    } else if (sortBy === 'rating') {
+      nextSort = 'helpful';
+    } else {
+      nextSort = 'recent';
+    }
+    
+    setSortBy(nextSort);
+  };
+  
+  const getSortDisplayText = () => {
+    switch (sortBy) {
+      case 'recent': return 'Recent';
+      case 'rating': return 'Rating';
+      case 'helpful': return 'Most Helpful';
+      default: return 'Recent';
+    }
+  };
   
   const filteredReviews = reviews.filter(review => {
     const matchesSearch = !searchQuery || 
@@ -224,39 +248,58 @@ const ModernReviewsScreen: React.FC = () => {
     }
   });
   
+  const renderStarRating = (rating: number) => (
+    <View style={styles.ratingContainer}>
+      {[1, 2, 3, 4, 5].map(star => (
+        <MaterialCommunityIcons
+          key={star}
+          name={star <= rating ? 'star' : 'star-outline'}
+          size={20}
+          color="#FFB800"
+        />
+      ))}
+      <Text style={[styles.ratingText, { color: theme.colors.onSurfaceVariant }]}>
+        {rating}.0
+      </Text>
+    </View>
+  );
+
+  const renderUserAvatar = (userName?: string, isVerified?: boolean) => (
+    <View style={styles.reviewUser}>
+      <LinearGradient
+        colors={[getAvatarColor(userName), getAvatarColor((userName || '') + '1')]}
+        style={styles.avatar}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <Text style={styles.avatarText}>
+          {userName?.charAt(0)?.toUpperCase() || 'U'}
+        </Text>
+      </LinearGradient>
+      <View>
+        <View style={styles.userInfo}>
+          <Text style={[styles.userName, { color: theme.colors.onSurface }]}>
+            {userName || 'Anonymous'}
+          </Text>
+          {isVerified && (
+            <MaterialCommunityIcons 
+              name="check-decagram" 
+              size={16} 
+              color="#4CAF50" 
+            />
+          )}
+        </View>
+      </View>
+    </View>
+  );
+
   const renderReview = ({ item }: { item: Review }) => (
     <View style={[styles.reviewCard, { backgroundColor: theme.colors.surface }]}>
       <View style={styles.reviewHeader}>
-        <View style={styles.reviewUser}>
-          <LinearGradient
-            colors={[getAvatarColor(item.user_name), getAvatarColor(item.user_name + '1')]}
-            style={styles.avatar}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Text style={styles.avatarText}>
-              {item.user_name?.charAt(0)?.toUpperCase() || 'U'}
-            </Text>
-          </LinearGradient>
-          <View>
-            <View style={styles.userInfo}>
-              <Text style={[styles.userName, { color: theme.colors.onSurface }]}>
-                {item.user_name || 'Anonymous'}
-              </Text>
-              {item.is_verified && (
-                <MaterialCommunityIcons 
-                  name="check-decagram" 
-                  size={16} 
-                  color="#4CAF50" 
-                />
-              )}
-            </View>
-            <Text style={[styles.automationTitle, { color: theme.colors.onSurfaceVariant }]}>
-              {item.automation_title || 'Unknown Automation'}
-            </Text>
-          </View>
-        </View>
-        
+        {renderUserAvatar(item.user_name, item.is_verified)}
+        <Text style={[styles.automationTitle, { color: theme.colors.onSurfaceVariant }]}>
+          {item.automation_title || 'Unknown Automation'}
+        </Text>
         <View style={styles.reviewActions}>
           <TouchableOpacity onPress={() => handleDeleteReview(item.id)}>
             <MaterialCommunityIcons 
@@ -268,19 +311,7 @@ const ModernReviewsScreen: React.FC = () => {
         </View>
       </View>
       
-      <View style={styles.ratingContainer}>
-        {[1, 2, 3, 4, 5].map(star => (
-          <MaterialCommunityIcons
-            key={star}
-            name={star <= item.rating ? 'star' : 'star-outline'}
-            size={20}
-            color="#FFB800"
-          />
-        ))}
-        <Text style={[styles.ratingText, { color: theme.colors.onSurfaceVariant }]}>
-          {item.rating}.0
-        </Text>
-      </View>
+      {renderStarRating(item.rating)}
       
       <Text style={[styles.reviewComment, { color: theme.colors.onSurface }]}>
         {item.comment}
@@ -308,6 +339,37 @@ const ModernReviewsScreen: React.FC = () => {
     </View>
   );
   
+  const renderFilterChip = (rating: number | null, label: string, hasIcon: boolean = false) => {
+    const isActive = filterRating === rating;
+    return (
+      <TouchableOpacity
+        key={rating || 'all'}
+        style={[
+          styles.filterChip,
+          isActive && styles.filterChipActive,
+          { 
+            backgroundColor: isActive ? theme.colors.primary : theme.colors.surfaceVariant 
+          }
+        ]}
+        onPress={() => setFilterRating(rating)}
+      >
+        {hasIcon && (
+          <MaterialCommunityIcons 
+            name="star" 
+            size={16} 
+            color={isActive ? 'white' : theme.colors.onSurfaceVariant} 
+          />
+        )}
+        <Text style={[
+          styles.filterChipText,
+          { color: isActive ? 'white' : theme.colors.onSurfaceVariant }
+        ]}>
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   const renderRatingFilter = () => (
     <ScrollView 
       horizontal 
@@ -315,49 +377,10 @@ const ModernReviewsScreen: React.FC = () => {
       style={styles.filterContainer}
       contentContainerStyle={styles.filterContent}
     >
-      <TouchableOpacity
-        style={[
-          styles.filterChip,
-          !filterRating && styles.filterChipActive,
-          { 
-            backgroundColor: !filterRating ? theme.colors.primary : theme.colors.surfaceVariant 
-          }
-        ]}
-        onPress={() => setFilterRating(null)}
-      >
-        <Text style={[
-          styles.filterChipText,
-          { color: !filterRating ? 'white' : theme.colors.onSurfaceVariant }
-        ]}>
-          All
-        </Text>
-      </TouchableOpacity>
-      
-      {[5, 4, 3, 2, 1].map(rating => (
-        <TouchableOpacity
-          key={rating}
-          style={[
-            styles.filterChip,
-            filterRating === rating && styles.filterChipActive,
-            { 
-              backgroundColor: filterRating === rating ? theme.colors.primary : theme.colors.surfaceVariant 
-            }
-          ]}
-          onPress={() => setFilterRating(rating)}
-        >
-          <MaterialCommunityIcons 
-            name="star" 
-            size={16} 
-            color={filterRating === rating ? 'white' : theme.colors.onSurfaceVariant} 
-          />
-          <Text style={[
-            styles.filterChipText,
-            { color: filterRating === rating ? 'white' : theme.colors.onSurfaceVariant }
-          ]}>
-            {rating}
-          </Text>
-        </TouchableOpacity>
-      ))}
+      {renderFilterChip(null, 'All')}
+      {[5, 4, 3, 2, 1].map(rating => 
+        renderFilterChip(rating, rating.toString(), true)
+      )}
     </ScrollView>
   );
   
@@ -376,9 +399,7 @@ const ModernReviewsScreen: React.FC = () => {
           Reviews & Ratings
         </Text>
         
-        <TouchableOpacity onPress={() => setSortBy(
-          sortBy === 'recent' ? 'rating' : sortBy === 'rating' ? 'helpful' : 'recent'
-        )}>
+        <TouchableOpacity onPress={handleSortToggle}>
           <MaterialCommunityIcons 
             name="sort" 
             size={24} 
@@ -409,7 +430,7 @@ const ModernReviewsScreen: React.FC = () => {
           {filteredReviews.length} Reviews
         </Text>
         <Text style={[styles.statsText, { color: theme.colors.onSurfaceVariant }]}>
-          Sorted by: {sortBy === 'recent' ? 'Recent' : sortBy === 'rating' ? 'Rating' : 'Most Helpful'}
+          Sorted by: {getSortDisplayText()}
         </Text>
       </View>
       
