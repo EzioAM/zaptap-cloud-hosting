@@ -66,8 +66,7 @@ export default {
         ITSAppUsesNonExemptEncryption: false
       },
       entitlements: {
-        "com.apple.developer.nfc.readersession.formats": ["NDEF", "TAG"],
-        "com.apple.developer.weatherkit": true
+        "com.apple.developer.nfc.readersession.formats": ["NDEF", "TAG"]
       }
     },
     android: {
