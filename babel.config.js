@@ -26,7 +26,15 @@ module.exports = function(api) {
           'transform-remove-console',
           'babel-plugin-transform-remove-debugger'
         ]
+      },
+      development: {
+        // Ensure source maps are generated in development
+        sourceMaps: true,
+        retainLines: true
       }
-    }
+    },
+    // Enable source maps globally for development
+    sourceMaps: process.env.NODE_ENV !== 'production',
+    retainLines: process.env.NODE_ENV !== 'production'
   };
 };

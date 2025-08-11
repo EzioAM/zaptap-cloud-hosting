@@ -19,6 +19,17 @@
         {
           "locationAlwaysAndWhenInUsePermission": "ZapTap uses your location to provide weather-based visual effects and location-based automations."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "newArchEnabled": false
+          },
+          "android": {
+            "newArchEnabled": false
+          }
+        }
       ]
     ],
     "platforms": ["ios", "android"],

@@ -3,6 +3,10 @@
     "editor.defaultFormatter": "denoland.vscode-deno"
   },
   "claudeCodeChat.permissions.yoloMode": false,
+  "cSpell.words": [
+    "supabase",
+    "Supabase"
+  ],
   "deno.enablePaths": [
     "supabase/functions"
   ],
